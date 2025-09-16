@@ -1,0 +1,215 @@
+version: '3.8'
+
+networks:
+  msq-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
+
+services:
+  # =============================================================================
+  # Database Services
+  # =============================================================================
+  mysql:
+    image: mysql:8.0
+    container_name: msq-mysql-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: msq_monitor
+      MYSQL_USER: msq_user
+      MYSQL_PASSWORD: msq_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./volumes/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - msq-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: msq-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - msq-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 10s
+      retries: 5
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: msq-phpmyadmin-dev
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: msq_user
+      PMA_PASSWORD: msq_password
+    ports:
+      - "8080:80"
+    networks:
+      - msq-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # =============================================================================
+  # Application Services (Development Mode)
+  # =============================================================================
+  tx-dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.packages
+      target: development
+      args:
+        SERVICE_NAME: tx-dashboard
+    container_name: msq-tx-dashboard-dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../apps/tx-dashboard:/app/apps/tx-dashboard
+      - ../libs:/app/libs
+      - /app/node_modules
+      - /app/apps/tx-dashboard/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8000
+      - VITE_WS_URL=ws://localhost:8001
+    networks:
+      - msq-network
+    depends_on:
+      - tx-api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      timeout: 10s
+      retries: 5
+
+  tx-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.packages
+      target: development
+      args:
+        SERVICE_NAME: tx-api
+    container_name: msq-tx-api-dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../apps/tx-api:/app/apps/tx-api
+      - ../libs:/app/libs
+      - /app/node_modules
+      - /app/apps/tx-api/node_modules
+    environment:
+      - NODE_ENV=development
+      - PORT=8000
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=msq_monitor
+      - MYSQL_USERNAME=msq_user
+      - MYSQL_PASSWORD=msq_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CORS_ORIGIN=http://localhost:3000
+      - RATE_LIMIT_MAX_REQUESTS=100
+    networks:
+      - msq-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      timeout: 10s
+      retries: 5
+
+  chain-scanner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.packages
+      target: development
+      args:
+        SERVICE_NAME: chain-scanner
+    container_name: msq-chain-scanner-dev
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    volumes:
+      - ../apps/chain-scanner:/app/apps/chain-scanner
+      - ../libs:/app/libs
+      - /app/node_modules
+      - /app/apps/chain-scanner/node_modules
+    environment:
+      - NODE_ENV=development
+      - WS_PORT=8001
+      - POLYGON_RPC_URL=https://polygon-rpc.com
+      - POLYGON_BACKUP_RPC_1=https://polygon.llamarpc.com
+      - POLYGON_BACKUP_RPC_2=https://polygon.drpc.org
+      - TOKEN_MSQ=0x0000000000000000000000000000000000000001
+      - TOKEN_SUT=0x0000000000000000000000000000000000000002
+      - TOKEN_KWT=0x0000000000000000000000000000000000000003
+      - TOKEN_P2UC=0x0000000000000000000000000000000000000004
+      - SCAN_INTERVAL_MS=5000
+      - BLOCK_CONFIRMATION=12
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=msq_monitor
+      - MYSQL_USERNAME=msq_user
+      - MYSQL_PASSWORD=msq_password
+    networks:
+      - msq-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      timeout: 10s
+      retries: 5
+
+  tx-analyzer:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.packages
+      target: development
+      args:
+        SERVICE_NAME: tx-analyzer
+    container_name: msq-tx-analyzer-dev
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    volumes:
+      - ../apps/tx-analyzer:/app
+    environment:
+      - ENVIRONMENT=development
+      - PORT=8002
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=msq_monitor
+      - MYSQL_USERNAME=msq_user
+      - MYSQL_PASSWORD=msq_password
+      - ANOMALY_THRESHOLD=0.85
+      - WHALE_THRESHOLD=1000000
+      - DETECTION_WINDOW_SIZE=100
+    networks:
+      - msq-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      timeout: 10s
+      retries: 5

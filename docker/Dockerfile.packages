@@ -1,0 +1,139 @@
+# Multi-stage Dockerfile for MSQ Transaction Monitor
+# Build argument to specify which service to build
+ARG SERVICE_NAME
+
+# =============================================================================
+# Base stage - Common base for all Node.js services
+# =============================================================================
+FROM node:18-alpine AS base
+WORKDIR /app
+RUN apk add --no-cache python3 make g++
+
+# Copy package files and install dependencies
+COPY package*.json ./
+COPY nx.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy source code
+COPY . .
+
+# =============================================================================
+# Development stage for tx-dashboard (React with Vite)
+# =============================================================================
+FROM base AS tx-dashboard-dev
+WORKDIR /app
+RUN npm ci
+COPY apps/tx-dashboard ./apps/tx-dashboard/
+COPY libs ./libs/
+EXPOSE 3000
+CMD ["npx", "nx", "serve", "tx-dashboard", "--host", "0.0.0.0", "--port", "3000"]
+
+# =============================================================================
+# Production stage for tx-dashboard (React build + serve)
+# =============================================================================
+FROM base AS tx-dashboard-build
+WORKDIR /app
+RUN npm ci
+COPY apps/tx-dashboard ./apps/tx-dashboard/
+COPY libs ./libs/
+RUN npx nx build tx-dashboard --prod
+
+FROM nginx:alpine AS tx-dashboard-prod
+COPY --from=tx-dashboard-build /app/dist/apps/tx-dashboard /usr/share/nginx/html
+COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+
+# =============================================================================
+# Development stage for tx-api (Express.js)
+# =============================================================================
+FROM base AS tx-api-dev
+WORKDIR /app
+RUN npm ci
+COPY apps/tx-api ./apps/tx-api/
+COPY libs ./libs/
+EXPOSE 8000
+CMD ["npx", "nx", "serve", "tx-api", "--host", "0.0.0.0"]
+
+# =============================================================================
+# Production stage for tx-api (Express.js)
+# =============================================================================
+FROM base AS tx-api-build
+WORKDIR /app
+RUN npm ci
+COPY apps/tx-api ./apps/tx-api/
+COPY libs ./libs/
+RUN npx nx build tx-api --prod
+
+FROM node:18-alpine AS tx-api-prod
+WORKDIR /app
+COPY --from=tx-api-build /app/dist/apps/tx-api ./
+COPY --from=tx-api-build /app/node_modules ./node_modules
+EXPOSE 8000
+CMD ["node", "main.js"]
+
+# =============================================================================
+# Development stage for chain-scanner (Node.js)
+# =============================================================================
+FROM base AS chain-scanner-dev
+WORKDIR /app
+RUN npm ci
+COPY apps/chain-scanner ./apps/chain-scanner/
+COPY libs ./libs/
+EXPOSE 8001
+CMD ["npx", "nx", "serve", "chain-scanner", "--host", "0.0.0.0"]
+
+# =============================================================================
+# Production stage for chain-scanner (Node.js)
+# =============================================================================
+FROM base AS chain-scanner-build
+WORKDIR /app
+RUN npm ci
+COPY apps/chain-scanner ./apps/chain-scanner/
+COPY libs ./libs/
+RUN npx nx build chain-scanner --prod
+
+FROM node:18-alpine AS chain-scanner-prod
+WORKDIR /app
+COPY --from=chain-scanner-build /app/dist/apps/chain-scanner ./
+COPY --from=chain-scanner-build /app/node_modules ./node_modules
+EXPOSE 8001
+CMD ["node", "main.js"]
+
+# =============================================================================
+# Development stage for tx-analyzer (Python FastAPI)
+# =============================================================================
+FROM python:3.11-slim AS tx-analyzer-dev
+WORKDIR /app
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY apps/tx-analyzer/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY apps/tx-analyzer ./
+EXPOSE 8002
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
+
+# =============================================================================
+# Production stage for tx-analyzer (Python FastAPI)
+# =============================================================================
+FROM python:3.11-slim AS tx-analyzer-prod
+WORKDIR /app
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY apps/tx-analyzer/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY apps/tx-analyzer ./
+EXPOSE 8002
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8002"]
+
+# =============================================================================
+# Final stage selector - dynamically choose which service to build
+# =============================================================================
+FROM ${SERVICE_NAME}-dev AS development
+FROM ${SERVICE_NAME}-prod AS production
