@@ -14,9 +14,15 @@
         "outputPath": "dist/apps/tx-api",
         "main": "apps/tx-api/src/main.ts",
         "tsConfig": "apps/tx-api/tsconfig.app.json",
+        "webpackConfig": "apps/tx-api/webpack.config.js",
         "assets": []
       },
       "configurations": {
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "inspect": false
+        },
         "production": {
           "optimization": true,
           "extractLicenses": true,
