@@ -13,7 +13,7 @@ describe('TX API App', () => {
     (DatabaseConnection.testConnection as jest.Mock).mockResolvedValue(true);
     (RedisConnection.testConnection as jest.Mock).mockResolvedValue(true);
     (RedisConnection.getInstance as jest.Mock).mockResolvedValue({
-      ping: jest.fn().mockResolvedValue('PONG')
+      ping: jest.fn().mockResolvedValue('PONG'),
     });
   });
 
@@ -23,9 +23,7 @@ describe('TX API App', () => {
 
   describe('Health Check', () => {
     it('should return healthy status when services are available', async () => {
-      const response = await request(app)
-        .get('/health')
-        .expect(200);
+      const response = await request(app).get('/health').expect(200);
 
       expect(response.body).toHaveProperty('status', 'healthy');
       expect(response.body).toHaveProperty('timestamp');
@@ -40,9 +38,7 @@ describe('TX API App', () => {
       (DatabaseConnection.testConnection as jest.Mock).mockResolvedValue(false);
       (RedisConnection.testConnection as jest.Mock).mockResolvedValue(false);
 
-      const response = await request(app)
-        .get('/health')
-        .expect(503);
+      const response = await request(app).get('/health').expect(503);
 
       expect(response.body).toHaveProperty('status', 'degraded');
       expect(response.body.services.database.status).toBe('unhealthy');
@@ -52,9 +48,7 @@ describe('TX API App', () => {
 
   describe('API Status', () => {
     it('should return API status on /api/v1/status', async () => {
-      const response = await request(app)
-        .get('/api/v1/status')
-        .expect(200);
+      const response = await request(app).get('/api/v1/status').expect(200);
 
       expect(response.body).toHaveProperty('message');
       expect(response.body).toHaveProperty('version');
@@ -70,7 +64,10 @@ describe('TX API App', () => {
 
       expect(response.body).toHaveProperty('error');
       expect(response.body.error).toHaveProperty('code', 404);
-      expect(response.body.error).toHaveProperty('message', 'Resource not found');
+      expect(response.body.error).toHaveProperty(
+        'message',
+        'Resource not found'
+      );
     });
   });
 });

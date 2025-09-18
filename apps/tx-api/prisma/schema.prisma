@@ -1,0 +1,189 @@
+// MSQ Transaction Monitor - Prisma Schema
+// This schema defines the database structure for tracking blockchain transactions
+// on the Polygon network for MSQ ecosystem tokens (MSQ, SUT, KWT, P2UC)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// Token Model - Represents MSQ ecosystem tokens
+// =============================================================================
+model Token {
+  id          Int      @id @default(autoincrement())
+  address     String   @unique @db.VarChar(42)
+  symbol      String   @db.VarChar(10)
+  name        String   @db.VarChar(100)
+  decimals    Int      @default(18)
+  totalSupply Decimal? @db.Decimal(38, 0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  transactions      Transaction[]
+  addressStatistics AddressStatistics[]
+
+  @@index([symbol])
+  @@index([isActive])
+  @@map("tokens")
+}
+
+// =============================================================================
+// Transaction Model - Blockchain transaction records
+// =============================================================================
+model Transaction {
+  id               BigInt   @id @default(autoincrement())
+  hash             String   @unique @db.VarChar(66)
+  blockNumber      BigInt
+  transactionIndex Int
+  fromAddress      String   @db.VarChar(42)
+  toAddress        String   @db.VarChar(42)
+  value            Decimal  @db.Decimal(38, 0)
+  tokenAddress     String   @db.VarChar(42)
+  tokenSymbol      String   @db.VarChar(10)
+  gasUsed          BigInt?
+  gasPrice         BigInt?
+  timestamp        DateTime
+  anomalyScore     Decimal  @default(0.0000) @db.Decimal(5, 4)
+  isAnomaly        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  token     Token      @relation(fields: [tokenAddress], references: [address])
+  anomalies Anomaly[]
+
+  @@index([blockNumber])
+  @@index([fromAddress])
+  @@index([toAddress])
+  @@index([tokenAddress])
+  @@index([tokenSymbol])
+  @@index([timestamp])
+  @@index([isAnomaly, anomalyScore])
+  @@index([value])
+  @@index([fromAddress, tokenAddress])
+  @@index([timestamp, tokenSymbol])
+  @@map("transactions")
+}
+
+// =============================================================================
+// Address Statistics Model - Aggregated statistics per address
+// =============================================================================
+model AddressStatistics {
+  id                      BigInt   @id @default(autoincrement())
+  address                 String   @db.VarChar(42)
+  tokenAddress            String   @db.VarChar(42)
+  totalSent               Decimal  @default(0) @db.Decimal(38, 0)
+  totalReceived           Decimal  @default(0) @db.Decimal(38, 0)
+  transactionCountSent    Int      @default(0)
+  transactionCountReceived Int      @default(0)
+  firstSeen               DateTime?
+  lastSeen                DateTime?
+  avgTransactionSize      Decimal  @default(0) @db.Decimal(38, 6)
+  maxTransactionSize      Decimal  @default(0) @db.Decimal(38, 0)
+  riskScore               Decimal  @default(0.0000) @db.Decimal(5, 4)
+  isWhale                 Boolean  @default(false)
+  isSuspicious            Boolean  @default(false)
+  updatedAt               DateTime @updatedAt
+
+  // Relations
+  token Token @relation(fields: [tokenAddress], references: [address])
+
+  @@unique([address, tokenAddress])
+  @@index([address])
+  @@index([tokenAddress])
+  @@index([riskScore])
+  @@index([isWhale])
+  @@index([isSuspicious])
+  @@index([totalSent])
+  @@index([totalReceived])
+  @@index([lastSeen])
+  @@map("address_statistics")
+}
+
+// =============================================================================
+// Anomaly Model - Detected anomalies in transactions
+// =============================================================================
+enum AnomalyType {
+  VOLUME
+  FREQUENCY
+  BEHAVIORAL
+  PATTERN
+  TIME_BASED
+  WHALE
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Anomaly {
+  id              BigInt      @id @default(autoincrement())
+  transactionHash String      @db.VarChar(66)
+  anomalyType     AnomalyType
+  severity        Severity
+  score           Decimal     @db.Decimal(5, 4)
+  description     String?     @db.Text
+  metadata        Json?
+  detectedAt      DateTime    @default(now())
+  reviewed        Boolean     @default(false)
+  reviewedBy      String?     @db.VarChar(100)
+  reviewedAt      DateTime?
+  falsePositive   Boolean     @default(false)
+
+  // Relations
+  transaction Transaction @relation(fields: [transactionHash], references: [hash], onDelete: Cascade)
+
+  @@index([transactionHash])
+  @@index([severity])
+  @@index([anomalyType])
+  @@index([detectedAt])
+  @@index([score])
+  @@index([reviewed])
+  @@index([anomalyType, severity])
+  @@map("anomalies")
+}
+
+// =============================================================================
+// System Statistics Model - Cached system metrics
+// =============================================================================
+model SystemStatistics {
+  id          Int      @id @default(autoincrement())
+  metricName  String   @unique @db.VarChar(100)
+  metricValue Decimal? @db.Decimal(38, 6)
+  metricText  String?  @db.Text
+  updatedAt   DateTime @updatedAt
+
+  @@index([updatedAt])
+  @@map("system_statistics")
+}
+
+// =============================================================================
+// Block Processing Status Model - Track blockchain sync status
+// =============================================================================
+model BlockProcessingStatus {
+  id                 Int      @id @default(autoincrement())
+  chainId            Int      @default(137) // Polygon mainnet
+  lastProcessedBlock BigInt   @default(0)
+  currentBlock       BigInt   @default(0)
+  isSyncing          Boolean  @default(false)
+  lastSyncAt         DateTime @updatedAt
+  errorCount         Int      @default(0)
+  lastError          String?  @db.Text
+  createdAt          DateTime @default(now())
+
+  @@unique([chainId])
+  @@index([chainId])
+  @@index([lastProcessedBlock])
+  @@index([isSyncing])
+  @@map("block_processing_status")
+}

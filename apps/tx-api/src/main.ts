@@ -1,5 +1,8 @@
 import { app } from './app';
-import { initializeConnections, closeConnections } from './middleware/database.middleware';
+import {
+  initializeConnections,
+  closeConnections,
+} from './middleware/database.middleware';
 
 const port = process.env.PORT || 8000;
 
@@ -29,7 +32,6 @@ async function startServer() {
         process.exit(0);
       });
     });
-
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);

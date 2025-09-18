@@ -27,7 +27,18 @@ addressRoutes.get('/rankings', addressController.getTopAddressesByVolume);
  * @query {number} [limit=50] - Number of results to return (max 100)
  * @returns {TopAddressesResponse} Ranked addresses by frequency
  */
-addressRoutes.get('/rankings/frequency', addressController.getTopAddressesByFrequency);
+addressRoutes.get(
+  '/rankings/frequency',
+  addressController.getTopAddressesByFrequency
+);
+
+/**
+ * @route GET /api/v1/addresses/stats/:address
+ * @description Get detailed statistics for a specific address
+ * @param {string} address - Ethereum address (0x prefixed 40-char hex)
+ * @returns {AddressStatistics} Detailed address statistics and analytics
+ */
+addressRoutes.get('/stats/:address', addressController.getAddressStatistics);
 
 /**
  * @route GET /api/v1/addresses/search
@@ -36,4 +47,8 @@ addressRoutes.get('/rankings/frequency', addressController.getTopAddressesByFreq
  * @query {number} [limit=10] - Number of results to return (max 20)
  * @returns {AddressSearch[]} Matching addresses with transaction data
  */
-addressRoutes.get('/search', searchRateLimiter, addressController.searchAddresses);
+addressRoutes.get(
+  '/search',
+  searchRateLimiter,
+  addressController.searchAddresses
+);

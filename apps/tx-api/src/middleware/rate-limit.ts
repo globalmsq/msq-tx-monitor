@@ -11,11 +11,11 @@ export const rateLimiter = rateLimit({
       code: 429,
       message: 'Too many requests',
       details: 'Rate limit exceeded. Please try again later.',
-      timestamp: new Date().toISOString()
-    }
+      timestamp: new Date().toISOString(),
+    },
   },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false // Disable the `X-RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
 // Slow down configuration for gradual response delays
@@ -23,7 +23,7 @@ export const speedLimiter = slowDown({
   windowMs: config.rateLimit.windowMs, // 1 minute window
   delayAfter: Math.floor(config.rateLimit.max * 0.5), // Start slowing after 50% of limit
   delayMs: () => 500, // Add 500ms delay per request after threshold (new v3 syntax)
-  maxDelayMs: 2000 // Maximum delay of 2 seconds
+  maxDelayMs: 2000, // Maximum delay of 2 seconds
 });
 
 // Stricter rate limit for search endpoints (potential for abuse)
@@ -34,12 +34,13 @@ export const searchRateLimiter = rateLimit({
     error: {
       code: 429,
       message: 'Search rate limit exceeded',
-      details: 'Too many search requests. Please slow down your search queries.',
-      timestamp: new Date().toISOString()
-    }
+      details:
+        'Too many search requests. Please slow down your search queries.',
+      timestamp: new Date().toISOString(),
+    },
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 
 // Very strict rate limit for health check endpoint to prevent monitoring abuse
@@ -51,9 +52,9 @@ export const healthRateLimiter = rateLimit({
       code: 429,
       message: 'Health check rate limit exceeded',
       details: 'Too many health check requests.',
-      timestamp: new Date().toISOString()
-    }
+      timestamp: new Date().toISOString(),
+    },
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });

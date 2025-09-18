@@ -35,7 +35,7 @@
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "tx-api:build",
-        "port": 8000
+        "runBuildTargetDependencies": false
       },
       "configurations": {
         "development": {

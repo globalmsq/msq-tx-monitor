@@ -45,7 +45,10 @@ transactionRoutes.get('/:hash', transactionController.getTransactionByHash);
  * @query {number} [limit=20] - Number of results per page (max 100)
  * @returns {TransactionListResponse} Paginated transaction list for the address
  */
-transactionRoutes.get('/address/:address', transactionController.getTransactionsByAddress);
+transactionRoutes.get(
+  '/address/:address',
+  transactionController.getTransactionsByAddress
+);
 
 /**
  * @route GET /api/v1/transactions/address/:address/summary
@@ -53,4 +56,7 @@ transactionRoutes.get('/address/:address', transactionController.getTransactions
  * @param {string} address - Ethereum address (0x prefixed 40-char hex)
  * @returns {AddressTransactionSummary} Address transaction summary
  */
-transactionRoutes.get('/address/:address/summary', transactionController.getAddressSummary);
+transactionRoutes.get(
+  '/address/:address/summary',
+  transactionController.getAddressSummary
+);

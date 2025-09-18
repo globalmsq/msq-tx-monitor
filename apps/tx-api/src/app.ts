@@ -8,14 +8,18 @@ import { errorHandler, notFoundHandler } from './middleware/error-handler';
 import { databaseMiddleware } from './middleware/database.middleware';
 import { healthCheck } from './controllers/health.controller';
 import { apiRoutes } from './routes';
-import { rateLimiter, speedLimiter, healthRateLimiter, searchRateLimiter } from './middleware/rate-limit';
+import {
+  rateLimiter,
+  speedLimiter,
+  healthRateLimiter,
+} from './middleware/rate-limit';
 import {
   requestId,
   securityHeaders,
   apiVersionHeader,
   corsPreflightHandler,
   requestSizeLimit,
-  requestLogger
+  requestLogger,
 } from './middleware/security';
 import { setupSwagger } from './middleware/swagger';
 
@@ -30,10 +34,12 @@ app.use(securityHeaders);
 app.use(apiVersionHeader);
 
 // Enhanced security middleware
-app.use(helmet({
-  contentSecurityPolicy: false, // We handle CSP in securityHeaders
-  crossOriginEmbedderPolicy: false
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // We handle CSP in securityHeaders
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 // Request size and speed limiting
 app.use(requestSizeLimit);
@@ -41,12 +47,14 @@ app.use(speedLimiter);
 
 // CORS configuration with preflight handling
 app.use(corsPreflightHandler);
-app.use(cors({
-  origin: config.cors.origin,
-  methods: config.cors.methods,
-  allowedHeaders: config.cors.allowedHeaders,
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: config.cors.origin,
+    methods: config.cors.methods,
+    allowedHeaders: config.cors.allowedHeaders,
+    credentials: true,
+  })
+);
 
 // Compression middleware
 app.use(compression());
@@ -79,7 +87,7 @@ app.get('/api/v1/status', (req, res) => {
   res.json({
     message: 'TX API Server is running',
     version: config.api.version,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 

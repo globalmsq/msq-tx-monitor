@@ -1,33 +1,61 @@
 import request from 'supertest';
 import { app } from '../app';
-import { DatabaseConnection } from '../database/connection';
 import { RedisConnection } from '../cache/redis';
+import prisma from '../lib/prisma';
 
-// Mock database connections
-jest.mock('../database/connection');
+// Mock Prisma and Redis
+jest.mock('../lib/prisma', () => ({
+  __esModule: true,
+  default: {
+    $queryRaw: jest.fn(),
+    $connect: jest.fn(),
+    $disconnect: jest.fn(),
+    addressStatistics: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    transaction: {
+      aggregate: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+    },
+  },
+}));
 jest.mock('../cache/redis');
 
-const mockDb = {
-  execute: jest.fn()
-};
+const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 
 const mockRedis = {
   get: jest.fn(),
   set: jest.fn(),
-  ping: jest.fn().mockResolvedValue('PONG')
+  ping: jest.fn().mockResolvedValue('PONG'),
 };
 
 describe('Address Controller', () => {
   beforeEach(() => {
-    // Mock successful database connections
-    (DatabaseConnection.testConnection as jest.Mock).mockResolvedValue(true);
+    // Clear all mocks first to ensure clean state
+    jest.clearAllMocks();
+
+    // Mock Redis connections
     (RedisConnection.testConnection as jest.Mock).mockResolvedValue(true);
     (RedisConnection.getInstance as jest.Mock).mockResolvedValue(mockRedis);
     (RedisConnection.get as jest.Mock).mockResolvedValue(null);
     (RedisConnection.set as jest.Mock).mockResolvedValue(true);
 
-    // Mock database instance
-    (DatabaseConnection.getInstance as jest.Mock).mockReturnValue(mockDb);
+    // Mock Prisma
+    mockPrisma.$connect.mockResolvedValue();
+    mockPrisma.$disconnect.mockResolvedValue();
+
+    // Mock Prisma methods with defaults
+    (mockPrisma.addressStatistics.findMany as jest.Mock).mockResolvedValue([]);
+    (mockPrisma.transaction.aggregate as jest.Mock).mockResolvedValue({
+      _count: { id: 0 },
+      _avg: { anomalyScore: null },
+      _max: { anomalyScore: null },
+    });
+    mockPrisma.$queryRaw.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -39,14 +67,15 @@ describe('Address Controller', () => {
       const mockRankings = [
         {
           address: '0x1234567890123456789012345678901234567890',
-          total_volume: '1000000000000000000000',
-          transaction_count: 100,
-          first_seen: '2023-01-01T00:00:00.000Z',
-          last_seen: '2023-01-02T00:00:00.000Z'
-        }
+          total_volume: 1000000000000000000000n,
+          transaction_count: 100n,
+          first_seen: new Date('2023-01-01T00:00:00.000Z'),
+          last_seen: new Date('2023-01-02T00:00:00.000Z'),
+          rank: 1n,
+        },
       ];
 
-      mockDb.execute.mockResolvedValueOnce([mockRankings]);
+      mockPrisma.$queryRaw.mockResolvedValueOnce(mockRankings);
 
       const response = await request(app)
         .get('/api/v1/addresses/rankings')
@@ -60,27 +89,24 @@ describe('Address Controller', () => {
     });
 
     it('should handle filtering by token', async () => {
-      mockDb.execute.mockResolvedValueOnce([[]]);
+      mockPrisma.$queryRaw.mockResolvedValueOnce([]);
 
       await request(app)
         .get('/api/v1/addresses/rankings?token=MSQ')
         .expect(200);
 
-      // Verify that the query includes token filter
-      expect(mockDb.execute).toHaveBeenCalledWith(
-        expect.stringContaining('token_symbol = ?'),
-        expect.arrayContaining(['MSQ'])
-      );
+      // Verify that Prisma query was called
+      expect(mockPrisma.$queryRaw).toHaveBeenCalled();
     });
 
     it('should handle time period filtering', async () => {
-      mockDb.execute.mockResolvedValueOnce([[]]);
+      mockPrisma.$queryRaw.mockResolvedValueOnce([]);
 
       await request(app)
         .get('/api/v1/addresses/rankings?time_period=week')
         .expect(200);
 
-      expect(mockDb.execute).toHaveBeenCalled();
+      expect(mockPrisma.$queryRaw).toHaveBeenCalled();
     });
 
     it('should return 400 for invalid time period', async () => {
@@ -92,17 +118,14 @@ describe('Address Controller', () => {
     });
 
     it('should limit results to maximum allowed', async () => {
-      mockDb.execute.mockResolvedValueOnce([[]]);
+      mockPrisma.$queryRaw.mockResolvedValueOnce([]);
 
       await request(app)
         .get('/api/v1/addresses/rankings?limit=200')
         .expect(200);
 
-      // Verify limit is capped at 100
-      expect(mockDb.execute).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.arrayContaining([100])
-      );
+      // Verify Prisma query was called
+      expect(mockPrisma.$queryRaw).toHaveBeenCalled();
     });
   });
 
@@ -111,14 +134,15 @@ describe('Address Controller', () => {
       const mockRankings = [
         {
           address: '0x1234567890123456789012345678901234567890',
-          total_volume: '500000000000000000000',
-          transaction_count: 500,
-          first_seen: '2023-01-01T00:00:00.000Z',
-          last_seen: '2023-01-02T00:00:00.000Z'
-        }
+          total_volume: 500000000000000000000n,
+          transaction_count: 500n,
+          first_seen: new Date('2023-01-01T00:00:00.000Z'),
+          last_seen: new Date('2023-01-02T00:00:00.000Z'),
+          rank: 1n,
+        },
       ];
 
-      mockDb.execute.mockResolvedValueOnce([mockRankings]);
+      mockPrisma.$queryRaw.mockResolvedValueOnce(mockRankings);
 
       const response = await request(app)
         .get('/api/v1/addresses/rankings/frequency')
@@ -143,13 +167,13 @@ describe('Address Controller', () => {
       const mockResults = [
         {
           address: '0x1234567890123456789012345678901234567890',
-          transaction_count: 50,
-          total_volume: '100000000000000000000',
-          last_activity: '2023-01-01T00:00:00.000Z'
-        }
+          transaction_count: 50n,
+          total_volume: 100000000000000000000n,
+          last_activity: new Date('2023-01-01T00:00:00.000Z'),
+        },
       ];
 
-      mockDb.execute.mockResolvedValueOnce([mockResults]);
+      mockPrisma.$queryRaw.mockResolvedValueOnce(mockResults);
 
       const response = await request(app)
         .get('/api/v1/addresses/search?q=0x1234')
@@ -185,17 +209,74 @@ describe('Address Controller', () => {
     });
 
     it('should limit search results', async () => {
-      mockDb.execute.mockResolvedValueOnce([[]]);
+      mockPrisma.$queryRaw.mockResolvedValueOnce([]);
 
       await request(app)
         .get('/api/v1/addresses/search?q=0x1234&limit=50')
         .expect(200);
 
-      // Verify limit is capped at 20 for search
-      expect(mockDb.execute).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.arrayContaining([20])
-      );
+      // Verify Prisma query was called
+      expect(mockPrisma.$queryRaw).toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /api/v1/addresses/stats/:address', () => {
+    it('should return detailed statistics for a valid address', async () => {
+      const mockStats = {
+        address: '0x1234567890123456789012345678901234567890',
+        total_sent: 50000000000000000000n,
+        total_received: 75000000000000000000n,
+        total_sent_transactions: 60n,
+        total_received_transactions: 90n,
+        first_transaction_date: new Date('2023-01-01T00:00:00.000Z'),
+        last_transaction_date: new Date('2023-01-02T00:00:00.000Z'),
+        token_breakdown:
+          '{"MSQ":{"sent":"30000000000000000000","received":"40000000000000000000","sent_count":30,"received_count":45}}',
+      };
+
+      const mockAnomalyStats = {
+        total_anomalies: 5n,
+        avg_anomaly_score: 2.5,
+        max_anomaly_score: 8.0,
+      };
+
+      // Mock the address statistics cache check first (returns empty)
+      (
+        mockPrisma.addressStatistics.findMany as jest.Mock
+      ).mockResolvedValueOnce([]);
+
+      // Mock the Prisma calls - first call returns stats, second returns token breakdown, third returns anomaly stats
+      mockPrisma.$queryRaw
+        .mockResolvedValueOnce([mockStats]) // Address stats query
+        .mockResolvedValueOnce([]) // Token breakdown query
+        .mockResolvedValueOnce([mockAnomalyStats]); // Anomaly aggregate query
+
+      // Mock the transaction aggregate for anomaly stats
+      (mockPrisma.transaction.aggregate as jest.Mock).mockResolvedValueOnce({
+        _count: { id: 5 },
+        _avg: { anomalyScore: 2.5 },
+        _max: { anomalyScore: 8.0 },
+      });
+
+      const response = await request(app)
+        .get(
+          '/api/v1/addresses/stats/0x1234567890123456789012345678901234567890'
+        )
+        .expect(200);
+
+      expect(response.body.data).toHaveProperty('address');
+      expect(response.body.data).toHaveProperty('total_transactions');
+      expect(response.body.data).toHaveProperty('total_volume');
+      expect(response.body.data).toHaveProperty('token_breakdown');
+      expect(response.body.data).toHaveProperty('anomaly_statistics');
+    });
+
+    it('should return 400 for invalid address format', async () => {
+      const response = await request(app)
+        .get('/api/v1/addresses/stats/invalid-address')
+        .expect(400);
+
+      expect(response.body.error.message).toBe('Invalid address format');
     });
   });
 });

@@ -1,14 +1,81 @@
-import { Pool, PoolConnection, RowDataPacket } from 'mysql2/promise';
-import { Transaction, TransactionFilters, PaginationParams, TransactionListResponse, AddressTransactionSummary } from '../types/transaction.types';
+import { Prisma } from '@prisma/client';
+import prisma from '../lib/prisma';
+import {
+  TransactionFilters,
+  PaginationParams,
+  TransactionListResponse,
+  AddressTransactionSummary,
+} from '../types/transaction.types';
 import { RedisConnection } from '../cache/redis';
 
+// Database query result interfaces
+interface TransactionStatsQueryResult {
+  total_transactions: number;
+  total_sent: string;
+  total_received: string;
+  first_transaction_date: Date;
+  last_transaction_date: Date;
+}
+
+interface TokenBreakdownQueryResult {
+  tokenSymbol: string;
+  sent: string;
+  received: string;
+  transaction_count: number;
+}
+
+interface TransactionWithIncludes {
+  id: bigint;
+  hash: string;
+  blockNumber: bigint;
+  transactionIndex: number;
+  fromAddress: string;
+  toAddress: string;
+  value: Prisma.Decimal;
+  tokenAddress: string;
+  tokenSymbol: string;
+  gasUsed: bigint | null;
+  gasPrice: bigint | null;
+  timestamp: Date;
+  anomalyScore: Prisma.Decimal;
+  isAnomaly: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  token?: {
+    symbol: string;
+    name: string;
+    decimals: number;
+  };
+  anomalies?: Array<{
+    id: bigint;
+    anomalyType: string;
+    severity: string;
+    score: Prisma.Decimal;
+    description: string | null;
+    detectedAt: Date;
+  }>;
+}
+
+interface TransactionResponse {
+  id: number;
+  hash: string;
+  block_number: number;
+  from_address: string;
+  to_address: string;
+  token_address: string;
+  token_symbol: string;
+  amount: string;
+  amount_raw: string;
+  timestamp: Date;
+  gas_used?: number;
+  gas_price?: string;
+  anomaly_score: number;
+  anomaly_flags: string[];
+  created_at: Date;
+  updated_at: Date;
+}
+
 export class TransactionService {
-  private db: Pool;
-
-  constructor(dbPool: Pool) {
-    this.db = dbPool;
-  }
-
   /**
    * Get transactions with filtering and pagination
    */
@@ -28,59 +95,42 @@ export class TransactionService {
       console.warn('Cache miss for transactions:', error);
     }
 
-    // Build dynamic WHERE clause
-    const { whereClause, params } = this.buildWhereClause(filters);
+    // Build Prisma where clause
+    const where = this.buildPrismaWhereClause(filters);
 
     // Get total count for pagination
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM transactions
-      ${whereClause}
-    `;
-
-    const [countResult] = await this.db.execute<RowDataPacket[]>(countQuery, params);
-    const total = countResult[0].total;
+    const total = await prisma.transaction.count({ where });
 
     // Get paginated results
-    const dataQuery = `
-      SELECT
-        id, hash, block_number, from_address, to_address,
-        token_address, token_symbol, amount, amount_raw,
-        timestamp, gas_used, gas_price, anomaly_score,
-        JSON_EXTRACT(anomaly_flags, '$') as anomaly_flags,
-        created_at, updated_at
-      FROM transactions
-      ${whereClause}
-      ORDER BY timestamp DESC, id DESC
-      LIMIT ? OFFSET ?
-    `;
-
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      dataQuery,
-      [...params, pagination.limit, pagination.offset]
-    );
-
-    const transactions = rows.map(row => ({
-      ...row,
-      anomaly_flags: row.anomaly_flags ? JSON.parse(row.anomaly_flags) : [],
-      timestamp: new Date(row.timestamp),
-      created_at: new Date(row.created_at),
-      updated_at: new Date(row.updated_at)
-    })) as Transaction[];
+    const transactions = await prisma.transaction.findMany({
+      where,
+      orderBy: [{ timestamp: 'desc' }, { id: 'desc' }],
+      skip: pagination.offset,
+      take: pagination.limit,
+      include: {
+        token: {
+          select: {
+            symbol: true,
+            name: true,
+            decimals: true,
+          },
+        },
+      },
+    });
 
     const totalPages = Math.ceil(total / pagination.limit);
 
     const response: TransactionListResponse = {
-      data: transactions,
+      data: transactions.map(this.transformTransactionResponse),
       pagination: {
         page: pagination.page,
         limit: pagination.limit,
         total,
         totalPages,
         hasNext: pagination.page < totalPages,
-        hasPrev: pagination.page > 1
+        hasPrev: pagination.page > 1,
       },
-      filters
+      filters,
     };
 
     // Cache the response for 60 seconds
@@ -96,7 +146,9 @@ export class TransactionService {
   /**
    * Get a single transaction by hash
    */
-  async getTransactionByHash(hash: string): Promise<Transaction | null> {
+  async getTransactionByHash(
+    hash: string
+  ): Promise<TransactionResponse | null> {
     const cacheKey = `transaction:${hash}`;
 
     // Try cache first
@@ -109,39 +161,43 @@ export class TransactionService {
       console.warn('Cache miss for transaction:', error);
     }
 
-    const query = `
-      SELECT
-        id, hash, block_number, from_address, to_address,
-        token_address, token_symbol, amount, amount_raw,
-        timestamp, gas_used, gas_price, anomaly_score,
-        JSON_EXTRACT(anomaly_flags, '$') as anomaly_flags,
-        created_at, updated_at
-      FROM transactions
-      WHERE hash = ?
-    `;
+    const transaction = await prisma.transaction.findUnique({
+      where: { hash },
+      include: {
+        token: {
+          select: {
+            symbol: true,
+            name: true,
+            decimals: true,
+          },
+        },
+        anomalies: {
+          select: {
+            id: true,
+            anomalyType: true,
+            severity: true,
+            score: true,
+            description: true,
+            detectedAt: true,
+          },
+        },
+      },
+    });
 
-    const [rows] = await this.db.execute<RowDataPacket[]>(query, [hash]);
-
-    if (rows.length === 0) {
+    if (!transaction) {
       return null;
     }
 
-    const transaction = {
-      ...rows[0],
-      anomaly_flags: rows[0].anomaly_flags ? JSON.parse(rows[0].anomaly_flags) : [],
-      timestamp: new Date(rows[0].timestamp),
-      created_at: new Date(rows[0].created_at),
-      updated_at: new Date(rows[0].updated_at)
-    } as Transaction;
+    const result = this.transformTransactionResponse(transaction);
 
     // Cache for 5 minutes
     try {
-      await RedisConnection.set(cacheKey, JSON.stringify(transaction), 300);
+      await RedisConnection.set(cacheKey, JSON.stringify(result), 300);
     } catch (error) {
       console.warn('Failed to cache transaction:', error);
     }
 
-    return transaction;
+    return result;
   }
 
   /**
@@ -154,7 +210,7 @@ export class TransactionService {
   ): Promise<TransactionListResponse> {
     const addressFilters = {
       ...filters,
-      address_involved: address // This will be handled in buildWhereClause
+      address_involved: address,
     };
 
     return this.getTransactions(addressFilters, pagination);
@@ -163,7 +219,9 @@ export class TransactionService {
   /**
    * Get address transaction summary
    */
-  async getAddressTransactionSummary(address: string): Promise<AddressTransactionSummary | null> {
+  async getAddressTransactionSummary(
+    address: string
+  ): Promise<AddressTransactionSummary | null> {
     const cacheKey = `address_summary:${address}`;
 
     // Try cache first
@@ -176,61 +234,61 @@ export class TransactionService {
       console.warn('Cache miss for address summary:', error);
     }
 
-    const query = `
+    // Get basic transaction stats
+    const [transactionStats] = await prisma.$queryRaw<
+      TransactionStatsQueryResult[]
+    >`
       SELECT
-        ? as address,
         COUNT(*) as total_transactions,
-        SUM(CASE WHEN from_address = ? THEN CAST(amount AS DECIMAL(65,0)) ELSE 0 END) as total_sent,
-        SUM(CASE WHEN to_address = ? THEN CAST(amount AS DECIMAL(65,0)) ELSE 0 END) as total_received,
+        SUM(CASE WHEN fromAddress = ${address} THEN value ELSE 0 END) as total_sent,
+        SUM(CASE WHEN toAddress = ${address} THEN value ELSE 0 END) as total_received,
         MIN(timestamp) as first_transaction_date,
         MAX(timestamp) as last_transaction_date
       FROM transactions
-      WHERE from_address = ? OR to_address = ?
+      WHERE fromAddress = ${address} OR toAddress = ${address}
     `;
 
-    const [rows] = await this.db.execute<RowDataPacket[]>(
-      query,
-      [address, address, address, address, address]
-    );
-
-    if (rows.length === 0 || rows[0].total_transactions === 0) {
+    if (!transactionStats || transactionStats.total_transactions === 0) {
       return null;
     }
 
     // Get token breakdown
-    const tokenQuery = `
+    const tokenBreakdown = await prisma.$queryRaw<TokenBreakdownQueryResult[]>`
       SELECT
-        token_symbol,
-        SUM(CASE WHEN from_address = ? THEN CAST(amount AS DECIMAL(65,0)) ELSE 0 END) as sent,
-        SUM(CASE WHEN to_address = ? THEN CAST(amount AS DECIMAL(65,0)) ELSE 0 END) as received,
+        tokenSymbol,
+        SUM(CASE WHEN fromAddress = ${address} THEN value ELSE 0 END) as sent,
+        SUM(CASE WHEN toAddress = ${address} THEN value ELSE 0 END) as received,
         COUNT(*) as transaction_count
       FROM transactions
-      WHERE from_address = ? OR to_address = ?
-      GROUP BY token_symbol
+      WHERE fromAddress = ${address} OR toAddress = ${address}
+      GROUP BY tokenSymbol
     `;
 
-    const [tokenRows] = await this.db.execute<RowDataPacket[]>(
-      tokenQuery,
-      [address, address, address, address]
-    );
-
-    const tokens: { [key: string]: any } = {};
-    tokenRows.forEach(row => {
-      tokens[row.token_symbol] = {
+    const tokens: {
+      [key: string]: {
+        sent: string;
+        received: string;
+        volume: string;
+        transaction_count: number;
+      };
+    } = {};
+    tokenBreakdown.forEach(row => {
+      tokens[row.tokenSymbol] = {
         sent: row.sent.toString(),
         received: row.received.toString(),
-        transaction_count: row.transaction_count
+        volume: (BigInt(row.sent) + BigInt(row.received)).toString(),
+        transaction_count: Number(row.transaction_count),
       };
     });
 
     const summary: AddressTransactionSummary = {
       address,
-      total_transactions: rows[0].total_transactions,
-      total_sent: rows[0].total_sent.toString(),
-      total_received: rows[0].total_received.toString(),
-      first_transaction_date: new Date(rows[0].first_transaction_date),
-      last_transaction_date: new Date(rows[0].last_transaction_date),
-      tokens
+      total_transactions: Number(transactionStats.total_transactions),
+      total_sent: transactionStats.total_sent.toString(),
+      total_received: transactionStats.total_received.toString(),
+      first_transaction_date: new Date(transactionStats.first_transaction_date),
+      last_transaction_date: new Date(transactionStats.last_transaction_date),
+      tokens,
     };
 
     // Cache for 2 minutes
@@ -244,68 +302,114 @@ export class TransactionService {
   }
 
   /**
-   * Build dynamic WHERE clause for filtering
+   * Build Prisma where clause for filtering
    */
-  private buildWhereClause(filters: TransactionFilters): { whereClause: string; params: any[] } {
-    const conditions: string[] = [];
-    const params: any[] = [];
+  private buildPrismaWhereClause(
+    filters: TransactionFilters
+  ): Prisma.TransactionWhereInput {
+    const where: Prisma.TransactionWhereInput = {};
 
     if (filters.token) {
-      conditions.push('token_symbol = ?');
-      params.push(filters.token);
+      where.tokenSymbol = filters.token;
     }
 
     if (filters.from_address) {
-      conditions.push('from_address = ?');
-      params.push(filters.from_address);
+      where.fromAddress = filters.from_address;
     }
 
     if (filters.to_address) {
-      conditions.push('to_address = ?');
-      params.push(filters.to_address);
+      where.toAddress = filters.to_address;
     }
 
     // Special case for address involved (either from or to)
-    if ((filters as any).address_involved) {
-      conditions.push('(from_address = ? OR to_address = ?)');
-      params.push((filters as any).address_involved, (filters as any).address_involved);
+    if (
+      (filters as TransactionFilters & { address_involved?: string })
+        .address_involved
+    ) {
+      where.OR = [
+        {
+          fromAddress: (
+            filters as TransactionFilters & { address_involved: string }
+          ).address_involved,
+        },
+        {
+          toAddress: (
+            filters as TransactionFilters & { address_involved: string }
+          ).address_involved,
+        },
+      ];
     }
 
     if (filters.min_amount) {
-      conditions.push('CAST(amount AS DECIMAL(65,0)) >= ?');
-      params.push(filters.min_amount);
+      if (!where.value) where.value = {};
+      (where.value as { gte?: bigint; lte?: bigint }).gte = BigInt(
+        filters.min_amount
+      );
     }
 
     if (filters.max_amount) {
-      conditions.push('CAST(amount AS DECIMAL(65,0)) <= ?');
-      params.push(filters.max_amount);
+      if (!where.value) where.value = {};
+      (where.value as { gte?: bigint; lte?: bigint }).lte = BigInt(
+        filters.max_amount
+      );
     }
 
     if (filters.start_date) {
-      conditions.push('timestamp >= ?');
-      params.push(filters.start_date);
+      if (!where.timestamp) where.timestamp = {};
+      (where.timestamp as { gte?: Date; lte?: Date }).gte = new Date(
+        filters.start_date
+      );
     }
 
     if (filters.end_date) {
-      conditions.push('timestamp <= ?');
-      params.push(filters.end_date);
+      if (!where.timestamp) where.timestamp = {};
+      (where.timestamp as { gte?: Date; lte?: Date }).lte = new Date(
+        filters.end_date
+      );
     }
 
     if (filters.anomaly_threshold !== undefined) {
-      conditions.push('anomaly_score >= ?');
-      params.push(filters.anomaly_threshold);
+      where.anomalyScore = {
+        gte: filters.anomaly_threshold,
+      };
     }
 
     if (filters.has_anomaly !== undefined) {
       if (filters.has_anomaly) {
-        conditions.push('anomaly_score > 0');
+        where.isAnomaly = true;
       } else {
-        conditions.push('anomaly_score = 0');
+        where.isAnomaly = false;
       }
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    return where;
+  }
 
-    return { whereClause, params };
+  /**
+   * Transform Prisma transaction response to match API types
+   */
+  private transformTransactionResponse(
+    transaction: TransactionWithIncludes
+  ): TransactionResponse {
+    return {
+      id: Number(transaction.id),
+      hash: transaction.hash,
+      block_number: Number(transaction.blockNumber),
+      from_address: transaction.fromAddress,
+      to_address: transaction.toAddress,
+      token_address: transaction.tokenAddress,
+      token_symbol: transaction.tokenSymbol,
+      amount: transaction.value.toString(),
+      amount_raw: transaction.value.toString(),
+      timestamp: transaction.timestamp,
+      gas_used: transaction.gasUsed ? Number(transaction.gasUsed) : undefined,
+      gas_price: transaction.gasPrice
+        ? transaction.gasPrice.toString()
+        : undefined,
+      anomaly_score: Number(transaction.anomalyScore),
+      anomaly_flags: transaction.isAnomaly ? ['suspicious_pattern'] : [],
+      created_at: transaction.createdAt,
+      updated_at: transaction.updatedAt,
+    };
   }
 }

@@ -11,19 +11,21 @@ export class RedisConnection {
         socket: {
           host: config.redis.host,
           port: config.redis.port,
-          reconnectStrategy: (retries) => {
+          reconnectStrategy: retries => {
             if (retries > 10) {
               console.error('❌ Redis connection failed after 10 retries');
               return new Error('Redis connection failed');
             }
             const delay = Math.min(retries * 50, 1000);
-            console.log(`🔄 Redis reconnecting in ${delay}ms (attempt ${retries})`);
+            console.log(
+              `🔄 Redis reconnecting in ${delay}ms (attempt ${retries})`
+            );
             return delay;
           },
-          connectTimeout: 5000
+          connectTimeout: 5000,
         },
         password: config.redis.password || undefined,
-        database: config.redis.db
+        database: config.redis.db,
       });
 
       // Event handlers
@@ -36,7 +38,7 @@ export class RedisConnection {
         RedisConnection.isConnected = true;
       });
 
-      RedisConnection.instance.on('error', (error) => {
+      RedisConnection.instance.on('error', error => {
         console.error('❌ Redis connection error:', error);
         RedisConnection.isConnected = false;
       });
@@ -98,7 +100,11 @@ export class RedisConnection {
     }
   }
 
-  public static async set(key: string, value: string, ttlSeconds?: number): Promise<boolean> {
+  public static async set(
+    key: string,
+    value: string,
+    ttlSeconds?: number
+  ): Promise<boolean> {
     try {
       const client = await RedisConnection.getInstance();
       if (ttlSeconds) {

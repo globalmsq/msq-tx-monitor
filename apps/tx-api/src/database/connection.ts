@@ -19,7 +19,7 @@ export class DatabaseConnection {
         dateStrings: true,
         multipleStatements: false,
         // Character set
-        charset: 'utf8mb4'
+        charset: 'utf8mb4',
       });
 
       console.log('✅ MySQL connection pool created');

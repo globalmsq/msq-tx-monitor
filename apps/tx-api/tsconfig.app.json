@@ -1,7 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "../../dist/apps/tx-api",
+    "rootDir": "./src",
+    "outDir": "./dist",
     "module": "commonjs",
     "types": ["node"],
     "target": "ES2021",

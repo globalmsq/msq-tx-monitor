@@ -2,9 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import { config } from '../config';
 
 // Request ID middleware for tracking
-export const requestId = (req: Request, res: Response, next: NextFunction): void => {
+export const requestId = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   // Generate unique request ID if not provided
-  const requestId = req.headers['x-request-id'] as string ||
+  const requestId =
+    (req.headers['x-request-id'] as string) ||
     `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   req.headers['x-request-id'] = requestId;
@@ -14,7 +19,11 @@ export const requestId = (req: Request, res: Response, next: NextFunction): void
 };
 
 // Security headers middleware
-export const securityHeaders = (req: Request, res: Response, next: NextFunction): void => {
+export const securityHeaders = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   // Prevent clickjacking
   res.setHeader('X-Frame-Options', 'DENY');
 
@@ -26,20 +35,24 @@ export const securityHeaders = (req: Request, res: Response, next: NextFunction)
 
   // Strict transport security (HTTPS only)
   if (config.server.env === 'production') {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    res.setHeader(
+      'Strict-Transport-Security',
+      'max-age=31536000; includeSubDomains; preload'
+    );
   }
 
   // Content security policy
-  res.setHeader('Content-Security-Policy',
+  res.setHeader(
+    'Content-Security-Policy',
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-    "style-src 'self' 'unsafe-inline'; " +
-    "img-src 'self' data: https:; " +
-    "connect-src 'self'; " +
-    "font-src 'self'; " +
-    "object-src 'none'; " +
-    "media-src 'self'; " +
-    "frame-src 'none';"
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+      "style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data: https:; " +
+      "connect-src 'self'; " +
+      "font-src 'self'; " +
+      "object-src 'none'; " +
+      "media-src 'self'; " +
+      "frame-src 'none';"
   );
 
   // Referrer policy
@@ -52,13 +65,21 @@ export const securityHeaders = (req: Request, res: Response, next: NextFunction)
 };
 
 // API version header middleware
-export const apiVersionHeader = (req: Request, res: Response, next: NextFunction): void => {
+export const apiVersionHeader = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   res.setHeader('X-API-Version', config.api.version);
   next();
 };
 
 // CORS preflight handling
-export const corsPreflightHandler = (req: Request, res: Response, next: NextFunction): void => {
+export const corsPreflightHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
@@ -67,7 +88,11 @@ export const corsPreflightHandler = (req: Request, res: Response, next: NextFunc
 };
 
 // Request size limit middleware
-export const requestSizeLimit = (req: Request, res: Response, next: NextFunction): void => {
+export const requestSizeLimit = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   const contentLength = parseInt(req.headers['content-length'] || '0', 10);
   const maxSize = 1024 * 1024; // 1MB limit
 
@@ -77,8 +102,8 @@ export const requestSizeLimit = (req: Request, res: Response, next: NextFunction
         code: 413,
         message: 'Request entity too large',
         details: `Maximum request size is ${maxSize} bytes`,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     });
     return;
   }
@@ -103,8 +128,8 @@ export const ipWhitelist = (allowedIPs: string[]) => {
           code: 403,
           message: 'Access denied',
           details: 'IP address not whitelisted',
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       });
       return;
     }
@@ -114,7 +139,11 @@ export const ipWhitelist = (allowedIPs: string[]) => {
 };
 
 // Request logging middleware
-export const requestLogger = (req: Request, res: Response, next: NextFunction): void => {
+export const requestLogger = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   const start = Date.now();
 
   // Log request
@@ -125,7 +154,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
     ip: req.ip,
     userAgent: req.get('User-Agent'),
     requestId: req.headers['x-request-id'],
-    contentLength: req.headers['content-length']
+    contentLength: req.headers['content-length'],
   });
 
   // Log response when finished
@@ -136,7 +165,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
       requestId: req.headers['x-request-id'],
       statusCode: res.statusCode,
       contentLength: res.get('content-length'),
-      duration: `${duration}ms`
+      duration: `${duration}ms`,
     });
   });
 

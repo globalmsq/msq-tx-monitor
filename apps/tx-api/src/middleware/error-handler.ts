@@ -5,9 +5,14 @@ import { config } from '../config';
 export class ApiError extends Error {
   public statusCode: number;
   public isOperational: boolean;
-  public details?: any;
+  public details?: unknown;
 
-  constructor(statusCode: number, message: string, details?: any, isOperational = true) {
+  constructor(
+    statusCode: number,
+    message: string,
+    details?: unknown,
+    isOperational = true
+  ) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = isOperational;
@@ -22,7 +27,7 @@ interface ErrorResponse {
   error: {
     code: number;
     message: string;
-    details?: any;
+    details?: unknown;
     timestamp: string;
     requestId?: string;
     stack?: string;
@@ -34,13 +39,14 @@ export const errorHandler = (
   err: Error | ApiError,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void => {
   let error = err;
 
   // Convert non-ApiError errors to ApiError
   if (!(error instanceof ApiError)) {
-    const statusCode = (error as any).statusCode || 500;
+    const statusCode =
+      (error as Error & { statusCode?: number }).statusCode || 500;
     const message = error.message || 'Internal server error';
     error = new ApiError(statusCode, message, null, false);
   }
@@ -59,8 +65,8 @@ export const errorHandler = (
       stack: apiError.stack,
       statusCode: apiError.statusCode,
       isOperational: apiError.isOperational,
-      details: apiError.details
-    }
+      details: apiError.details,
+    },
   });
 
   // Prepare error response
@@ -69,8 +75,8 @@ export const errorHandler = (
       code: apiError.statusCode,
       message: apiError.message,
       timestamp: new Date().toISOString(),
-      requestId: req.headers['x-request-id'] as string || undefined
-    }
+      requestId: (req.headers['x-request-id'] as string) || undefined,
+    },
   };
 
   // Add details if available and not in production
@@ -91,7 +97,7 @@ export const errorHandler = (
 export const notFoundHandler = (req: Request, res: Response): void => {
   const error = new ApiError(404, 'Resource not found', {
     path: req.originalUrl,
-    method: req.method
+    method: req.method,
   });
 
   res.status(404).json({
@@ -99,13 +105,15 @@ export const notFoundHandler = (req: Request, res: Response): void => {
       code: 404,
       message: error.message,
       details: error.details,
-      timestamp: new Date().toISOString()
-    }
+      timestamp: new Date().toISOString(),
+    },
   });
 };
 
 // Async error wrapper for controllers
-export const asyncHandler = (fn: Function) => {
+export const asyncHandler = (
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
+) => {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
@@ -116,7 +124,7 @@ export const createNotFoundError = (resource: string) => {
   return new ApiError(404, `${resource} not found`);
 };
 
-export const createValidationError = (message: string, details?: any) => {
+export const createValidationError = (message: string, details?: unknown) => {
   return new ApiError(400, message, details);
 };
 
@@ -128,7 +136,10 @@ export const createForbiddenError = (message: string = 'Forbidden') => {
   return new ApiError(403, message);
 };
 
-export const createInternalError = (message: string = 'Internal server error', details?: any) => {
+export const createInternalError = (
+  message: string = 'Internal server error',
+  details?: unknown
+) => {
   return new ApiError(500, message, details);
 };
 

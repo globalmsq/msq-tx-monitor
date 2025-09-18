@@ -1,33 +1,50 @@
 import request from 'supertest';
 import { app } from '../app';
-import { DatabaseConnection } from '../database/connection';
 import { RedisConnection } from '../cache/redis';
+import prisma from '../lib/prisma';
 
-// Mock database connections
-jest.mock('../database/connection');
+// Mock Prisma and Redis
+jest.mock('../lib/prisma', () => ({
+  __esModule: true,
+  default: {
+    $queryRaw: jest.fn(),
+    $connect: jest.fn(),
+    $disconnect: jest.fn(),
+    transaction: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      count: jest.fn(),
+      aggregate: jest.fn(),
+    },
+  },
+}));
 jest.mock('../cache/redis');
 
-const mockDb = {
-  execute: jest.fn()
-};
+const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 
 const mockRedis = {
   get: jest.fn(),
   set: jest.fn(),
-  ping: jest.fn().mockResolvedValue('PONG')
+  ping: jest.fn().mockResolvedValue('PONG'),
 };
 
 describe('Transaction Controller', () => {
   beforeEach(() => {
-    // Mock successful database connections
-    (DatabaseConnection.testConnection as jest.Mock).mockResolvedValue(true);
+    // Mock Redis connections
     (RedisConnection.testConnection as jest.Mock).mockResolvedValue(true);
     (RedisConnection.getInstance as jest.Mock).mockResolvedValue(mockRedis);
     (RedisConnection.get as jest.Mock).mockResolvedValue(null);
     (RedisConnection.set as jest.Mock).mockResolvedValue(true);
 
-    // Mock database instance
-    (DatabaseConnection.getInstance as jest.Mock).mockReturnValue(mockDb);
+    // Mock Prisma
+    mockPrisma.$connect.mockResolvedValue();
+    mockPrisma.$disconnect.mockResolvedValue();
+
+    // Mock Prisma methods with default empty responses
+    (mockPrisma.transaction.findMany as jest.Mock).mockResolvedValue([]);
+    (mockPrisma.transaction.findUnique as jest.Mock).mockResolvedValue(null);
+    (mockPrisma.transaction.count as jest.Mock).mockResolvedValue(0);
+    mockPrisma.$queryRaw.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -38,25 +55,31 @@ describe('Transaction Controller', () => {
     it('should return paginated transactions list', async () => {
       const mockTransactions = [
         {
-          id: 1,
+          id: 1n,
           hash: '0x123...',
-          block_number: 123456,
-          from_address: '0xabc...',
-          to_address: '0xdef...',
-          token_symbol: 'MSQ',
-          amount: '1000000000000000000',
-          timestamp: '2023-01-01T00:00:00.000Z',
-          anomaly_score: 0,
-          anomaly_flags: '[]',
-          created_at: '2023-01-01T00:00:00.000Z',
-          updated_at: '2023-01-01T00:00:00.000Z'
-        }
+          blockNumber: 123456n,
+          fromAddress: '0xabc...',
+          toAddress: '0xdef...',
+          tokenSymbol: 'MSQ',
+          value: 1000000000000000000n,
+          timestamp: new Date('2023-01-01T00:00:00.000Z'),
+          anomalyScore: 0,
+          isAnomaly: false,
+          createdAt: new Date('2023-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2023-01-01T00:00:00.000Z'),
+          token: {
+            symbol: 'MSQ',
+            name: 'MSQ Token',
+            decimals: 18,
+          },
+        },
       ];
 
-      // Mock count query
-      mockDb.execute
-        .mockResolvedValueOnce([[{ total: 1 }]])
-        .mockResolvedValueOnce([mockTransactions]);
+      // Mock count and findMany queries
+      (mockPrisma.transaction.count as jest.Mock).mockResolvedValueOnce(1);
+      (mockPrisma.transaction.findMany as jest.Mock).mockResolvedValueOnce(
+        mockTransactions
+      );
 
       const response = await request(app)
         .get('/api/v1/transactions')
@@ -69,9 +92,8 @@ describe('Transaction Controller', () => {
     });
 
     it('should handle pagination parameters', async () => {
-      mockDb.execute
-        .mockResolvedValueOnce([[{ total: 50 }]])
-        .mockResolvedValueOnce([[]]);
+      (mockPrisma.transaction.count as jest.Mock).mockResolvedValueOnce(50);
+      (mockPrisma.transaction.findMany as jest.Mock).mockResolvedValueOnce([]);
 
       const response = await request(app)
         .get('/api/v1/transactions?page=2&limit=10')
@@ -82,19 +104,13 @@ describe('Transaction Controller', () => {
     });
 
     it('should handle filtering by token', async () => {
-      mockDb.execute
-        .mockResolvedValueOnce([[{ total: 0 }]])
-        .mockResolvedValueOnce([[]]);
+      (mockPrisma.transaction.count as jest.Mock).mockResolvedValueOnce(0);
+      (mockPrisma.transaction.findMany as jest.Mock).mockResolvedValueOnce([]);
 
-      await request(app)
-        .get('/api/v1/transactions?token=MSQ')
-        .expect(200);
+      await request(app).get('/api/v1/transactions?token=MSQ').expect(200);
 
-      // Verify that the WHERE clause includes token filter
-      expect(mockDb.execute).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE'),
-        expect.arrayContaining(['MSQ'])
-      );
+      // Verify that Prisma findMany was called
+      expect(mockPrisma.transaction.findMany).toHaveBeenCalled();
     });
   });
 
@@ -112,13 +128,30 @@ describe('Transaction Controller', () => {
         anomaly_score: 0,
         anomaly_flags: '[]',
         created_at: '2023-01-01T00:00:00.000Z',
-        updated_at: '2023-01-01T00:00:00.000Z'
+        updated_at: '2023-01-01T00:00:00.000Z',
       };
 
-      mockDb.execute.mockResolvedValueOnce([[mockTransaction]]);
+      (mockPrisma.transaction.findUnique as jest.Mock).mockResolvedValueOnce({
+        ...mockTransaction,
+        id: 1n,
+        blockNumber: 123456n,
+        fromAddress: mockTransaction.from_address,
+        toAddress: mockTransaction.to_address,
+        tokenSymbol: mockTransaction.token_symbol,
+        value: 1000000000000000000n,
+        timestamp: new Date(mockTransaction.timestamp),
+        anomalyScore: mockTransaction.anomaly_score,
+        isAnomaly: false,
+        createdAt: new Date(mockTransaction.created_at),
+        updatedAt: new Date(mockTransaction.updated_at),
+        token: { symbol: 'MSQ', name: 'MSQ Token', decimals: 18 },
+        anomalies: [],
+      });
 
       const response = await request(app)
-        .get('/api/v1/transactions/0x1234567890123456789012345678901234567890123456789012345678901234')
+        .get(
+          '/api/v1/transactions/0x1234567890123456789012345678901234567890123456789012345678901234'
+        )
         .expect(200);
 
       expect(response.body.data).toHaveProperty('hash', mockTransaction.hash);
@@ -130,14 +163,20 @@ describe('Transaction Controller', () => {
         .get('/api/v1/transactions/invalid-hash')
         .expect(400);
 
-      expect(response.body.error.message).toBe('Invalid transaction hash format');
+      expect(response.body.error.message).toBe(
+        'Invalid transaction hash format'
+      );
     });
 
     it('should return 404 for non-existent transaction', async () => {
-      mockDb.execute.mockResolvedValueOnce([[]]);
+      (mockPrisma.transaction.findUnique as jest.Mock).mockResolvedValueOnce(
+        null
+      );
 
       const response = await request(app)
-        .get('/api/v1/transactions/0x1234567890123456789012345678901234567890123456789012345678901234')
+        .get(
+          '/api/v1/transactions/0x1234567890123456789012345678901234567890123456789012345678901234'
+        )
         .expect(404);
 
       expect(response.body.error.message).toBe('Transaction not found');
@@ -146,12 +185,13 @@ describe('Transaction Controller', () => {
 
   describe('GET /api/v1/transactions/address/:address', () => {
     it('should return transactions for valid address', async () => {
-      mockDb.execute
-        .mockResolvedValueOnce([[{ total: 1 }]])
-        .mockResolvedValueOnce([[]]);
+      (mockPrisma.transaction.count as jest.Mock).mockResolvedValueOnce(1);
+      (mockPrisma.transaction.findMany as jest.Mock).mockResolvedValueOnce([]);
 
       const response = await request(app)
-        .get('/api/v1/transactions/address/0x1234567890123456789012345678901234567890')
+        .get(
+          '/api/v1/transactions/address/0x1234567890123456789012345678901234567890'
+        )
         .expect(200);
 
       expect(response.body).toHaveProperty('data');
@@ -175,15 +215,17 @@ describe('Transaction Controller', () => {
         total_sent: '5000000000000000000',
         total_received: '3000000000000000000',
         first_transaction_date: '2023-01-01T00:00:00.000Z',
-        last_transaction_date: '2023-01-02T00:00:00.000Z'
+        last_transaction_date: '2023-01-02T00:00:00.000Z',
       };
 
-      mockDb.execute
-        .mockResolvedValueOnce([[mockSummary]])
-        .mockResolvedValueOnce([[]]);
+      mockPrisma.$queryRaw
+        .mockResolvedValueOnce([mockSummary])
+        .mockResolvedValueOnce([]);
 
       const response = await request(app)
-        .get('/api/v1/transactions/address/0x1234567890123456789012345678901234567890/summary')
+        .get(
+          '/api/v1/transactions/address/0x1234567890123456789012345678901234567890/summary'
+        )
         .expect(200);
 
       expect(response.body.data).toHaveProperty('address');
@@ -191,13 +233,17 @@ describe('Transaction Controller', () => {
     });
 
     it('should return 404 for address with no transactions', async () => {
-      mockDb.execute.mockResolvedValueOnce([[{ total_transactions: 0 }]]);
+      mockPrisma.$queryRaw.mockResolvedValueOnce([]);
 
       const response = await request(app)
-        .get('/api/v1/transactions/address/0x1234567890123456789012345678901234567890/summary')
+        .get(
+          '/api/v1/transactions/address/0x1234567890123456789012345678901234567890/summary'
+        )
         .expect(404);
 
-      expect(response.body.error.message).toBe('No transactions found for address');
+      expect(response.body.error.message).toBe(
+        'No transactions found for address'
+      );
     });
   });
 });

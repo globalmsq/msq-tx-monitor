@@ -3,7 +3,31 @@ import { DatabaseConnection } from '../database/connection';
 import { RedisConnection } from '../cache/redis';
 import { config } from '../config';
 
-export const healthCheck = async (req: Request, res: Response): Promise<void> => {
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check endpoint
+ *     description: Check the health status of the API server and its dependencies
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/HealthCheck'
+ *       503:
+ *         description: Service is unhealthy or degraded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/HealthCheck'
+ */
+export const healthCheck = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const health = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -12,15 +36,15 @@ export const healthCheck = async (req: Request, res: Response): Promise<void> =>
     services: {
       database: {
         status: 'unknown',
-        responseTime: 0
+        responseTime: 0,
       },
       redis: {
         status: 'unknown',
-        responseTime: 0
-      }
+        responseTime: 0,
+      },
     },
     uptime: process.uptime(),
-    memory: process.memoryUsage()
+    memory: process.memoryUsage(),
   };
 
   // Test database connection
@@ -46,8 +70,9 @@ export const healthCheck = async (req: Request, res: Response): Promise<void> =>
   }
 
   // Determine overall status
-  const allServicesHealthy = health.services.database.status === 'healthy' &&
-                            health.services.redis.status === 'healthy';
+  const allServicesHealthy =
+    health.services.database.status === 'healthy' &&
+    health.services.redis.status === 'healthy';
 
   if (!allServicesHealthy) {
     health.status = 'degraded';
