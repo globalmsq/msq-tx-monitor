@@ -1,12 +1,10 @@
-version: '3.8'
-
 networks:
-  msq-network:
+  msq-tx-monitor-network:
     driver: bridge
 
 volumes:
-  mysql-data:
-  redis-data:
+  msq-tx-mysql-data:
+  msq-tx-monitor-redis-data:
 
 services:
   # =============================================================================
@@ -14,87 +12,105 @@ services:
   # =============================================================================
   mysql:
     image: mysql:8.0
-    container_name: msq-mysql-prod
+    container_name: msq-tx-monitor-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-msq_monitor}
-      MYSQL_USER: ${MYSQL_USERNAME:-msq_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-msq_password}
-    expose:
-      - "3306"
+      MYSQL_ROOT_PASSWORD: pass
+      MYSQL_DATABASE: msq-tx-monitor
+      MYSQL_USER: user
+      MYSQL_PASSWORD: pass
+      TZ: Asia/Seoul
+    ports:
+      - 3306:3306
     volumes:
-      - mysql-data:/var/lib/mysql
-      - ./volumes/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: ["--sql-mode=NO_ENGINE_SUBSTITUTION", "--default-time-zone=+09:00"]
     networks:
-      - msq-network
+      - msq-tx-monitor-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 20s
       retries: 10
 
   redis:
-    image: redis:7-alpine
-    container_name: msq-redis-prod
+    image: redis/redis-stack:latest
+    container_name: msq-tx-monitor-redis
     restart: unless-stopped
-    expose:
-      - "6379"
+    ports:
+      - 6379:6379
+      - 8001:8001
     volumes:
-      - redis-data:/data
+      - msq-tx-monitor-redis-data:/data
     networks:
-      - msq-network
-    command: redis-server --appendonly yes
+      - msq-tx-monitor-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       timeout: 10s
       retries: 5
 
-  # =============================================================================
-  # Application Services (Production Mode)
-  # =============================================================================
-  tx-dashboard:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.packages
-      target: production
-      args:
-        SERVICE_NAME: tx-dashboard
-    container_name: msq-tx-dashboard-prod
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: phpmyadmin
     restart: unless-stopped
-    expose:
-      - "80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: user
+      PMA_PASSWORD: pass
+    ports:
+      - "8080:80"
     networks:
-      - msq-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/nginx-health"]
-      timeout: 10s
-      retries: 5
+      - msq-tx-monitor-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # tx-dashboard:
+  #   build:
+  #     context: ..
+  #     dockerfile: docker/Dockerfile.packages
+  #     target: tx-dashboard
+  #   container_name: msq-tx-monitor-dashboard
+  #   restart: unless-stopped
+  #   ports:
+  #     - 3000:3000
+  #   environment:
+  #     - NODE_ENV=development
+  #     - VITE_API_URL=http://localhost:8000
+  #     - VITE_WS_URL=ws://localhost:8001
+  #   networks:
+  #     - msq-tx-monitor-network
+  #   depends_on:
+  #     tx-api:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3000"]
+  #     timeout: 10s
+  #     retries: 5
 
   tx-api:
     build:
       context: ..
       dockerfile: docker/Dockerfile.packages
-      target: production
-      args:
-        SERVICE_NAME: tx-api
-    container_name: msq-tx-api-prod
+      target: tx-api
+    container_name: msq-tx-monitor-api
     restart: unless-stopped
-    expose:
-      - "8000"
+    ports:
+      - 8000:8000
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=8000
       - MYSQL_HOST=mysql
       - MYSQL_PORT=3306
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-msq_monitor}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-msq_user}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-msq_password}
+      - MYSQL_DATABASE=msq-tx-monitor
+      - MYSQL_USERNAME=user
+      - MYSQL_PASSWORD=pass
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
-      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-100}
+      - CORS_ORIGIN=http://localhost:3000
+      - RATE_LIMIT_MAX_REQUESTS=100
     networks:
-      - msq-network
+      - msq-tx-monitor-network
     depends_on:
       mysql:
         condition: service_healthy
@@ -105,100 +121,68 @@ services:
       timeout: 10s
       retries: 5
 
-  chain-scanner:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.packages
-      target: production
-      args:
-        SERVICE_NAME: chain-scanner
-    container_name: msq-chain-scanner-prod
-    restart: unless-stopped
-    expose:
-      - "8001"
-    environment:
-      - NODE_ENV=production
-      - WS_PORT=8001
-      - POLYGON_RPC_URL=${POLYGON_RPC_URL:-https://polygon-rpc.com}
-      - POLYGON_BACKUP_RPC_1=${POLYGON_BACKUP_RPC_1:-https://polygon.llamarpc.com}
-      - POLYGON_BACKUP_RPC_2=${POLYGON_BACKUP_RPC_2:-https://polygon.drpc.org}
-      - TOKEN_MSQ=${TOKEN_MSQ:-0x0000000000000000000000000000000000000001}
-      - TOKEN_SUT=${TOKEN_SUT:-0x0000000000000000000000000000000000000002}
-      - TOKEN_KWT=${TOKEN_KWT:-0x0000000000000000000000000000000000000003}
-      - TOKEN_P2UC=${TOKEN_P2UC:-0x0000000000000000000000000000000000000004}
-      - SCAN_INTERVAL_MS=${SCAN_INTERVAL_MS:-5000}
-      - BLOCK_CONFIRMATION=${BLOCK_CONFIRMATION:-12}
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-msq_monitor}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-msq_user}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-msq_password}
-    networks:
-      - msq-network
-    depends_on:
-      mysql:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      timeout: 10s
-      retries: 5
+  # chain-scanner:
+  #   build:
+  #     context: ..
+  #     dockerfile: docker/Dockerfile.packages
+  #     target: chain-scanner
+  #   container_name: msq-tx-monitor-chain-scanner
+  #   restart: unless-stopped
+  #   ports:
+  #     - 8001:8001
+  #   environment:
+  #     - NODE_ENV=development
+  #     - WS_PORT=8001
+  #     - POLYGON_RPC_URL=https://polygon-rpc.com
+  #     - POLYGON_BACKUP_RPC_1=https://polygon.llamarpc.com
+  #     - POLYGON_BACKUP_RPC_2=https://polygon.drpc.org
+  #     - TOKEN_MSQ=0x0000000000000000000000000000000000000001
+  #     - TOKEN_SUT=0x0000000000000000000000000000000000000002
+  #     - TOKEN_KWT=0x0000000000000000000000000000000000000003
+  #     - TOKEN_P2UC=0x0000000000000000000000000000000000000004
+  #     - SCAN_INTERVAL_MS=5000
+  #     - BLOCK_CONFIRMATION=12
+  #     - MYSQL_HOST=mysql
+  #     - MYSQL_PORT=3306
+  #     - MYSQL_DATABASE=msq-tx-monitor
+  #     - MYSQL_USERNAME=user
+  #     - MYSQL_PASSWORD=pass
+  #   networks:
+  #     - msq-tx-monitor-network
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+  #     timeout: 10s
+  #     retries: 5
 
-  tx-analyzer:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.packages
-      target: production
-      args:
-        SERVICE_NAME: tx-analyzer
-    container_name: msq-tx-analyzer-prod
-    restart: unless-stopped
-    expose:
-      - "8002"
-    environment:
-      - ENVIRONMENT=production
-      - PORT=8002
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-msq_monitor}
-      - MYSQL_USERNAME=${MYSQL_USERNAME:-msq_user}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-msq_password}
-      - ANOMALY_THRESHOLD=${ANOMALY_THRESHOLD:-0.85}
-      - WHALE_THRESHOLD=${WHALE_THRESHOLD:-1000000}
-      - DETECTION_WINDOW_SIZE=${DETECTION_WINDOW_SIZE:-100}
-    networks:
-      - msq-network
-    depends_on:
-      mysql:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
-      timeout: 10s
-      retries: 5
-
-  # =============================================================================
-  # Nginx Reverse Proxy (Production Only)
-  # =============================================================================
-  nginx:
-    image: nginx:alpine
-    container_name: msq-nginx-prod
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    networks:
-      - msq-network
-    depends_on:
-      tx-dashboard:
-        condition: service_healthy
-      tx-api:
-        condition: service_healthy
-      chain-scanner:
-        condition: service_healthy
-      tx-analyzer:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/nginx-health"]
-      timeout: 10s
-      retries: 5
+  # tx-analyzer:
+  #   build:
+  #     context: ..
+  #     dockerfile: docker/Dockerfile.packages
+  #     target: tx-analyzer
+  #   container_name: msq-tx-monitor-analyzer
+  #   restart: unless-stopped
+  #   ports:
+  #     - 8002:8002
+  #   environment:
+  #     - ENVIRONMENT=development
+  #     - PORT=8002
+  #     - MYSQL_HOST=mysql
+  #     - MYSQL_PORT=3306
+  #     - MYSQL_DATABASE=msq-tx-monitor
+  #     - MYSQL_USERNAME=user
+  #     - MYSQL_PASSWORD=pass
+  #     - ANOMALY_THRESHOLD=0.85
+  #     - WHALE_THRESHOLD=1000000
+  #     - DETECTION_WINDOW_SIZE=100
+  #   networks:
+  #     - msq-tx-monitor-network
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+  #     timeout: 10s
+  #     retries: 5

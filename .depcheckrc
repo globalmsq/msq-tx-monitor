@@ -1,0 +1,44 @@
+{
+  "ignores": [
+    "@nx/*",
+    "nx",
+    "@types/*",
+    "typescript",
+    "prettier",
+    "eslint*",
+    "@typescript-eslint/*",
+    "jest",
+    "ts-jest",
+    "ts-node",
+    "depcheck"
+  ],
+  "parsers": {
+    "*.json": "depcheck-parser-sass"
+  },
+  "detectors": [
+    "depcheck-detector-require",
+    "depcheck-detector-import",
+    "depcheck-detector-amd",
+    "depcheck-detector-export",
+    "depcheck-detector-typescript"
+  ],
+  "specials": [
+    "depcheck-special-eslint",
+    "depcheck-special-webpack"
+  ],
+  "ignore-patterns": [
+    "dist",
+    "build",
+    "coverage",
+    "*.d.ts",
+    "apps/*/src/**/*"
+  ],
+  "ignore-dirs": [
+    "dist",
+    "build",
+    "coverage",
+    "node_modules",
+    ".nx",
+    "apps"
+  ]
+}

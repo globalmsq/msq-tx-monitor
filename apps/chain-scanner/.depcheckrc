@@ -1,0 +1,38 @@
+{
+  "ignores": [
+    "@types/*",
+    "axios",
+    "dotenv",
+    "mysql2",
+    "node-cron",
+    "redis",
+    "web3",
+    "ws",
+    "webpack-cli"
+  ],
+  "parsers": {
+    "*.json": "depcheck-parser-sass"
+  },
+  "detectors": [
+    "depcheck-detector-require",
+    "depcheck-detector-import",
+    "depcheck-detector-amd",
+    "depcheck-detector-export",
+    "depcheck-detector-typescript"
+  ],
+  "specials": [
+    "depcheck-special-eslint"
+  ],
+  "ignore-patterns": [
+    "dist",
+    "build",
+    "coverage",
+    "*.d.ts"
+  ],
+  "ignore-dirs": [
+    "dist",
+    "build",
+    "coverage",
+    "node_modules"
+  ]
+}

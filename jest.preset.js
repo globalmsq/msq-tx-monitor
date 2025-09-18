@@ -11,7 +11,9 @@ const tsconfig = JSON.parse(
 module.exports = {
   testMatch: ['**/+(*.)+(spec|test).+(ts|js)?(x)'],
   transform: {
-    '^.+\\.(ts|js|html)$': 'ts-jest',
+    '^.+\\.(ts|js|html)$': ['ts-jest', {
+      tsconfig: '<rootDir>/tsconfig.base.json',
+    }],
   },
   resolver: '@nx/jest/plugins/resolver',
   moduleFileExtensions: ['ts', 'js', 'html'],
@@ -29,9 +31,4 @@ module.exports = {
     prefix: '<rootDir>/'
   }),
   setupFilesAfterEnv: [],
-  globals: {
-    'ts-jest': {
-      tsconfig: '<rootDir>/tsconfig.base.json',
-    },
-  },
 };

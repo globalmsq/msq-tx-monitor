@@ -1,6 +1,6 @@
 {
   "root": true,
-  "ignorePatterns": ["**/*"],
+  "ignorePatterns": ["dist", "build", "node_modules", "coverage", "*.js"],
   "plugins": ["@nx"],
   "overrides": [
     {
@@ -25,7 +25,7 @@
       "files": ["*.ts", "*.tsx"],
       "extends": [
         "eslint:recommended",
-        "@typescript-eslint/recommended",
+        "plugin:@typescript-eslint/recommended",
         "prettier"
       ],
       "parser": "@typescript-eslint/parser",

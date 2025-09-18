@@ -1,0 +1,45 @@
+{
+  "ignores": [
+    "@types/*",
+    "vite",
+    "vitest",
+    "@vitejs/plugin-react",
+    "react",
+    "react-dom",
+    "react-router-dom",
+    "recharts",
+    "socket.io-client",
+    "web3",
+    "@tanstack/react-query",
+    "axios",
+    "@testing-library/react",
+    "@testing-library/jest-dom",
+    "jsdom"
+  ],
+  "parsers": {
+    "*.json": "depcheck-parser-sass"
+  },
+  "detectors": [
+    "depcheck-detector-require",
+    "depcheck-detector-import",
+    "depcheck-detector-amd",
+    "depcheck-detector-export",
+    "depcheck-detector-typescript"
+  ],
+  "specials": [
+    "depcheck-special-eslint",
+    "depcheck-special-vite"
+  ],
+  "ignore-patterns": [
+    "dist",
+    "build",
+    "coverage",
+    "*.d.ts"
+  ],
+  "ignore-dirs": [
+    "dist",
+    "build",
+    "coverage",
+    "node_modules"
+  ]
+}

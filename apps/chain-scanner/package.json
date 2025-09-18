@@ -16,6 +16,8 @@
     "lint": "eslint \"src/**/*.ts\"",
     "lint:nx": "nx lint chain-scanner",
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
+    "format": "prettier --check \"src/**/*.ts\"",
+    "format:fix": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit --project tsconfig.app.json"
   },
   "dependencies": {
