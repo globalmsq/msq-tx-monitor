@@ -16,7 +16,7 @@
     "baseUrl": ".",
     "paths": {
       "@msq-tx-monitor/chain-utils": ["libs/chain-utils/src/index.ts"],
-      "@msq-tx-monitor/database": ["libs/src/index.ts"],
+      "@msq-tx-monitor/database": ["libs/database/src/index.ts"],
       "@msq-tx-monitor/msq-common": ["libs/msq-common/src/index.ts"],
       "@msq-tx-monitor/tx-types": ["libs/tx-types/src/index.ts"]
     },

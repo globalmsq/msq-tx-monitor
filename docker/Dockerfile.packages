@@ -24,20 +24,11 @@ COPY apps ./apps/
 RUN pnpm install --no-frozen-lockfile --ignore-scripts
 
 # Generate Prisma client for database library
-RUN cd libs && npx prisma generate --schema=prisma/schema.prisma
+RUN cd libs/database && npx prisma generate --schema=prisma/schema.prisma
 
 # Install @prisma/client explicitly at workspace level
 RUN pnpm add @prisma/client --workspace-root
 
-
-# =============================================================================
-# Development stage for tx-dashboard (React with Vite)
-# =============================================================================
-FROM base AS tx-dashboard
-WORKDIR /app
-
-EXPOSE 3000
-CMD ["npx", "nx", "serve", "tx-dashboard", "--host", "0.0.0.0", "--port", "3000"]
 
 # =============================================================================
 # Development stage for tx-api (Express.js)

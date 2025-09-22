@@ -24,7 +24,7 @@ MSQ Transaction Monitor is a comprehensive real-time monitoring platform that tr
 
 **Scalable Microservice Architecture**
 
-- NX monorepo with 4 independent applications
+- NX monorepo with 3 independent applications
 - Docker containerized deployment with one-command startup
 - Horizontal scaling capabilities with Redis caching
 - MySQL database with optimized indexing for high-performance queries
@@ -35,7 +35,6 @@ MSQ Transaction Monitor is a comprehensive real-time monitoring platform that tr
 
 | App               | Role               | Technology              | Port |
 | ----------------- | ------------------ | ----------------------- | ---- |
-| **tx-dashboard**  | Web Interface      | React 18 + TypeScript   | 3000 |
 | **tx-api**        | REST API Server    | Express.js + TypeScript | 8000 |
 | **chain-scanner** | Blockchain Monitor | Node.js + Web3.js       | 8001 |
 | **tx-analyzer**   | AI Analytics       | Python + FastAPI        | 8002 |
@@ -43,7 +42,7 @@ MSQ Transaction Monitor is a comprehensive real-time monitoring platform that tr
 ### Data Flow
 
 ```
-Polygon Network → chain-scanner → MySQL → tx-api → tx-dashboard
+Polygon Network → chain-scanner → MySQL → tx-api
                       ↓
                  tx-analyzer (Real-time Analysis)
 ```
@@ -63,7 +62,6 @@ git clone <repository-url> msq-tx-monitor
 cd msq-tx-monitor
 
 # Copy environment files
-cp apps/tx-dashboard/.env.example apps/tx-dashboard/.env
 cp apps/tx-api/.env.example apps/tx-api/.env
 cp apps/chain-scanner/.env.example apps/chain-scanner/.env
 cp apps/tx-analyzer/.env.example apps/tx-analyzer/.env
@@ -96,7 +94,6 @@ npm run docker:up
 npm install
 
 # Serve individual apps
-nx serve tx-dashboard    # React dashboard
 nx serve tx-api         # Express API
 nx serve chain-scanner  # Blockchain scanner
 nx serve tx-analyzer    # Python analytics
@@ -109,13 +106,6 @@ nx test-all
 ```
 
 ### Environment Variables
-
-#### tx-dashboard
-
-```env
-VITE_API_URL=http://localhost:8000
-VITE_WS_URL=ws://localhost:8001
-```
 
 #### tx-api
 
@@ -150,7 +140,6 @@ WHALE_THRESHOLD=1000000
 ```
 msq-tx-monitor/
 ├── apps/
-│   ├── tx-dashboard/      # React dashboard
 │   ├── tx-api/           # Express.js API
 │   ├── chain-scanner/    # Blockchain scanner
 │   └── tx-analyzer/      # Python analytics

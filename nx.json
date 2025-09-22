@@ -70,7 +70,7 @@
       }
     }
   },
-  "defaultProject": "tx-dashboard",
+  "defaultProject": "tx-api",
   "cli": {
     "packageManager": "pnpm"
   },
