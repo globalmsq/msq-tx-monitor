@@ -32,11 +32,6 @@ CREATE TABLE `tokens` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Insert MSQ ecosystem tokens
-INSERT INTO `tokens` (`address`, `symbol`, `name`, `decimals`) VALUES
-('0x0000000000000000000000000000000000000001', 'MSQ', 'MSQ Token', 18),
-('0x0000000000000000000000000000000000000002', 'SUT', 'Stablecoin Utility Token', 18),
-('0x0000000000000000000000000000000000000003', 'KWT', 'Kingdomware Token', 18),
-('0x0000000000000000000000000000000000000004', 'P2UC', 'Pay2Use Coin', 18);
 
 -- =============================================================================
 -- Transaction Model - Blockchain transaction records
@@ -51,6 +46,7 @@ CREATE TABLE `transactions` (
     `value` DECIMAL(38,0) NOT NULL,
     `tokenAddress` VARCHAR(42) NOT NULL,
     `tokenSymbol` VARCHAR(10) NOT NULL,
+    `tokenDecimals` INT NOT NULL DEFAULT 18,
     `gasUsed` BIGINT NULL,
     `gasPrice` BIGINT NULL,
     `timestamp` DATETIME(3) NOT NULL,
@@ -70,9 +66,9 @@ CREATE TABLE `transactions` (
     INDEX `transactions_isAnomaly_anomalyScore_idx` (`isAnomaly`, `anomalyScore`),
     INDEX `transactions_value_idx` (`value`),
     INDEX `transactions_fromAddress_tokenAddress_idx` (`fromAddress`, `tokenAddress`),
-    INDEX `transactions_timestamp_tokenSymbol_idx` (`timestamp`, `tokenSymbol`),
+    INDEX `transactions_timestamp_tokenSymbol_idx` (`timestamp`, `tokenSymbol`)
 
-    FOREIGN KEY (`tokenAddress`) REFERENCES `tokens`(`address`) ON UPDATE CASCADE
+    -- FOREIGN KEY (`tokenAddress`) REFERENCES `tokens`(`address`) ON UPDATE CASCADE (removed)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
@@ -104,9 +100,9 @@ CREATE TABLE `address_statistics` (
     INDEX `address_statistics_isSuspicious_idx` (`isSuspicious`),
     INDEX `address_statistics_totalSent_idx` (`totalSent`),
     INDEX `address_statistics_totalReceived_idx` (`totalReceived`),
-    INDEX `address_statistics_lastSeen_idx` (`lastSeen`),
+    INDEX `address_statistics_lastSeen_idx` (`lastSeen`)
 
-    FOREIGN KEY (`tokenAddress`) REFERENCES `tokens`(`address`) ON UPDATE CASCADE
+    -- FOREIGN KEY (`tokenAddress`) REFERENCES `tokens`(`address`) ON UPDATE CASCADE (removed)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
@@ -133,9 +129,9 @@ CREATE TABLE `anomalies` (
     INDEX `anomalies_detectedAt_idx` (`detectedAt`),
     INDEX `anomalies_score_idx` (`score`),
     INDEX `anomalies_reviewed_idx` (`reviewed`),
-    INDEX `anomalies_anomalyType_severity_idx` (`anomalyType`, `severity`),
+    INDEX `anomalies_anomalyType_severity_idx` (`anomalyType`, `severity`)
 
-    FOREIGN KEY (`transactionHash`) REFERENCES `transactions`(`hash`) ON UPDATE CASCADE ON DELETE CASCADE
+    -- FOREIGN KEY (`transactionHash`) REFERENCES `transactions`(`hash`) ON UPDATE CASCADE ON DELETE CASCADE (removed)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
@@ -152,6 +148,13 @@ CREATE TABLE `system_statistics` (
     UNIQUE KEY `system_statistics_metricName_key` (`metricName`),
     INDEX `system_statistics_updatedAt_idx` (`updatedAt`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Initialize MSQ ecosystem tokens
+INSERT INTO `tokens` (`address`, `symbol`, `name`, `decimals`, `isActive`) VALUES
+('0x6A8Ec2d9BfBDD20A7F5A4E89D640F7E7cebA4499', 'MSQ', 'MSQ Token', 18, true),
+('0x435001Af7fC65B621B0043df99810B2f30860c5d', 'KWT', 'KWT Token', 6, true),
+('0x98965474EcBeC2F532F1f780ee37b0b05F77Ca55', 'SUT', 'SUT Token', 18, true),
+('0x8B3C6ff5911392dECB5B08611822280dEe0E4f64', 'P2UC', 'P2UC Token', 18, true);
 
 -- Initialize system statistics
 INSERT INTO `system_statistics` (`metricName`, `metricValue`) VALUES

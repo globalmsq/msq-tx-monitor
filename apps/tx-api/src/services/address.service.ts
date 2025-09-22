@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@msq-tx-monitor/database';
 import prisma from '../lib/prisma';
 import {
   AddressRanking,
@@ -356,16 +356,19 @@ export class AddressService {
     // Check if we have address statistics in the address_statistics table first
     const existingStats = await prisma.addressStatistics.findMany({
       where: { address },
-      include: {
-        token: {
-          select: {
-            symbol: true,
-            name: true,
-            decimals: true,
-          },
-        },
-      },
     });
+
+    // Get token information separately
+    const tokenAddresses = [
+      ...new Set(existingStats.map(stat => stat.tokenAddress)),
+    ];
+    const addressTokens = await prisma.token.findMany({
+      where: { address: { in: tokenAddresses } },
+      select: { address: true, symbol: true, name: true, decimals: true },
+    });
+    const tokenMap = new Map(
+      addressTokens.map(token => [token.address, token])
+    );
 
     if (existingStats.length > 0) {
       // Use existing address statistics
@@ -395,7 +398,10 @@ export class AddressService {
         };
       } = {};
       existingStats.forEach(stat => {
-        tokenBreakdown[stat.token.symbol] = {
+        const token = tokenMap.get(stat.tokenAddress);
+        if (!token) return;
+
+        tokenBreakdown[token.symbol] = {
           sent: stat.totalSent.toString(),
           received: stat.totalReceived.toString(),
           volume: (
@@ -506,7 +512,7 @@ export class AddressService {
       GROUP BY tokenSymbol
     `;
 
-    const tokens: {
+    const tokenBreakdownMap: {
       [key: string]: {
         sent: string;
         received: string;
@@ -515,7 +521,7 @@ export class AddressService {
       };
     } = {};
     tokenBreakdown.forEach(row => {
-      tokens[row.tokenSymbol] = {
+      tokenBreakdownMap[row.tokenSymbol] = {
         sent: row.sent.toString(),
         received: row.received.toString(),
         volume: (BigInt(row.sent) + BigInt(row.received)).toString(),
@@ -548,7 +554,7 @@ export class AddressService {
       last_transaction_date: stat.last_transaction_date
         ? new Date(stat.last_transaction_date)
         : null,
-      token_breakdown: tokens,
+      token_breakdown: tokenBreakdownMap,
       anomaly_statistics: {
         total_anomalies: anomalyStats._count || 0,
         avg_anomaly_score: Number(anomalyStats._avg.anomalyScore || 0),

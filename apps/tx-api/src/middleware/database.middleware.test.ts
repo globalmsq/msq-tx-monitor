@@ -1,8 +1,10 @@
-import { DatabaseConnection } from '../database/connection';
 import { RedisConnection } from '../cache/redis';
+import prisma from '../lib/prisma';
 
 // Mock the actual connections for testing
-jest.mock('../database/connection');
+jest.mock('../lib/prisma', () => ({
+  $queryRaw: jest.fn(),
+}));
 jest.mock('../cache/redis');
 
 describe('Database Middleware', () => {
@@ -10,29 +12,22 @@ describe('Database Middleware', () => {
     jest.clearAllMocks();
   });
 
-  describe('DatabaseConnection', () => {
-    it('should create a singleton pool instance', () => {
-      const mockCreatePool = jest.fn();
-      (DatabaseConnection.getInstance as jest.Mock) = mockCreatePool;
+  describe('PrismaConnection', () => {
+    it('should test database connection successfully', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ 1: 1 }]);
 
-      DatabaseConnection.getInstance();
-      DatabaseConnection.getInstance();
-
-      expect(mockCreatePool).toHaveBeenCalledTimes(2);
-    });
-
-    it('should test connection successfully', async () => {
-      (DatabaseConnection.testConnection as jest.Mock).mockResolvedValue(true);
-
-      const result = await DatabaseConnection.testConnection();
-      expect(result).toBe(true);
+      const result = await prisma.$queryRaw`SELECT 1`;
+      expect(result).toEqual([{ 1: 1 }]);
     });
 
     it('should handle connection test failure', async () => {
-      (DatabaseConnection.testConnection as jest.Mock).mockResolvedValue(false);
+      (prisma.$queryRaw as jest.Mock).mockRejectedValue(
+        new Error('Connection failed')
+      );
 
-      const result = await DatabaseConnection.testConnection();
-      expect(result).toBe(false);
+      await expect(prisma.$queryRaw`SELECT 1`).rejects.toThrow(
+        'Connection failed'
+      );
     });
   });
 

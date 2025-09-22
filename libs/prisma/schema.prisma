@@ -25,9 +25,9 @@ model Token {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relations
-  transactions      Transaction[]
-  addressStatistics AddressStatistics[]
+  // Relations (no foreign key constraints)
+  // transactions      Transaction[]
+  // addressStatistics AddressStatistics[]
 
   @@index([symbol])
   @@index([isActive])
@@ -47,6 +47,7 @@ model Transaction {
   value            Decimal  @db.Decimal(38, 0)
   tokenAddress     String   @db.VarChar(42)
   tokenSymbol      String   @db.VarChar(10)
+  tokenDecimals    Int      @default(18)
   gasUsed          BigInt?
   gasPrice         BigInt?
   timestamp        DateTime
@@ -55,9 +56,9 @@ model Transaction {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  // Relations
-  token     Token      @relation(fields: [tokenAddress], references: [address])
-  anomalies Anomaly[]
+  // Relations (no foreign key constraints)
+  // token     Token      @relation(fields: [tokenAddress], references: [address])
+  // anomalies Anomaly[]
 
   @@index([blockNumber])
   @@index([fromAddress])
@@ -92,8 +93,8 @@ model AddressStatistics {
   isSuspicious            Boolean  @default(false)
   updatedAt               DateTime @updatedAt
 
-  // Relations
-  token Token @relation(fields: [tokenAddress], references: [address])
+  // Relations (no foreign key constraints)
+  // token Token @relation(fields: [tokenAddress], references: [address])
 
   @@unique([address, tokenAddress])
   @@index([address])
@@ -140,8 +141,8 @@ model Anomaly {
   reviewedAt      DateTime?
   falsePositive   Boolean     @default(false)
 
-  // Relations
-  transaction Transaction @relation(fields: [transactionHash], references: [hash], onDelete: Cascade)
+  // Relations (no foreign key constraints)
+  // transaction Transaction @relation(fields: [transactionHash], references: [hash], onDelete: Cascade)
 
   @@index([transactionHash])
   @@index([severity])

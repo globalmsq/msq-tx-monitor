@@ -7,6 +7,7 @@ This document explains how to run commands for individual apps and all apps toge
 Each app has its own `package.json` with individual scripts. You can run commands in two ways:
 
 ### Method 1: Navigate to app directory
+
 ```bash
 # Navigate to specific app
 cd apps/tx-api
@@ -19,6 +20,7 @@ pnpm typecheck  # Type check this app only
 ```
 
 ### Method 2: Use filter from root directory
+
 ```bash
 # From root directory using pnpm filter
 pnpm api dev        # Start tx-api development server
@@ -35,12 +37,12 @@ pnpm analyzer test
 
 ## Available Apps
 
-| App | Filter Command | Description |
-|-----|----------------|-------------|
-| **tx-api** | `pnpm api` | Express.js REST API server |
-| **tx-dashboard** | `pnpm dashboard` | React dashboard with real-time updates |
-| **chain-scanner** | `pnpm scanner` | Blockchain scanner service |
-| **tx-analyzer** | `pnpm analyzer` | Python FastAPI analytics service |
+| App               | Filter Command   | Description                            |
+| ----------------- | ---------------- | -------------------------------------- |
+| **tx-api**        | `pnpm api`       | Express.js REST API server             |
+| **tx-dashboard**  | `pnpm dashboard` | React dashboard with real-time updates |
+| **chain-scanner** | `pnpm scanner`   | Blockchain scanner service             |
+| **tx-analyzer**   | `pnpm analyzer`  | Python FastAPI analytics service       |
 
 ## Bulk Commands
 
@@ -93,6 +95,7 @@ pnpm api build && pnpm api test
 Each app now has two sets of commands:
 
 ### Isolated Commands (App-Only)
+
 - `build` - Build only this specific app, no dependencies
   - ✅ **tx-api**: TypeScript compilation to `../../dist/apps/tx-api`
   - ✅ **chain-scanner**: TypeScript compilation to `../../dist/apps/chain-scanner`
@@ -103,6 +106,7 @@ Each app now has two sets of commands:
 - `typecheck` - Type check only this app (bypasses NX)
 
 ### NX Commands (With Dependencies)
+
 - `build:nx` - Build using NX dependency graph (includes dependencies)
 - `test:nx` - Run tests using NX orchestration
 - `lint:nx` - Lint using NX configuration

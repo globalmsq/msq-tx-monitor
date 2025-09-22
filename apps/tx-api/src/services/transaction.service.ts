@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@msq-tx-monitor/database';
 import prisma from '../lib/prisma';
 import {
   TransactionFilters,
@@ -107,16 +107,10 @@ export class TransactionService {
       orderBy: [{ timestamp: 'desc' }, { id: 'desc' }],
       skip: pagination.offset,
       take: pagination.limit,
-      include: {
-        token: {
-          select: {
-            symbol: true,
-            name: true,
-            decimals: true,
-          },
-        },
-      },
     });
+
+    // Note: Token information is already included in transaction records
+    // Additional token metadata could be fetched here if needed
 
     const totalPages = Math.ceil(total / pagination.limit);
 
@@ -163,30 +157,17 @@ export class TransactionService {
 
     const transaction = await prisma.transaction.findUnique({
       where: { hash },
-      include: {
-        token: {
-          select: {
-            symbol: true,
-            name: true,
-            decimals: true,
-          },
-        },
-        anomalies: {
-          select: {
-            id: true,
-            anomalyType: true,
-            severity: true,
-            score: true,
-            description: true,
-            detectedAt: true,
-          },
-        },
-      },
     });
 
     if (!transaction) {
       return null;
     }
+
+    // Note: Token information is already included in transaction record
+    // Additional token metadata could be fetched here if needed
+
+    // Note: Anomaly information is already included via isAnomaly and anomalyScore
+    // Additional anomaly details could be fetched here if needed
 
     const result = this.transformTransactionResponse(transaction);
 

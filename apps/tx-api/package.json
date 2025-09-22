@@ -20,7 +20,7 @@
     "typecheck": "tsc --noEmit --project tsconfig.app.json"
   },
   "dependencies": {
-    "@prisma/client": "^6.16.2",
+    "@msq-tx-monitor/database": "workspace:*",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
@@ -29,8 +29,6 @@
     "express-slow-down": "^3.0.0",
     "helmet": "^8.1.0",
     "morgan": "^1.10.1",
-    "mysql2": "^3.9.7",
-    "prisma": "^6.16.2",
     "redis": "^4.6.14",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",

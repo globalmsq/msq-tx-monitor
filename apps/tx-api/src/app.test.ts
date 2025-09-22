@@ -1,16 +1,18 @@
 import request from 'supertest';
 import { app } from './app';
-import { DatabaseConnection } from './database/connection';
 import { RedisConnection } from './cache/redis';
+import prisma from './lib/prisma';
 
 // Mock database connections
-jest.mock('./database/connection');
+jest.mock('./lib/prisma', () => ({
+  $queryRaw: jest.fn(),
+}));
 jest.mock('./cache/redis');
 
 describe('TX API App', () => {
   beforeEach(() => {
     // Mock successful database connections
-    (DatabaseConnection.testConnection as jest.Mock).mockResolvedValue(true);
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ 1: 1 }]);
     (RedisConnection.testConnection as jest.Mock).mockResolvedValue(true);
     (RedisConnection.getInstance as jest.Mock).mockResolvedValue({
       ping: jest.fn().mockResolvedValue('PONG'),
@@ -35,7 +37,9 @@ describe('TX API App', () => {
 
     it('should return degraded status when services are unavailable', async () => {
       // Mock failed connections
-      (DatabaseConnection.testConnection as jest.Mock).mockResolvedValue(false);
+      (prisma.$queryRaw as jest.Mock).mockRejectedValue(
+        new Error('Database connection failed')
+      );
       (RedisConnection.testConnection as jest.Mock).mockResolvedValue(false);
 
       const response = await request(app).get('/health').expect(503);

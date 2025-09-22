@@ -15,11 +15,13 @@ MSQ Transaction Monitor is a real-time blockchain transaction monitoring system 
 ## Application Structure
 
 ### 1. tx-dashboard (Frontend)
+
 **Role**: Real-time transaction monitoring user interface
 **Technology**: React 18 + TypeScript + Vite
 **Port**: 3000
 
 **Key Features**:
+
 - Real-time WebSocket connection for live transaction feed
 - Interactive charts and analytics dashboards
 - Address behavior analysis and statistics
@@ -27,16 +29,19 @@ MSQ Transaction Monitor is a real-time blockchain transaction monitoring system 
 - Responsive design for mobile/desktop
 
 **Integration Points**:
+
 - WebSocket connection to chain-scanner (port 8001)
 - REST API calls to tx-api (port 8000)
 - Real-time updates without page refresh
 
 ### 2. tx-api (Backend API)
+
 **Role**: REST API server for data access and business logic
 **Technology**: Express.js + TypeScript + MySQL + Redis
 **Port**: 8000
 
 **Key Features**:
+
 - RESTful API endpoints for transaction data
 - Address statistics aggregation and caching
 - Rate limiting and security middleware
@@ -44,6 +49,7 @@ MSQ Transaction Monitor is a real-time blockchain transaction monitoring system 
 - Database connection pooling
 
 **API Endpoints**:
+
 ```
 GET /api/v1/transactions       # Transaction list with pagination
 GET /api/v1/addresses/:address # Address-specific statistics
@@ -53,16 +59,19 @@ GET /api/v1/health             # Health check endpoint
 ```
 
 **Integration Points**:
+
 - MySQL database for data persistence
 - Redis cache for performance optimization
 - CORS-enabled for frontend communication
 
 ### 3. chain-scanner (Blockchain Monitor)
+
 **Role**: Real-time blockchain transaction scanning and collection
 **Technology**: Node.js + Web3.js/Ethers.js + WebSocket
 **Port**: 8001 (WebSocket Server)
 
 **Key Features**:
+
 - Multi-RPC provider support with automatic failover
 - Real-time Transfer event detection for target tokens
 - Transaction validation and data normalization
@@ -70,6 +79,7 @@ GET /api/v1/health             # Health check endpoint
 - Missed block recovery and data consistency
 
 **Blockchain Configuration**:
+
 - **Primary RPC**: https://polygon-rpc.com
 - **Backup RPCs**: polygon.llamarpc.com, polygon.drpc.org
 - **Target Tokens**: MSQ, SUT, KWT, P2UC
@@ -77,6 +87,7 @@ GET /api/v1/health             # Health check endpoint
 - **Polling Interval**: 5 seconds
 
 **Data Processing Pipeline**:
+
 1. **Event Detection**: Monitor Transfer events on target tokens
 2. **Data Validation**: Verify transaction data integrity
 3. **Database Storage**: Store validated transactions in MySQL
@@ -84,11 +95,13 @@ GET /api/v1/health             # Health check endpoint
 5. **Error Recovery**: Handle RPC failures and retry logic
 
 ### 4. tx-analyzer (Analytics Engine)
+
 **Role**: AI-powered transaction analysis and anomaly detection
 **Technology**: Python 3.11 + FastAPI + Scikit-learn + Pandas
 **Port**: 8002
 
 **Key Features**:
+
 - Machine learning-based anomaly detection
 - Address behavior profiling and risk scoring
 - Statistical analysis and trend detection
@@ -96,12 +109,14 @@ GET /api/v1/health             # Health check endpoint
 - Automated alerting system
 
 **Analysis Algorithms**:
+
 - **Isolation Forest**: For outlier detection
 - **Statistical Analysis**: Z-score and percentile-based detection
 - **Pattern Recognition**: Time series analysis
 - **Behavioral Profiling**: Address interaction patterns
 
 **Detection Categories**:
+
 - Volume anomalies (unusually large transactions)
 - Frequency anomalies (high-frequency trading)
 - Behavioral anomalies (suspicious patterns)
@@ -112,6 +127,7 @@ GET /api/v1/health             # Health check endpoint
 ### Database Schema (MySQL 8.0)
 
 **transactions**
+
 ```sql
 CREATE TABLE transactions (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -139,6 +155,7 @@ CREATE TABLE transactions (
 ```
 
 **address_statistics**
+
 ```sql
 CREATE TABLE address_statistics (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -160,6 +177,7 @@ CREATE TABLE address_statistics (
 ```
 
 **anomalies**
+
 ```sql
 CREATE TABLE anomalies (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -181,12 +199,14 @@ CREATE TABLE anomalies (
 ### Caching Strategy (Redis 7)
 
 **Cache Keys**:
+
 - `stats:global` - Global system statistics (TTL: 60s)
 - `stats:address:{address}` - Address-specific stats (TTL: 300s)
 - `stats:token:{symbol}` - Token-specific stats (TTL: 120s)
 - `anomalies:recent` - Recent anomaly list (TTL: 30s)
 
 **Real-time Data**:
+
 - `stream:transactions` - Live transaction stream
 - `queue:analysis` - Analysis job queue
 - `alerts:active` - Active alert status
@@ -217,11 +237,13 @@ CREATE TABLE anomalies (
 ### Docker Network Configuration
 
 **Internal Network**: `msq-network` (bridge driver)
+
 - All services communicate via service names
 - Only necessary ports exposed to host
 - Automatic service discovery
 
 **Port Mapping**:
+
 - Host:3000 → tx-dashboard:80 (nginx)
 - Host:8000 → tx-api:8000
 - Host:8001 → chain-scanner:8001
@@ -234,6 +256,7 @@ CREATE TABLE anomalies (
 ### Docker Configuration
 
 **Dockerfile.packages** - Multi-stage build for all services:
+
 ```dockerfile
 # Build arguments determine which service to build
 ARG SERVICE_NAME
@@ -243,12 +266,14 @@ FROM ${SERVICE_NAME}-runtime AS final
 ```
 
 **docker-compose.yml** - Production deployment:
+
 - Health checks for all services
 - Restart policies (unless-stopped)
 - Volume mounts for data persistence
 - Environment variable injection
 
 **docker-compose.dev.yml** - Development environment:
+
 - Source code volume mounting
 - Hot reload capabilities
 - Debug port mappings
@@ -259,21 +284,25 @@ FROM ${SERVICE_NAME}-runtime AS final
 Each application maintains independent environment configuration:
 
 **tx-dashboard/.env**:
+
 - Frontend API endpoints
 - WebSocket connection settings
 - UI configuration options
 
 **tx-api/.env**:
+
 - Database connection parameters
 - Redis cache configuration
 - API security settings
 
 **chain-scanner/.env**:
+
 - Polygon RPC endpoints
 - Token contract addresses
 - Scanning parameters
 
 **tx-analyzer/.env**:
+
 - Analysis algorithm parameters
 - ML model configurations
 - Alert thresholds
@@ -283,17 +312,20 @@ Each application maintains independent environment configuration:
 ### Performance Optimization
 
 **Database**:
+
 - Optimized indexes on frequently queried columns
 - Connection pooling (max 10 connections per service)
 - Query optimization with EXPLAIN analysis
 - Partitioning by date for large tables
 
 **Caching**:
+
 - Redis for frequently accessed data
 - Application-level caching for static data
 - Query result caching with appropriate TTL
 
 **Real-time Processing**:
+
 - WebSocket connection pooling
 - Event-driven architecture
 - Asynchronous processing where possible
@@ -301,12 +333,14 @@ Each application maintains independent environment configuration:
 ### Scalability Strategy
 
 **Horizontal Scaling**:
+
 - Stateless service design
 - Load balancer ready (nginx configuration)
 - Database connection pooling
 - Redis cluster support
 
 **Resource Management**:
+
 - Memory-efficient data structures
 - Configurable batch processing
 - Graceful shutdown handling
@@ -315,18 +349,21 @@ Each application maintains independent environment configuration:
 ## Security Architecture
 
 ### API Security
+
 - Rate limiting: 100 requests/minute per IP
 - CORS configuration for allowed origins
 - Input validation and sanitization
 - SQL injection prevention (parameterized queries)
 
 ### Network Security
+
 - Internal Docker network isolation
 - Minimal port exposure
 - Environment-based configuration
 - No hardcoded secrets
 
 ### Data Security
+
 - Database credentials via environment variables
 - Redis for non-sensitive caching only
 - Audit logging for sensitive operations
@@ -335,18 +372,21 @@ Each application maintains independent environment configuration:
 ## Monitoring & Observability
 
 ### Health Monitoring
+
 - Health check endpoints for all services
 - Docker health check integration
 - Database connection monitoring
 - RPC provider status tracking
 
 ### Logging Strategy
+
 - Structured logging (JSON format)
 - Correlation IDs for request tracing
 - Error tracking and alerting
 - Performance metrics collection
 
 ### Alerting System
+
 - Anomaly detection alerts
 - System health alerts
 - Performance degradation warnings

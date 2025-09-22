@@ -110,6 +110,7 @@ msq-tx-monitor/
 **Port**: 3000
 
 **Key Components**:
+
 - `TransactionFeed`: Real-time transaction list
 - `StatsDashboard`: Analytics and metrics display
 - `AddressAnalyzer`: Address behavior analysis
@@ -117,6 +118,7 @@ msq-tx-monitor/
 - `FilterPanel`: Transaction filtering and search
 
 **Environment Variables**:
+
 ```env
 VITE_API_URL=http://localhost:8000
 VITE_WS_URL=ws://localhost:8001
@@ -131,6 +133,7 @@ VITE_REFRESH_INTERVAL=5000
 **Port**: 8000
 
 **Key Features**:
+
 - Transaction CRUD operations
 - Address statistics aggregation
 - Real-time data caching
@@ -138,6 +141,7 @@ VITE_REFRESH_INTERVAL=5000
 - API documentation with Swagger
 
 **Environment Variables**:
+
 ```env
 PORT=8000
 NODE_ENV=development
@@ -149,6 +153,7 @@ RATE_LIMIT_MAX_REQUESTS=100
 ```
 
 **API Endpoints**:
+
 - `GET /api/v1/transactions` - List transactions
 - `GET /api/v1/addresses/:address` - Address statistics
 - `GET /api/v1/statistics` - Global statistics
@@ -161,6 +166,7 @@ RATE_LIMIT_MAX_REQUESTS=100
 **Port**: 8001 (WebSocket)
 
 **Key Features**:
+
 - Multi-RPC provider support with failover
 - Real-time Transfer event detection
 - Transaction validation and processing
@@ -168,6 +174,7 @@ RATE_LIMIT_MAX_REQUESTS=100
 - Missed block recovery
 
 **Environment Variables**:
+
 ```env
 POLYGON_RPC_URL=https://polygon-rpc.com
 POLYGON_BACKUP_RPC_1=https://polygon.llamarpc.com
@@ -181,6 +188,7 @@ BLOCK_CONFIRMATION=12
 ```
 
 **Monitoring Flow**:
+
 1. Connect to Polygon RPC providers
 2. Subscribe to Transfer events for target tokens
 3. Validate and parse transaction data
@@ -195,6 +203,7 @@ BLOCK_CONFIRMATION=12
 **Port**: 8002
 
 **Key Features**:
+
 - Machine learning-based anomaly detection
 - Address behavior profiling
 - Statistical analysis and reporting
@@ -202,6 +211,7 @@ BLOCK_CONFIRMATION=12
 - Whale transaction identification
 
 **Environment Variables**:
+
 ```env
 PORT=8002
 ENVIRONMENT=development
@@ -212,6 +222,7 @@ DETECTION_WINDOW_SIZE=100
 ```
 
 **Analysis Features**:
+
 - **Volume Anomalies**: Detect unusually large transactions
 - **Frequency Anomalies**: Identify high-frequency trading patterns
 - **Behavioral Analysis**: Profile address trading behaviors
@@ -247,16 +258,19 @@ DETECTION_WINDOW_SIZE=100
 ## 🔗 Inter-Service Communication
 
 ### 1. Real-time Data Flow
+
 - **chain-scanner** → **tx-dashboard**: WebSocket for live transactions
 - **chain-scanner** → **MySQL**: Direct database writes
 - **tx-analyzer** → **MySQL**: Analysis results storage
 
 ### 2. API Data Flow
+
 - **tx-dashboard** → **tx-api**: REST API calls for data
 - **tx-api** → **MySQL**: Database queries
 - **tx-api** → **Redis**: Caching layer
 
 ### 3. Analytics Flow
+
 - **tx-analyzer** → **MySQL**: Read transactions for analysis
 - **tx-analyzer** → **Redis**: Store real-time statistics
 - **tx-api** → **Redis**: Read cached analytics
@@ -264,6 +278,7 @@ DETECTION_WINDOW_SIZE=100
 ## 🐳 Docker Configuration
 
 ### Multi-stage Dockerfile.packages
+
 Single Dockerfile that builds all services using build arguments:
 
 ```dockerfile
@@ -276,6 +291,7 @@ FROM python:3.11-slim AS tx-analyzer-runtime
 ```
 
 ### Service Dependencies
+
 ```yaml
 # docker-compose.yml dependency chain
 tx-dashboard:
@@ -291,17 +307,20 @@ tx-analyzer:
 ## 🔐 Security Architecture
 
 ### API Security
+
 - Rate limiting: 100 requests/minute per IP
 - CORS configuration for specific origins
 - Input validation on all endpoints
 - Parameterized queries to prevent SQL injection
 
 ### Network Security
+
 - Services communicate via internal Docker network
 - Only necessary ports exposed to host
 - Environment-specific configurations
 
 ### Data Security
+
 - Database credentials via environment variables
 - No secrets in code or Docker images
 - Redis for caching non-sensitive data only
@@ -309,17 +328,20 @@ tx-analyzer:
 ## 📈 Scalability Design
 
 ### Horizontal Scaling
+
 - Each service can be scaled independently
 - Load balancer ready (nginx configuration included)
 - Stateless service design
 
 ### Performance Optimization
+
 - Redis caching for frequently accessed data
 - Database indexing on transaction and address queries
 - WebSocket connection pooling
 - Efficient batch processing in scanner
 
 ### Resource Management
+
 - Memory-efficient data structures
 - Configurable batch sizes
 - Connection pooling for databases

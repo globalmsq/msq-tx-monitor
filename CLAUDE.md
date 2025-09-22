@@ -12,12 +12,14 @@ MSQ Transaction Monitor is a real-time blockchain transaction monitoring system 
 ## Application Structure
 
 ### Core Applications
+
 - **tx-dashboard** (port 3000): React 18 dashboard with real-time WebSocket updates
 - **tx-api** (port 8000): Express.js REST API with MySQL/Redis integration
 - **chain-scanner** (port 8001): Node.js blockchain scanner with Web3.js
 - **tx-analyzer** (port 8002): Python FastAPI analytics with ML anomaly detection
 
 ### Shared Libraries
+
 - **tx-types**: TypeScript type definitions for transactions and addresses
 - **chain-utils**: Blockchain utility functions (Web3 helpers, validators)
 - **msq-common**: MSQ ecosystem common functions (risk scoring, whale detection)
@@ -25,6 +27,7 @@ MSQ Transaction Monitor is a real-time blockchain transaction monitoring system 
 ## Development Guidelines
 
 ### NX Workspace Commands
+
 ```bash
 # Serve individual applications
 nx serve tx-dashboard    # React dashboard
@@ -39,6 +42,7 @@ nx run-many --target=lint --all
 ```
 
 ### Docker Development
+
 ```bash
 # Development with hot reload
 npm run docker:dev
@@ -49,12 +53,15 @@ npm run docker:up
 ```
 
 ### Environment Configuration
+
 Each application maintains independent .env files:
+
 - No global environment variables
 - Docker services use service names for internal communication
 - Polygon RPC endpoint: https://polygon-rpc.com (configurable with backups)
 
 ### Database Schema Focus
+
 - **transactions**: Blockchain transaction data with anomaly scoring
 - **address_statistics**: Real-time address analytics and risk profiling
 - **anomalies**: ML-detected suspicious transaction patterns
@@ -85,6 +92,7 @@ Each application maintains independent .env files:
 ## Project-Specific Development Rules
 
 ### Blockchain Development
+
 - Always validate addresses before processing
 - Use Web3.js/Ethers.js for blockchain interactions
 - Implement RPC provider failover logic
@@ -92,24 +100,28 @@ Each application maintains independent .env files:
 - Log all RPC calls for debugging
 
 ### Real-time Systems
+
 - WebSocket connections must handle reconnection
 - Implement exponential backoff for retries
 - Use Redis for caching frequently accessed data
 - Design for horizontal scaling
 
 ### Security Considerations
+
 - Never log private keys or sensitive data
 - Validate all transaction data before storage
 - Implement rate limiting on all public endpoints
 - Use parameterized queries to prevent SQL injection
 
 ### Performance Requirements
+
 - Transaction processing latency < 10 seconds
 - API response times < 1 second (cached data)
 - WebSocket message broadcasting < 100ms
 - Database queries optimized with proper indexing
 
 ### Code Organization
+
 - Follow NX project structure conventions
 - Keep shared code in libs/ directory
 - Use TypeScript strict mode for all Node.js code

@@ -1,11 +1,7 @@
 import dotenv from 'dotenv';
-import { initializeDatabaseConfig } from './database.config';
 
 // Load environment variables
 dotenv.config();
-
-// Initialize database configuration and set DATABASE_URL
-const databaseConfig = initializeDatabaseConfig();
 
 export const config = {
   server: {
@@ -17,7 +13,8 @@ export const config = {
     version: process.env.API_VERSION || 'v1',
   },
 
-  database: databaseConfig,
+  // Database configuration is now handled by @msq-tx-monitor/database library
+  // Environment variables: MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE, MYSQL_USERNAME, MYSQL_PASSWORD
 
   redis: {
     host: process.env.REDIS_HOST || 'localhost',

@@ -6,7 +6,7 @@ export default {
     'src/**/*.{ts,js}',
     '!src/**/*.d.ts',
     '!src/main.ts',
-    '!**/node_modules/**'
+    '!**/node_modules/**',
   ],
   coverageDirectory: '../../coverage/apps/tx-api',
   coverageReporters: ['text', 'lcov'],
@@ -15,12 +15,12 @@ export default {
       branches: 80,
       functions: 80,
       lines: 80,
-      statements: 80
-    }
+      statements: 80,
+    },
   },
   transform: {
-    '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json' }]
+    '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json' }],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
-  testMatch: ['<rootDir>/src/**/*.(test|spec).ts']
+  testMatch: ['<rootDir>/src/**/*.(test|spec).ts'],
 };

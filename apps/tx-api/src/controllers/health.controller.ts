@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { DatabaseConnection } from '../database/connection';
+import prisma from '../lib/prisma';
 import { RedisConnection } from '../cache/redis';
 import { config } from '../config';
 
@@ -50,8 +50,8 @@ export const healthCheck = async (
   // Test database connection
   const dbStart = Date.now();
   try {
-    const dbConnected = await DatabaseConnection.testConnection();
-    health.services.database.status = dbConnected ? 'healthy' : 'unhealthy';
+    await prisma.$queryRaw`SELECT 1`;
+    health.services.database.status = 'healthy';
     health.services.database.responseTime = Date.now() - dbStart;
   } catch (error) {
     health.services.database.status = 'unhealthy';
