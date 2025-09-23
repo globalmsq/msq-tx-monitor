@@ -88,3 +88,5 @@ tsconfig.tsbuildinfo
 *.d.ts.map
 .eslintcache
 .turbo
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
