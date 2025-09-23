@@ -12,7 +12,7 @@ export interface WebSocketConfig {
 
 export interface TransactionMessage {
   type: 'transaction' | 'connection' | 'error' | 'heartbeat';
-  data: any;
+  data: unknown;
   timestamp: number;
 }
 
@@ -21,7 +21,7 @@ export enum ConnectionState {
   CONNECTED = 'connected',
   DISCONNECTED = 'disconnected',
   RECONNECTING = 'reconnecting',
-  ERROR = 'error'
+  ERROR = 'error',
 }
 
 export type WebSocketCallback = (message: TransactionMessage) => void;
@@ -51,8 +51,10 @@ export class WebSocketService {
    * Connect to WebSocket server
    */
   connect(): void {
-    if (this.ws?.readyState === WebSocket.CONNECTING ||
-        this.ws?.readyState === WebSocket.OPEN) {
+    if (
+      this.ws?.readyState === WebSocket.CONNECTING ||
+      this.ws?.readyState === WebSocket.OPEN
+    ) {
       return;
     }
 
@@ -86,7 +88,7 @@ export class WebSocketService {
   /**
    * Send message to server
    */
-  send(message: any): boolean {
+  send(message: Record<string, unknown>): boolean {
     if (this.ws?.readyState === WebSocket.OPEN) {
       try {
         this.ws.send(JSON.stringify(message));
@@ -139,7 +141,7 @@ export class WebSocketService {
       this.startHeartbeat();
     };
 
-    this.ws.onmessage = (event) => {
+    this.ws.onmessage = event => {
       try {
         const message: TransactionMessage = JSON.parse(event.data);
         this.handleMessage(message);
@@ -148,11 +150,12 @@ export class WebSocketService {
       }
     };
 
-    this.ws.onclose = (event) => {
+    this.ws.onclose = event => {
       console.log('WebSocket closed:', event.code, event.reason);
       this.clearTimers();
 
-      if (event.code !== 1000) { // Not a normal closure
+      if (event.code !== 1000) {
+        // Not a normal closure
         this.setConnectionState(ConnectionState.DISCONNECTED);
         this.scheduleReconnect();
       } else {
@@ -160,7 +163,7 @@ export class WebSocketService {
       }
     };
 
-    this.ws.onerror = (error) => {
+    this.ws.onerror = error => {
       console.error('WebSocket error:', error);
       this.setConnectionState(ConnectionState.ERROR);
     };
@@ -210,7 +213,9 @@ export class WebSocketService {
       30000 // Max 30 seconds
     );
 
-    console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    console.log(
+      `Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`
+    );
 
     this.reconnectTimer = setTimeout(() => {
       this.connect();
@@ -240,5 +245,5 @@ export class WebSocketService {
 
 // Singleton instance
 export const wsService = new WebSocketService({
-  url: import.meta.env.VITE_WS_ENDPOINT + '/ws' || 'ws://localhost:8001/ws'
+  url: import.meta.env.VITE_WS_ENDPOINT + '/ws' || 'ws://localhost:8001/ws',
 });

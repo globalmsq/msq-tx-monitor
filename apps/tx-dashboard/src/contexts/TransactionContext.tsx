@@ -1,5 +1,15 @@
-import React, { createContext, useContext, useEffect, useReducer, ReactNode } from 'react';
-import { wsService, ConnectionState, TransactionMessage } from '../services/websocket';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useReducer,
+  ReactNode,
+} from 'react';
+import {
+  wsService,
+  ConnectionState,
+  TransactionMessage,
+} from '../services/websocket';
 
 // Transaction types from shared types
 interface Transaction {
@@ -62,7 +72,7 @@ const initialStats: TransactionStats = {
   volume24h: '$0',
   avgTxSize: '$0',
   totalVolume: '$0',
-  successRate: 0
+  successRate: 0,
 };
 
 const initialState: TransactionState = {
@@ -74,71 +84,81 @@ const initialState: TransactionState = {
   selectedTokens: ['MSQ', 'SUT', 'KWT', 'P2UC'],
   showAnomalies: false,
   isLoading: false,
-  error: null
+  error: null,
 };
 
-function transactionReducer(state: TransactionState, action: TransactionAction): TransactionState {
+function transactionReducer(
+  state: TransactionState,
+  action: TransactionAction
+): TransactionState {
   switch (action.type) {
     case 'SET_CONNECTION_STATE':
       return {
         ...state,
         connectionState: action.payload,
-        isConnected: action.payload === ConnectionState.CONNECTED
+        isConnected: action.payload === ConnectionState.CONNECTED,
       };
 
-    case 'ADD_TRANSACTION':
+    case 'ADD_TRANSACTION': {
       const newTransaction = action.payload;
-      const updatedTransactions = [newTransaction, ...state.transactions].slice(0, 1000); // Keep last 1000
-      const updatedRecent = [newTransaction, ...state.recentTransactions].slice(0, 50); // Keep last 50
+      const updatedTransactions = [newTransaction, ...state.transactions].slice(
+        0,
+        1000
+      ); // Keep last 1000
+      const updatedRecent = [newTransaction, ...state.recentTransactions].slice(
+        0,
+        50
+      ); // Keep last 50
 
       return {
         ...state,
         transactions: updatedTransactions,
-        recentTransactions: updatedRecent
+        recentTransactions: updatedRecent,
       };
+    }
 
     case 'UPDATE_TRANSACTIONS':
       return {
         ...state,
         transactions: action.payload,
-        recentTransactions: action.payload.slice(0, 50)
+        recentTransactions: action.payload.slice(0, 50),
       };
 
     case 'UPDATE_STATS':
       return {
         ...state,
-        stats: { ...state.stats, ...action.payload }
+        stats: { ...state.stats, ...action.payload },
       };
 
     case 'SET_TOKEN_FILTER':
       return {
         ...state,
-        selectedTokens: action.payload
+        selectedTokens: action.payload,
       };
 
     case 'TOGGLE_ANOMALIES':
       return {
         ...state,
-        showAnomalies: action.payload
+        showAnomalies: action.payload,
       };
 
     case 'SET_LOADING':
       return {
         ...state,
-        isLoading: action.payload
+        isLoading: action.payload,
       };
 
     case 'SET_ERROR':
       return {
         ...state,
         error: action.payload,
-        isLoading: false
+        isLoading: false,
       };
 
     case 'CLEAR_ERROR':
       return {
         ...state,
-        error: null
+        error: null,
       };
 
     default:
@@ -157,7 +177,9 @@ interface TransactionContextType {
   };
 }
 
-const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
+const TransactionContext = createContext<TransactionContextType | undefined>(
+  undefined
+);
 
 interface TransactionProviderProps {
   children: ReactNode;
@@ -168,37 +190,47 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
 
   useEffect(() => {
     // Set up WebSocket connection
-    const unsubscribeMessages = wsService.subscribe((message: TransactionMessage) => {
-      switch (message.type) {
-        case 'new_transaction':
-          if (message.data) {
-            dispatch({ type: 'ADD_TRANSACTION', payload: message.data });
-          }
-          break;
+    const unsubscribeMessages = wsService.subscribe(
+      (message: TransactionMessage) => {
+        switch (message.type) {
+          case 'new_transaction':
+            if (message.data) {
+              dispatch({ type: 'ADD_TRANSACTION', payload: message.data });
+            }
+            break;
 
-        case 'connection':
-          if (message.data?.stats) {
-            dispatch({ type: 'UPDATE_STATS', payload: message.data.stats });
-          }
-          break;
+          case 'connection':
+            if (message.data?.stats) {
+              dispatch({ type: 'UPDATE_STATS', payload: message.data.stats });
+            }
+            break;
 
-        case 'error':
-          dispatch({ type: 'SET_ERROR', payload: message.data?.message || 'WebSocket error' });
-          break;
+          case 'error':
+            dispatch({
+              type: 'SET_ERROR',
+              payload: message.data?.message || 'WebSocket error',
+            });
+            break;
+        }
       }
-    });
+    );
 
-    const unsubscribeState = wsService.onConnectionStateChange((connectionState: ConnectionState) => {
-      dispatch({ type: 'SET_CONNECTION_STATE', payload: connectionState });
+    const unsubscribeState = wsService.onConnectionStateChange(
+      (connectionState: ConnectionState) => {
+        dispatch({ type: 'SET_CONNECTION_STATE', payload: connectionState });
 
-      if (connectionState === ConnectionState.ERROR) {
-        dispatch({ type: 'SET_ERROR', payload: 'Failed to connect to transaction stream' });
-      } else if (connectionState === ConnectionState.CONNECTED) {
-        dispatch({ type: 'CLEAR_ERROR' });
-        // Request initial data
-        wsService.send({ type: 'subscribe', tokens: state.selectedTokens });
+        if (connectionState === ConnectionState.ERROR) {
+          dispatch({
+            type: 'SET_ERROR',
+            payload: 'Failed to connect to transaction stream',
+          });
+        } else if (connectionState === ConnectionState.CONNECTED) {
+          dispatch({ type: 'CLEAR_ERROR' });
+          // Request initial data
+          wsService.send({ type: 'subscribe', tokens: state.selectedTokens });
+        }
       }
-    });
+    );
 
     // Connect to WebSocket
     wsService.connect();
@@ -208,7 +240,7 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       unsubscribeState();
       wsService.disconnect();
     };
-  }, []);
+  }, [state.selectedTokens]);
 
   // Update token subscription when filter changes
   useEffect(() => {
@@ -216,7 +248,7 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       wsService.send({
         type: 'subscribe',
         tokens: state.selectedTokens,
-        includeAnomalies: state.showAnomalies
+        includeAnomalies: state.showAnomalies,
       });
     }
   }, [state.selectedTokens, state.showAnomalies]);
@@ -245,7 +277,7 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
 
     disconnect: () => {
       wsService.disconnect();
-    }
+    },
   };
 
   return (
@@ -258,7 +290,9 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
 export function useTransactions() {
   const context = useContext(TransactionContext);
   if (context === undefined) {
-    throw new Error('useTransactions must be used within a TransactionProvider');
+    throw new Error(
+      'useTransactions must be used within a TransactionProvider'
+    );
   }
   return context;
 }
@@ -269,7 +303,7 @@ export function useConnectionState() {
   return {
     connectionState: state.connectionState,
     isConnected: state.isConnected,
-    error: state.error
+    error: state.error,
   };
 }
 
@@ -279,7 +313,7 @@ export function useTransactionData() {
     transactions: state.transactions,
     recentTransactions: state.recentTransactions,
     stats: state.stats,
-    isLoading: state.isLoading
+    isLoading: state.isLoading,
   };
 }
 
@@ -289,6 +323,6 @@ export function useTransactionFilters() {
     selectedTokens: state.selectedTokens,
     showAnomalies: state.showAnomalies,
     toggleTokenFilter: actions.toggleTokenFilter,
-    toggleAnomalies: actions.toggleAnomalies
+    toggleAnomalies: actions.toggleAnomalies,
   };
 }
