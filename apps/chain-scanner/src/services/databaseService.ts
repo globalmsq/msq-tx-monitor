@@ -1,6 +1,7 @@
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { prisma, initializeDatabaseConfig } from '@msq-tx-monitor/database';
 import { config } from '../config';
+import { AddressStatsCalculator } from './addressStatsCalculator';
 
 export interface TransactionData {
   hash: string;
@@ -32,6 +33,7 @@ export interface AddressStatistic {
 
 export class DatabaseService {
   private initialized = false;
+  private addressStatsCalculator = new AddressStatsCalculator();
 
   async initialize(): Promise<void> {
     if (this.initialized) {
@@ -72,8 +74,8 @@ export class DatabaseService {
         },
       });
 
-      // Update address statistics
-      await this.updateAddressStatistics(transactionData);
+      // Update address statistics using advanced calculator
+      await this.addressStatsCalculator.updateAddressStatistics(transactionData);
 
       if (config.logging.enableDatabaseLogs) {
         console.log(`Transaction saved: ${transactionData.hash}`);
@@ -120,9 +122,9 @@ export class DatabaseService {
           skipDuplicates: true,
         });
 
-        // Update address statistics for each transaction
+        // Update address statistics for each transaction using advanced calculator
         for (const transaction of transactions) {
-          await this.updateAddressStatisticsInTransaction(tx, transaction);
+          await this.addressStatsCalculator.updateAddressStatistics(transaction, tx);
         }
       });
 
@@ -133,134 +135,21 @@ export class DatabaseService {
     }
   }
 
-  private async updateAddressStatistics(
+  /**
+   * Update address statistics using the advanced AddressStatsCalculator
+   * for comprehensive real-time analytics and risk assessment.
+   * This method provides:
+   * - Incremental calculation algorithms
+   * - Behavioral pattern analysis
+   * - Velocity and diversity scoring
+   * - Risk assessment and whale detection
+   * - Efficient O(1) update complexity
+   */
+  async updateAddressStatisticsLegacy(
     transactionData: TransactionData
   ): Promise<void> {
-    const { from, to, value, timestamp, tokenAddress } = transactionData;
-
-    // Update sender statistics
-    await this.upsertAddressStatistics(from, tokenAddress, {
-      totalValueOut: { increment: value },
-      lastSeen: timestamp,
-      firstSeen: timestamp,
-    });
-
-    // Update receiver statistics
-    await this.upsertAddressStatistics(to, tokenAddress, {
-      totalValueIn: { increment: value },
-      lastSeen: timestamp,
-      firstSeen: timestamp,
-    });
-  }
-
-  private async updateAddressStatisticsInTransaction(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tx: any,
-    transactionData: TransactionData
-  ): Promise<void> {
-    const { from, to, value, timestamp, tokenAddress } = transactionData;
-
-    // Update sender statistics
-    await this.upsertAddressStatisticsInTransaction(tx, from, tokenAddress, {
-      totalValueOut: { increment: value },
-      lastSeen: timestamp,
-      firstSeen: timestamp,
-    });
-
-    // Update receiver statistics
-    await this.upsertAddressStatisticsInTransaction(tx, to, tokenAddress, {
-      totalValueIn: { increment: value },
-      lastSeen: timestamp,
-      firstSeen: timestamp,
-    });
-  }
-
-  private async upsertAddressStatistics(
-    address: string,
-    tokenAddress: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    updateData: any
-  ): Promise<void> {
-    await prisma.addressStatistics.upsert({
-      where: {
-        address_tokenAddress: {
-          address,
-          tokenAddress,
-        },
-      },
-      update: {
-        totalSent: updateData.totalValueOut
-          ? { increment: updateData.totalValueOut.increment }
-          : undefined,
-        totalReceived: updateData.totalValueIn
-          ? { increment: updateData.totalValueIn.increment }
-          : undefined,
-        transactionCountSent: updateData.totalValueOut
-          ? { increment: 1 }
-          : undefined,
-        transactionCountReceived: updateData.totalValueIn
-          ? { increment: 1 }
-          : undefined,
-        lastSeen: updateData.lastSeen,
-      },
-      create: {
-        address,
-        tokenAddress,
-        totalSent: updateData.totalValueOut?.increment || '0',
-        totalReceived: updateData.totalValueIn?.increment || '0',
-        transactionCountSent: updateData.totalValueOut ? 1 : 0,
-        transactionCountReceived: updateData.totalValueIn ? 1 : 0,
-        firstSeen: updateData.firstSeen,
-        lastSeen: updateData.lastSeen,
-        riskScore: 0,
-        isWhale: false,
-      },
-    });
-  }
-
-  private async upsertAddressStatisticsInTransaction(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tx: any,
-    address: string,
-    tokenAddress: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    updateData: any
-  ): Promise<void> {
-    await tx.addressStatistics.upsert({
-      where: {
-        address_tokenAddress: {
-          address,
-          tokenAddress,
-        },
-      },
-      update: {
-        totalSent: updateData.totalValueOut
-          ? { increment: updateData.totalValueOut.increment }
-          : undefined,
-        totalReceived: updateData.totalValueIn
-          ? { increment: updateData.totalValueIn.increment }
-          : undefined,
-        transactionCountSent: updateData.totalValueOut
-          ? { increment: 1 }
-          : undefined,
-        transactionCountReceived: updateData.totalValueIn
-          ? { increment: 1 }
-          : undefined,
-        lastSeen: updateData.lastSeen,
-      },
-      create: {
-        address,
-        tokenAddress,
-        totalSent: updateData.totalValueOut?.increment || '0',
-        totalReceived: updateData.totalValueIn?.increment || '0',
-        transactionCountSent: updateData.totalValueOut ? 1 : 0,
-        transactionCountReceived: updateData.totalValueIn ? 1 : 0,
-        firstSeen: updateData.firstSeen,
-        lastSeen: updateData.lastSeen,
-        riskScore: 0,
-        isWhale: false,
-      },
-    });
+    // Legacy method - now delegated to AddressStatsCalculator
+    await this.addressStatsCalculator.updateAddressStatistics(transactionData);
   }
 
   async getRecentTransactions(
