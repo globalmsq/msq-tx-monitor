@@ -13,6 +13,7 @@ import {
   AddressStatsCacheService,
   CachedAddressStats,
 } from './addressStatsCacheService';
+import { AddressRankingService } from './addressRankingService';
 
 interface BehavioralFlags {
   isBot?: boolean;
@@ -25,8 +26,8 @@ interface BehavioralFlags {
 
 interface AddressStatsUpdate {
   // Basic statistics
-  totalSent?: bigint;
-  totalReceived?: bigint;
+  totalSent?: string;
+  totalReceived?: string;
   transactionCountSent?: number;
   transactionCountReceived?: number;
 
@@ -34,9 +35,9 @@ interface AddressStatsUpdate {
   avgTransactionSize?: number;
   avgTransactionSizeSent?: number;
   avgTransactionSizeReceived?: number;
-  maxTransactionSize?: bigint;
-  maxTransactionSizeSent?: bigint;
-  maxTransactionSizeReceived?: bigint;
+  maxTransactionSize?: string;
+  maxTransactionSizeSent?: string;
+  maxTransactionSizeReceived?: string;
 
   // Behavioral metrics
   velocityScore?: number;
@@ -68,9 +69,11 @@ export class AddressStatsCalculator {
   };
 
   private cacheService: AddressStatsCacheService;
+  private rankingService: AddressRankingService;
 
   constructor() {
     this.cacheService = AddressStatsCacheService.getInstance();
+    this.rankingService = AddressRankingService.getInstance();
   }
 
   /**
@@ -167,18 +170,18 @@ export class AddressStatsCalculator {
       create: {
         address,
         tokenAddress,
-        totalSent: direction === 'sent' ? amount : BigInt(0),
-        totalReceived: direction === 'received' ? amount : BigInt(0),
+        totalSent: direction === 'sent' ? amount.toString() : '0',
+        totalReceived: direction === 'received' ? amount.toString() : '0',
         transactionCountSent: direction === 'sent' ? 1 : 0,
         transactionCountReceived: direction === 'received' ? 1 : 0,
         avgTransactionSize: Number(amount),
         avgTransactionSizeSent: direction === 'sent' ? Number(amount) : 0,
         avgTransactionSizeReceived:
           direction === 'received' ? Number(amount) : 0,
-        maxTransactionSize: amount,
-        maxTransactionSizeSent: direction === 'sent' ? amount : BigInt(0),
+        maxTransactionSize: amount.toString(),
+        maxTransactionSizeSent: direction === 'sent' ? amount.toString() : '0',
         maxTransactionSizeReceived:
-          direction === 'received' ? amount : BigInt(0),
+          direction === 'received' ? amount.toString() : '0',
         firstSeen: timestamp,
         lastSeen: timestamp,
         lastActivityType: direction,
@@ -196,6 +199,9 @@ export class AddressStatsCalculator {
 
     // Update cache after successful database update
     await this.updateCacheAfterStatsUpdate(address, tokenAddress, updates);
+
+    // Update rankings for significant changes
+    await this.updateRankingsIfNeeded(address, tokenAddress, updates);
   }
 
   /**
@@ -287,7 +293,7 @@ export class AddressStatsCalculator {
 
     // Update totals and counts
     if (direction === 'sent') {
-      updates.totalSent = currentStats.totalSent + amount;
+      updates.totalSent = (BigInt(currentStats.totalSent.toString()) + amount).toString();
       updates.transactionCountSent = currentStats.transactionCountSent + 1;
 
       // Calculate new average for sent transactions
@@ -299,11 +305,11 @@ export class AddressStatsCalculator {
 
       // Update maximum sent
       updates.maxTransactionSizeSent =
-        amount > currentStats.maxTransactionSizeSent
-          ? amount
+        amount > BigInt(currentStats.maxTransactionSizeSent.toString())
+          ? amount.toString()
           : currentStats.maxTransactionSizeSent;
     } else {
-      updates.totalReceived = currentStats.totalReceived + amount;
+      updates.totalReceived = (BigInt(currentStats.totalReceived.toString()) + amount).toString();
       updates.transactionCountReceived =
         currentStats.transactionCountReceived + 1;
 
@@ -316,8 +322,8 @@ export class AddressStatsCalculator {
 
       // Update maximum received
       updates.maxTransactionSizeReceived =
-        amount > currentStats.maxTransactionSizeReceived
-          ? amount
+        amount > BigInt(currentStats.maxTransactionSizeReceived.toString())
+          ? amount.toString()
           : currentStats.maxTransactionSizeReceived;
     }
 
@@ -333,8 +339,8 @@ export class AddressStatsCalculator {
 
     updates.avgTransactionSize = Number(totalVolume) / totalTransactions;
     updates.maxTransactionSize =
-      amount > currentStats.maxTransactionSize
-        ? amount
+      amount > BigInt(currentStats.maxTransactionSize.toString())
+        ? amount.toString()
         : currentStats.maxTransactionSize;
 
     // Update timestamps and activity
@@ -541,5 +547,81 @@ export class AddressStatsCalculator {
         await this.updateAddressStatistics(transaction, tx);
       }
     });
+  }
+
+  /**
+   * Update rankings if there are significant changes to address statistics
+   */
+  private async updateRankingsIfNeeded(
+    address: string,
+    tokenAddress: string,
+    _updates: AddressStatsUpdate
+  ): Promise<void> {
+    try {
+      // Update address ranking (delegated to ranking service)
+      await this.rankingService.updateAddressRanking(address, tokenAddress);
+    } catch (error) {
+      console.error('❌ Failed to update rankings for address:', error);
+      // Don't throw error - ranking update failure shouldn't break transaction processing
+    }
+  }
+
+  /**
+   * Get address ranking information
+   */
+  async getAddressRanking(
+    address: string,
+    tokenAddress: string
+  ): Promise<{
+    whales: unknown[] | null;
+    active: unknown[] | null;
+    risky: unknown[] | null;
+  }> {
+    try {
+      const [whales, active, risky] = await Promise.all([
+        this.rankingService.getCachedRankings(tokenAddress, 'whales'),
+        this.rankingService.getCachedRankings(tokenAddress, 'active'),
+        this.rankingService.getCachedRankings(tokenAddress, 'risky'),
+      ]);
+
+      return { whales, active, risky };
+    } catch (error) {
+      console.error('❌ Failed to get address rankings:', error);
+      return { whales: null, active: null, risky: null };
+    }
+  }
+
+  /**
+   * Generate comprehensive address analytics including rankings
+   */
+  async generateAddressAnalytics(tokenAddress: string): Promise<{
+    rankings: unknown;
+    statistics: unknown;
+    patterns: unknown;
+  } | null> {
+    try {
+      const rankingService = this.rankingService;
+
+      // Generate fresh rankings and patterns
+      const [patterns, rankings] = await Promise.all([
+        rankingService.analyzeTradePatterns(tokenAddress),
+        rankingService.generateTokenRankings(tokenAddress),
+      ]);
+
+      return {
+        rankings: rankings.slice(0, 100), // Top 100 addresses
+        statistics: patterns.statistics,
+        patterns: {
+          anomalies: patterns.anomalies.slice(0, 20), // Top 20 anomalies
+          whales: rankings.filter(r => r.category.whale).slice(0, 10),
+          suspicious: rankings
+            .filter(r => r.category.suspiciousPattern)
+            .slice(0, 10),
+        },
+      };
+    } catch (error) {
+      console.error('❌ Failed to generate address analytics:', error);
+      return null;
+    }
   }
 }
