@@ -77,21 +77,32 @@ model Transaction {
 // Address Statistics Model - Aggregated statistics per address
 // =============================================================================
 model AddressStatistics {
-  id                      BigInt   @id @default(autoincrement())
-  address                 String   @db.VarChar(42)
-  tokenAddress            String   @db.VarChar(42)
-  totalSent               Decimal  @default(0) @db.Decimal(38, 0)
-  totalReceived           Decimal  @default(0) @db.Decimal(38, 0)
-  transactionCountSent    Int      @default(0)
+  id                       BigInt   @id @default(autoincrement())
+  address                  String   @db.VarChar(42)
+  tokenAddress             String   @db.VarChar(42)
+  totalSent                Decimal  @default(0) @db.Decimal(38, 0)
+  totalReceived            Decimal  @default(0) @db.Decimal(38, 0)
+  transactionCountSent     Int      @default(0)
   transactionCountReceived Int      @default(0)
-  firstSeen               DateTime?
-  lastSeen                DateTime?
-  avgTransactionSize      Decimal  @default(0) @db.Decimal(38, 6)
-  maxTransactionSize      Decimal  @default(0) @db.Decimal(38, 0)
-  riskScore               Decimal  @default(0.0000) @db.Decimal(5, 4)
-  isWhale                 Boolean  @default(false)
-  isSuspicious            Boolean  @default(false)
-  updatedAt               DateTime @updatedAt
+  firstSeen                DateTime?
+  lastSeen                 DateTime?
+  avgTransactionSize       Decimal  @default(0) @db.Decimal(38, 6)
+  avgTransactionSizeSent   Decimal  @default(0) @db.Decimal(38, 6)
+  avgTransactionSizeReceived Decimal @default(0) @db.Decimal(38, 6)
+  maxTransactionSize       Decimal  @default(0) @db.Decimal(38, 0)
+  maxTransactionSizeSent   Decimal  @default(0) @db.Decimal(38, 0)
+  maxTransactionSizeReceived Decimal @default(0) @db.Decimal(38, 0)
+  riskScore                Decimal  @default(0.0000) @db.Decimal(5, 4)
+  isWhale                  Boolean  @default(false)
+  isSuspicious             Boolean  @default(false)
+  isActive                 Boolean  @default(true)
+  behavioralFlags          Json?    // Stores behavioral pattern flags
+  lastActivityType         String?  @db.VarChar(20) // 'sent', 'received', 'both'
+  addressLabel             String?  @db.VarChar(100) // Optional label for known addresses
+  dormancyPeriod           Int      @default(0) // Days since last activity
+  velocityScore            Decimal  @default(0.0000) @db.Decimal(5, 4) // Transaction frequency score
+  diversityScore           Decimal  @default(0.0000) @db.Decimal(5, 4) // Address interaction diversity
+  updatedAt                DateTime @updatedAt
 
   // Relations (no foreign key constraints)
   // token Token @relation(fields: [tokenAddress], references: [address])
@@ -102,9 +113,18 @@ model AddressStatistics {
   @@index([riskScore])
   @@index([isWhale])
   @@index([isSuspicious])
+  @@index([isActive])
   @@index([totalSent])
   @@index([totalReceived])
   @@index([lastSeen])
+  @@index([dormancyPeriod])
+  @@index([velocityScore])
+  @@index([diversityScore])
+  @@index([lastActivityType])
+  @@index([avgTransactionSizeSent])
+  @@index([avgTransactionSizeReceived])
+  @@index([riskScore, isWhale])
+  @@index([velocityScore, diversityScore])
   @@map("address_statistics")
 }
 

@@ -85,10 +85,21 @@ CREATE TABLE `address_statistics` (
     `firstSeen` DATETIME(3) NULL,
     `lastSeen` DATETIME(3) NULL,
     `avgTransactionSize` DECIMAL(38,6) NOT NULL DEFAULT 0,
+    `avgTransactionSizeSent` DECIMAL(38,6) NOT NULL DEFAULT 0,
+    `avgTransactionSizeReceived` DECIMAL(38,6) NOT NULL DEFAULT 0,
     `maxTransactionSize` DECIMAL(38,0) NOT NULL DEFAULT 0,
+    `maxTransactionSizeSent` DECIMAL(38,0) NOT NULL DEFAULT 0,
+    `maxTransactionSizeReceived` DECIMAL(38,0) NOT NULL DEFAULT 0,
     `riskScore` DECIMAL(5,4) NOT NULL DEFAULT 0.0000,
     `isWhale` BOOLEAN NOT NULL DEFAULT false,
     `isSuspicious` BOOLEAN NOT NULL DEFAULT false,
+    `isActive` BOOLEAN NOT NULL DEFAULT true,
+    `behavioralFlags` JSON NULL,
+    `lastActivityType` VARCHAR(20) NULL,
+    `addressLabel` VARCHAR(100) NULL,
+    `dormancyPeriod` INT NOT NULL DEFAULT 0,
+    `velocityScore` DECIMAL(5,4) NOT NULL DEFAULT 0.0000,
+    `diversityScore` DECIMAL(5,4) NOT NULL DEFAULT 0.0000,
     `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
 
     PRIMARY KEY (`id`),
@@ -98,9 +109,18 @@ CREATE TABLE `address_statistics` (
     INDEX `address_statistics_riskScore_idx` (`riskScore`),
     INDEX `address_statistics_isWhale_idx` (`isWhale`),
     INDEX `address_statistics_isSuspicious_idx` (`isSuspicious`),
+    INDEX `address_statistics_isActive_idx` (`isActive`),
     INDEX `address_statistics_totalSent_idx` (`totalSent`),
     INDEX `address_statistics_totalReceived_idx` (`totalReceived`),
-    INDEX `address_statistics_lastSeen_idx` (`lastSeen`)
+    INDEX `address_statistics_lastSeen_idx` (`lastSeen`),
+    INDEX `address_statistics_dormancyPeriod_idx` (`dormancyPeriod`),
+    INDEX `address_statistics_velocityScore_idx` (`velocityScore`),
+    INDEX `address_statistics_diversityScore_idx` (`diversityScore`),
+    INDEX `address_statistics_lastActivityType_idx` (`lastActivityType`),
+    INDEX `address_statistics_avgTransactionSizeSent_idx` (`avgTransactionSizeSent`),
+    INDEX `address_statistics_avgTransactionSizeReceived_idx` (`avgTransactionSizeReceived`),
+    INDEX `address_statistics_riskScore_isWhale_idx` (`riskScore`, `isWhale`),
+    INDEX `address_statistics_velocityScore_diversityScore_idx` (`velocityScore`, `diversityScore`)
 
     -- FOREIGN KEY (`tokenAddress`) REFERENCES `tokens`(`address`) ON UPDATE CASCADE (removed)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
