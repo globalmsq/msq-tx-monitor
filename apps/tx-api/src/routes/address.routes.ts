@@ -52,3 +52,41 @@ addressRoutes.get(
   searchRateLimiter,
   addressController.searchAddresses
 );
+
+/**
+ * @route GET /api/v1/addresses/:address/profile
+ * @description Get detailed behavioral profile for a specific address
+ * @param {string} address - Ethereum address (0x prefixed 40-char hex)
+ * @query {string} [tokenAddress] - Filter by specific token address
+ * @returns {AddressProfile} Detailed behavioral profile with ranking and scores
+ */
+addressRoutes.get('/:address/profile', addressController.getAddressProfile);
+
+/**
+ * @route GET /api/v1/addresses/whales
+ * @description Get whale addresses (top 1% by volume)
+ * @query {string} [tokenAddress] - Filter by specific token address
+ * @query {number} [limit=50] - Number of results to return (max 100)
+ * @returns {AddressListResponse<AddressProfile>} List of whale addresses
+ */
+addressRoutes.get('/whales', addressController.getWhaleAddresses);
+
+/**
+ * @route GET /api/v1/addresses/active-traders
+ * @description Get active trader addresses (high frequency)
+ * @query {string} [tokenAddress] - Filter by specific token address
+ * @query {number} [limit=50] - Number of results to return (max 100)
+ * @query {number} [minTransactions=50] - Minimum transaction count
+ * @returns {AddressListResponse<AddressProfile>} List of active trader addresses
+ */
+addressRoutes.get('/active-traders', addressController.getActiveTraders);
+
+/**
+ * @route GET /api/v1/addresses/suspicious
+ * @description Get suspicious addresses (high risk score)
+ * @query {string} [tokenAddress] - Filter by specific token address
+ * @query {number} [limit=50] - Number of results to return (max 100)
+ * @query {number} [minRiskScore=0.7] - Minimum risk score threshold
+ * @returns {AddressListResponse<AddressProfile>} List of suspicious addresses
+ */
+addressRoutes.get('/suspicious', addressController.getSuspiciousAddresses);

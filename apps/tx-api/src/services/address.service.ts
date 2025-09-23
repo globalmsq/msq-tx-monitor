@@ -5,6 +5,10 @@ import {
   AddressSearch,
   AddressRankingFilters,
   TopAddressesResponse,
+  AddressProfile,
+  AddressStatisticsDetail,
+  AddressListResponse,
+  BehavioralCategory,
 } from '../types/address.types';
 
 import { RedisConnection } from '../cache/redis';
@@ -655,5 +659,585 @@ export class AddressService {
     }
 
     return { start_date, end_date };
+  }
+
+  /**
+   * Get detailed behavioral profile for a specific address
+   */
+  async getAddressProfile(
+    address: string,
+    tokenAddress?: string
+  ): Promise<AddressProfile | null> {
+    const cacheKey = `address_profile:${address}:${tokenAddress || 'all'}`;
+
+    // Try to get from cache first
+    try {
+      const cached = await RedisConnection.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      console.warn('Cache miss for address profile:', error);
+    }
+
+    // Get address statistics from the AddressStatistics table
+    const whereClause = tokenAddress ? { address, tokenAddress } : { address };
+
+    const addressStats = await prisma.addressStatistics.findMany({
+      where: whereClause,
+      orderBy: [{ totalSent: 'desc' }, { totalReceived: 'desc' }],
+    });
+
+    if (addressStats.length === 0) {
+      return null;
+    }
+
+    // Calculate composite statistics across all tokens for this address
+    const totalVolume = addressStats.reduce(
+      (sum, stat) =>
+        sum +
+        BigInt(stat.totalSent.toString()) +
+        BigInt(stat.totalReceived.toString()),
+      BigInt(0)
+    );
+
+    const totalTransactions = addressStats.reduce(
+      (sum, stat) =>
+        sum + stat.transactionCountSent + stat.transactionCountReceived,
+      0
+    );
+
+    const primaryStat = addressStats[0]; // Use the highest volume token for primary analysis
+
+    // Calculate percentile scores
+    const volumeScore = await this.calculateVolumePercentile(
+      Number(totalVolume)
+    );
+    const frequencyScore =
+      await this.calculateFrequencyPercentile(totalTransactions);
+
+    // Calculate recency score
+    const daysSinceLastActivity = primaryStat.lastSeen
+      ? Math.floor(
+          (Date.now() - primaryStat.lastSeen.getTime()) / (1000 * 60 * 60 * 24)
+        )
+      : 999;
+    const recencyScore = Math.max(0, 100 - daysSinceLastActivity);
+
+    // Use stored diversity score
+    const diversityScore = Number(primaryStat.diversityScore) * 100;
+
+    // Calculate composite score with standard weights
+    const compositeScore =
+      volumeScore * 0.4 +
+      frequencyScore * 0.3 +
+      recencyScore * 0.2 +
+      diversityScore * 0.1;
+
+    // Determine behavioral category
+    const category: BehavioralCategory = {
+      whale: volumeScore >= 99, // Top 1%
+      activeTrader: totalTransactions >= 50,
+      dormantAccount: daysSinceLastActivity >= 30,
+      suspiciousPattern: Number(primaryStat.riskScore) >= 0.8,
+      highRisk: Number(primaryStat.riskScore) >= 0.7,
+    };
+
+    // Generate label
+    let label = '👤 Regular';
+    if (category.whale) label = '🐋 Whale';
+    else if (category.suspiciousPattern) label = '⚠️ Suspicious';
+    else if (category.highRisk) label = '🚨 High Risk';
+    else if (category.activeTrader) label = '⚡ Active Trader';
+    else if (category.dormantAccount) label = '😴 Dormant';
+
+    const daysSinceFirstSeen = primaryStat.firstSeen
+      ? Math.floor(
+          (Date.now() - primaryStat.firstSeen.getTime()) / (1000 * 60 * 60 * 24)
+        )
+      : 0;
+
+    // Calculate rank based on composite score
+    const rank = await this.calculateAddressRank(compositeScore, tokenAddress);
+
+    const profile: AddressProfile = {
+      address,
+      tokenAddress,
+      rank,
+      percentile: volumeScore,
+      category,
+      scores: {
+        volume: volumeScore,
+        frequency: frequencyScore,
+        recency: recencyScore,
+        diversity: diversityScore,
+        composite: compositeScore,
+      },
+      label,
+      metadata: {
+        totalVolume: totalVolume.toString(),
+        transactionCount: totalTransactions,
+        lastActivity: primaryStat.lastSeen || new Date(0),
+        daysSinceFirstSeen,
+      },
+    };
+
+    // Cache for 5 minutes
+    try {
+      await RedisConnection.set(cacheKey, JSON.stringify(profile), 300);
+    } catch (error) {
+      console.warn('Failed to cache address profile:', error);
+    }
+
+    return profile;
+  }
+
+  /**
+   * Get whale addresses (top 1% by volume)
+   */
+  async getWhaleAddresses(
+    tokenAddress?: string,
+    limit: number = 50
+  ): Promise<AddressListResponse<AddressProfile>> {
+    const cacheKey = `whale_addresses:${tokenAddress || 'all'}:${limit}`;
+
+    // Try to get from cache first
+    try {
+      const cached = await RedisConnection.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      console.warn('Cache miss for whale addresses:', error);
+    }
+
+    const whereClause = tokenAddress
+      ? { tokenAddress, isWhale: true }
+      : { isWhale: true };
+
+    const whaleStats = await prisma.addressStatistics.findMany({
+      where: whereClause,
+      orderBy: [{ totalSent: 'desc' }, { totalReceived: 'desc' }],
+      take: limit,
+    });
+
+    const profiles: AddressProfile[] = await Promise.all(
+      whaleStats.map(async (stat, index) => {
+        const totalVolume =
+          BigInt(stat.totalSent.toString()) +
+          BigInt(stat.totalReceived.toString());
+        const totalTransactions =
+          stat.transactionCountSent + stat.transactionCountReceived;
+
+        const daysSinceLastActivity = stat.lastSeen
+          ? Math.floor(
+              (Date.now() - stat.lastSeen.getTime()) / (1000 * 60 * 60 * 24)
+            )
+          : 999;
+
+        const category: BehavioralCategory = {
+          whale: true,
+          activeTrader: totalTransactions >= 50,
+          dormantAccount: daysSinceLastActivity >= 30,
+          suspiciousPattern: Number(stat.riskScore) >= 0.8,
+          highRisk: Number(stat.riskScore) >= 0.7,
+        };
+
+        const daysSinceFirstSeen = stat.firstSeen
+          ? Math.floor(
+              (Date.now() - stat.firstSeen.getTime()) / (1000 * 60 * 60 * 24)
+            )
+          : 0;
+
+        return {
+          address: stat.address,
+          tokenAddress: stat.tokenAddress,
+          rank: index + 1,
+          percentile: 99, // All whales are in top 1%
+          category,
+          scores: {
+            volume: 99,
+            frequency: Number(stat.velocityScore) * 100,
+            recency: Math.max(0, 100 - daysSinceLastActivity),
+            diversity: Number(stat.diversityScore) * 100,
+            composite: 95, // High composite for whales
+          },
+          label: '🐋 Whale',
+          metadata: {
+            totalVolume: totalVolume.toString(),
+            transactionCount: totalTransactions,
+            lastActivity: stat.lastSeen || new Date(0),
+            daysSinceFirstSeen,
+          },
+        };
+      })
+    );
+
+    const response: AddressListResponse<AddressProfile> = {
+      data: profiles,
+      filters: {
+        tokenAddress,
+        limit,
+      },
+      timestamp: new Date(),
+    };
+
+    // Cache for 10 minutes
+    try {
+      await RedisConnection.set(cacheKey, JSON.stringify(response), 600);
+    } catch (error) {
+      console.warn('Failed to cache whale addresses:', error);
+    }
+
+    return response;
+  }
+
+  /**
+   * Get active trader addresses (high frequency)
+   */
+  async getActiveTraders(
+    tokenAddress?: string,
+    limit: number = 50,
+    minTransactions: number = 50
+  ): Promise<AddressListResponse<AddressProfile>> {
+    const cacheKey = `active_traders:${tokenAddress || 'all'}:${limit}:${minTransactions}`;
+
+    // Try to get from cache first
+    try {
+      const cached = await RedisConnection.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      console.warn('Cache miss for active traders:', error);
+    }
+
+    const activeTraders = await prisma.addressStatistics.findMany({
+      where: {
+        ...(tokenAddress && { tokenAddress }),
+        OR: [
+          { transactionCountSent: { gte: minTransactions } },
+          { transactionCountReceived: { gte: minTransactions } },
+        ],
+        isActive: true,
+      },
+      orderBy: [
+        { velocityScore: 'desc' },
+        { transactionCountSent: 'desc' },
+        { transactionCountReceived: 'desc' },
+      ],
+      take: limit,
+    });
+
+    const profiles: AddressProfile[] = await Promise.all(
+      activeTraders.map(async (stat, index) => {
+        const totalVolume =
+          BigInt(stat.totalSent.toString()) +
+          BigInt(stat.totalReceived.toString());
+        const totalTransactions =
+          stat.transactionCountSent + stat.transactionCountReceived;
+
+        const daysSinceLastActivity = stat.lastSeen
+          ? Math.floor(
+              (Date.now() - stat.lastSeen.getTime()) / (1000 * 60 * 60 * 24)
+            )
+          : 999;
+
+        const category: BehavioralCategory = {
+          whale: stat.isWhale,
+          activeTrader: true,
+          dormantAccount: daysSinceLastActivity >= 30,
+          suspiciousPattern: Number(stat.riskScore) >= 0.8,
+          highRisk: Number(stat.riskScore) >= 0.7,
+        };
+
+        const daysSinceFirstSeen = stat.firstSeen
+          ? Math.floor(
+              (Date.now() - stat.firstSeen.getTime()) / (1000 * 60 * 60 * 24)
+            )
+          : 0;
+
+        return {
+          address: stat.address,
+          tokenAddress: stat.tokenAddress,
+          rank: index + 1,
+          percentile: Math.max(80, Number(stat.velocityScore) * 100), // Active traders are high percentile
+          category,
+          scores: {
+            volume: await this.calculateVolumePercentile(Number(totalVolume)),
+            frequency: Number(stat.velocityScore) * 100,
+            recency: Math.max(0, 100 - daysSinceLastActivity),
+            diversity: Number(stat.diversityScore) * 100,
+            composite: Number(stat.velocityScore) * 90, // Weight heavily on velocity for active traders
+          },
+          label: '⚡ Active Trader',
+          metadata: {
+            totalVolume: totalVolume.toString(),
+            transactionCount: totalTransactions,
+            lastActivity: stat.lastSeen || new Date(0),
+            daysSinceFirstSeen,
+          },
+        };
+      })
+    );
+
+    const response: AddressListResponse<AddressProfile> = {
+      data: profiles,
+      filters: {
+        tokenAddress,
+        limit,
+        minTransactions,
+      },
+      timestamp: new Date(),
+    };
+
+    // Cache for 10 minutes
+    try {
+      await RedisConnection.set(cacheKey, JSON.stringify(response), 600);
+    } catch (error) {
+      console.warn('Failed to cache active traders:', error);
+    }
+
+    return response;
+  }
+
+  /**
+   * Get suspicious addresses (high risk score)
+   */
+  async getSuspiciousAddresses(
+    tokenAddress?: string,
+    limit: number = 50,
+    minRiskScore: number = 0.7
+  ): Promise<AddressListResponse<AddressProfile>> {
+    const cacheKey = `suspicious_addresses:${tokenAddress || 'all'}:${limit}:${minRiskScore}`;
+
+    // Try to get from cache first
+    try {
+      const cached = await RedisConnection.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      console.warn('Cache miss for suspicious addresses:', error);
+    }
+
+    const suspiciousAddresses = await prisma.addressStatistics.findMany({
+      where: {
+        ...(tokenAddress && { tokenAddress }),
+        OR: [{ riskScore: { gte: minRiskScore } }, { isSuspicious: true }],
+      },
+      orderBy: [
+        { riskScore: 'desc' },
+        { totalSent: 'desc' },
+        { totalReceived: 'desc' },
+      ],
+      take: limit,
+    });
+
+    const profiles: AddressProfile[] = await Promise.all(
+      suspiciousAddresses.map(async (stat, index) => {
+        const totalVolume =
+          BigInt(stat.totalSent.toString()) +
+          BigInt(stat.totalReceived.toString());
+        const totalTransactions =
+          stat.transactionCountSent + stat.transactionCountReceived;
+
+        const daysSinceLastActivity = stat.lastSeen
+          ? Math.floor(
+              (Date.now() - stat.lastSeen.getTime()) / (1000 * 60 * 60 * 24)
+            )
+          : 999;
+
+        const riskScore = Number(stat.riskScore);
+        const category: BehavioralCategory = {
+          whale: stat.isWhale,
+          activeTrader: totalTransactions >= 50,
+          dormantAccount: daysSinceLastActivity >= 30,
+          suspiciousPattern: riskScore >= 0.8,
+          highRisk: riskScore >= 0.7,
+        };
+
+        const daysSinceFirstSeen = stat.firstSeen
+          ? Math.floor(
+              (Date.now() - stat.firstSeen.getTime()) / (1000 * 60 * 60 * 24)
+            )
+          : 0;
+
+        let label = '🚨 High Risk';
+        if (category.suspiciousPattern) label = '⚠️ Suspicious';
+
+        return {
+          address: stat.address,
+          tokenAddress: stat.tokenAddress,
+          rank: index + 1,
+          percentile: riskScore * 100, // Risk score as percentile
+          category,
+          scores: {
+            volume: await this.calculateVolumePercentile(Number(totalVolume)),
+            frequency: Number(stat.velocityScore) * 100,
+            recency: Math.max(0, 100 - daysSinceLastActivity),
+            diversity: Number(stat.diversityScore) * 100,
+            composite: riskScore * 100, // Risk score drives composite for suspicious addresses
+          },
+          label,
+          metadata: {
+            totalVolume: totalVolume.toString(),
+            transactionCount: totalTransactions,
+            lastActivity: stat.lastSeen || new Date(0),
+            daysSinceFirstSeen,
+          },
+        };
+      })
+    );
+
+    const response: AddressListResponse<AddressProfile> = {
+      data: profiles,
+      filters: {
+        tokenAddress,
+        limit,
+        minRiskScore,
+      },
+      timestamp: new Date(),
+    };
+
+    // Cache for 5 minutes (shorter cache for suspicious addresses)
+    try {
+      await RedisConnection.set(cacheKey, JSON.stringify(response), 300);
+    } catch (error) {
+      console.warn('Failed to cache suspicious addresses:', error);
+    }
+
+    return response;
+  }
+
+  /**
+   * Get detailed address statistics from AddressStatistics table
+   */
+  async getAddressStatisticsDetail(
+    address: string,
+    tokenAddress?: string
+  ): Promise<AddressStatisticsDetail[]> {
+    const cacheKey = `address_stats_detail:${address}:${tokenAddress || 'all'}`;
+
+    // Try to get from cache first
+    try {
+      const cached = await RedisConnection.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      console.warn('Cache miss for address statistics detail:', error);
+    }
+
+    const whereClause = tokenAddress ? { address, tokenAddress } : { address };
+
+    const stats = await prisma.addressStatistics.findMany({
+      where: whereClause,
+      orderBy: [{ totalSent: 'desc' }, { totalReceived: 'desc' }],
+    });
+
+    const detailedStats: AddressStatisticsDetail[] = stats.map(stat => ({
+      address: stat.address,
+      tokenAddress: stat.tokenAddress,
+      totalSent: stat.totalSent.toString(),
+      totalReceived: stat.totalReceived.toString(),
+      transactionCountSent: stat.transactionCountSent,
+      transactionCountReceived: stat.transactionCountReceived,
+      firstSeen: stat.firstSeen,
+      lastSeen: stat.lastSeen,
+      avgTransactionSize: stat.avgTransactionSize.toString(),
+      avgTransactionSizeSent: stat.avgTransactionSizeSent.toString(),
+      avgTransactionSizeReceived: stat.avgTransactionSizeReceived.toString(),
+      maxTransactionSize: stat.maxTransactionSize.toString(),
+      maxTransactionSizeSent: stat.maxTransactionSizeSent.toString(),
+      maxTransactionSizeReceived: stat.maxTransactionSizeReceived.toString(),
+      riskScore: stat.riskScore.toString(),
+      isWhale: stat.isWhale,
+      isSuspicious: stat.isSuspicious,
+      isActive: stat.isActive,
+      behavioralFlags: stat.behavioralFlags as Record<string, unknown> | null,
+      lastActivityType: stat.lastActivityType,
+      addressLabel: stat.addressLabel,
+      dormancyPeriod: stat.dormancyPeriod,
+      velocityScore: stat.velocityScore.toString(),
+      diversityScore: stat.diversityScore.toString(),
+    }));
+
+    // Cache for 5 minutes
+    try {
+      await RedisConnection.set(cacheKey, JSON.stringify(detailedStats), 300);
+    } catch (error) {
+      console.warn('Failed to cache address statistics detail:', error);
+    }
+
+    return detailedStats;
+  }
+
+  // Helper methods for percentile calculations
+  private async calculateVolumePercentile(volume: number): Promise<number> {
+    try {
+      const result = await prisma.$queryRaw<[{ percentile: number }]>`
+        SELECT
+          (COUNT(CASE WHEN (totalSent + totalReceived) <= ${volume} THEN 1 END) * 100.0 / COUNT(*)) as percentile
+        FROM address_statistics
+      `;
+      return Math.min(100, Math.max(0, result[0]?.percentile || 0));
+    } catch (error) {
+      console.warn('Failed to calculate volume percentile:', error);
+      return 50; // Default to median
+    }
+  }
+
+  private async calculateFrequencyPercentile(
+    transactions: number
+  ): Promise<number> {
+    try {
+      const result = await prisma.$queryRaw<[{ percentile: number }]>`
+        SELECT
+          (COUNT(CASE WHEN (transactionCountSent + transactionCountReceived) <= ${transactions} THEN 1 END) * 100.0 / COUNT(*)) as percentile
+        FROM address_statistics
+      `;
+      return Math.min(100, Math.max(0, result[0]?.percentile || 0));
+    } catch (error) {
+      console.warn('Failed to calculate frequency percentile:', error);
+      return 50; // Default to median
+    }
+  }
+
+  private async calculateAddressRank(
+    compositeScore: number,
+    tokenAddress?: string
+  ): Promise<number> {
+    try {
+      if (tokenAddress) {
+        const result = await prisma.$queryRaw<[{ rank: number }]>`
+          SELECT
+            (COUNT(*) + 1) as rank
+          FROM address_statistics
+          WHERE tokenAddress = ${tokenAddress}
+          AND (
+            (totalSent + totalReceived) * 0.4 +
+            velocityScore * 30 +
+            diversityScore * 10
+          ) > ${compositeScore}
+        `;
+        return result[0]?.rank || 1;
+      } else {
+        const result = await prisma.$queryRaw<[{ rank: number }]>`
+          SELECT
+            (COUNT(*) + 1) as rank
+          FROM address_statistics
+          WHERE (
+            (totalSent + totalReceived) * 0.4 +
+            velocityScore * 30 +
+            diversityScore * 10
+          ) > ${compositeScore}
+        `;
+        return result[0]?.rank || 1;
+      }
+    } catch (error) {
+      console.warn('Failed to calculate address rank:', error);
+      return 1; // Default to top rank
+    }
   }
 }

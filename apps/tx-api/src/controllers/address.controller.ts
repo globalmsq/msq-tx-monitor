@@ -478,4 +478,403 @@ export class AddressController {
       next(error);
     }
   };
+
+  /**
+   * @swagger
+   * /addresses/{address}/profile:
+   *   get:
+   *     summary: Get detailed behavioral profile for a specific address
+   *     description: Retrieve comprehensive behavioral analysis including rank, percentile, category, and scores
+   *     tags: [Addresses]
+   *     parameters:
+   *       - name: address
+   *         in: path
+   *         required: true
+   *         description: Ethereum address (0x prefixed 40-character hex string)
+   *         schema:
+   *           type: string
+   *           pattern: '^0x[a-fA-F0-9]{40}$'
+   *       - name: tokenAddress
+   *         in: query
+   *         description: Filter by specific token address
+   *         schema:
+   *           type: string
+   *           pattern: '^0x[a-fA-F0-9]{40}$'
+   *     responses:
+   *       200:
+   *         description: Successfully retrieved address profile
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     address:
+   *                       type: string
+   *                     tokenAddress:
+   *                       type: string
+   *                     rank:
+   *                       type: integer
+   *                     percentile:
+   *                       type: number
+   *                     category:
+   *                       type: object
+   *                       properties:
+   *                         whale:
+   *                           type: boolean
+   *                         activeTrader:
+   *                           type: boolean
+   *                         dormantAccount:
+   *                           type: boolean
+   *                         suspiciousPattern:
+   *                           type: boolean
+   *                         highRisk:
+   *                           type: boolean
+   *                     scores:
+   *                       type: object
+   *                       properties:
+   *                         volume:
+   *                           type: number
+   *                         frequency:
+   *                           type: number
+   *                         recency:
+   *                           type: number
+   *                         diversity:
+   *                           type: number
+   *                         composite:
+   *                           type: number
+   *                     label:
+   *                       type: string
+   *                     metadata:
+   *                       type: object
+   *                 timestamp:
+   *                   type: string
+   *                   format: date-time
+   *       400:
+   *         $ref: '#/components/schemas/Error'
+   *       404:
+   *         $ref: '#/components/schemas/Error'
+   *       500:
+   *         $ref: '#/components/schemas/Error'
+   */
+  getAddressProfile = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { address } = req.params;
+      const { tokenAddress } = req.query;
+
+      // Validate address format
+      if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        res.status(400).json({
+          error: {
+            code: 400,
+            message: 'Invalid address format',
+            details:
+              'Address must be a valid 40-character hex string with 0x prefix',
+            timestamp: new Date().toISOString(),
+          },
+        });
+        return;
+      }
+
+      // Validate token address format if provided
+      if (tokenAddress && !/^0x[a-fA-F0-9]{40}$/.test(tokenAddress as string)) {
+        res.status(400).json({
+          error: {
+            code: 400,
+            message: 'Invalid token address format',
+            details:
+              'Token address must be a valid 40-character hex string with 0x prefix',
+            timestamp: new Date().toISOString(),
+          },
+        });
+        return;
+      }
+
+      const profile = await this.addressService.getAddressProfile(
+        address,
+        tokenAddress as string
+      );
+
+      if (!profile) {
+        res.status(404).json({
+          error: {
+            code: 404,
+            message: 'Address profile not found',
+            details: `No profile data found for address: ${address}`,
+            timestamp: new Date().toISOString(),
+          },
+        });
+        return;
+      }
+
+      res.json({
+        data: profile,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * @swagger
+   * /addresses/whales:
+   *   get:
+   *     summary: Get whale addresses (top 1% by volume)
+   *     description: Retrieve addresses identified as whales based on transaction volume
+   *     tags: [Addresses]
+   *     parameters:
+   *       - name: tokenAddress
+   *         in: query
+   *         description: Filter by specific token address
+   *         schema:
+   *           type: string
+   *           pattern: '^0x[a-fA-F0-9]{40}$'
+   *       - name: limit
+   *         in: query
+   *         description: Number of results to return (max 100)
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 100
+   *           default: 50
+   *     responses:
+   *       200:
+   *         description: Successfully retrieved whale addresses
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     $ref: '#/components/schemas/AddressProfile'
+   *                 filters:
+   *                   type: object
+   *                 timestamp:
+   *                   type: string
+   *                   format: date-time
+   *       400:
+   *         $ref: '#/components/schemas/Error'
+   *       500:
+   *         $ref: '#/components/schemas/Error'
+   */
+  getWhaleAddresses = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { tokenAddress } = req.query;
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+
+      // Validate token address format if provided
+      if (tokenAddress && !/^0x[a-fA-F0-9]{40}$/.test(tokenAddress as string)) {
+        res.status(400).json({
+          error: {
+            code: 400,
+            message: 'Invalid token address format',
+            details:
+              'Token address must be a valid 40-character hex string with 0x prefix',
+            timestamp: new Date().toISOString(),
+          },
+        });
+        return;
+      }
+
+      const result = await this.addressService.getWhaleAddresses(
+        tokenAddress as string,
+        limit
+      );
+
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * @swagger
+   * /addresses/active-traders:
+   *   get:
+   *     summary: Get active trader addresses (high frequency)
+   *     description: Retrieve addresses with high transaction frequency
+   *     tags: [Addresses]
+   *     parameters:
+   *       - name: tokenAddress
+   *         in: query
+   *         description: Filter by specific token address
+   *         schema:
+   *           type: string
+   *           pattern: '^0x[a-fA-F0-9]{40}$'
+   *       - name: limit
+   *         in: query
+   *         description: Number of results to return (max 100)
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 100
+   *           default: 50
+   *       - name: minTransactions
+   *         in: query
+   *         description: Minimum transaction count threshold
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           default: 50
+   *     responses:
+   *       200:
+   *         description: Successfully retrieved active trader addresses
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     $ref: '#/components/schemas/AddressProfile'
+   *                 filters:
+   *                   type: object
+   *                 timestamp:
+   *                   type: string
+   *                   format: date-time
+   *       400:
+   *         $ref: '#/components/schemas/Error'
+   *       500:
+   *         $ref: '#/components/schemas/Error'
+   */
+  getActiveTraders = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { tokenAddress, minTransactions } = req.query;
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+      const minTxCount = Math.max(parseInt(minTransactions as string) || 50, 1);
+
+      // Validate token address format if provided
+      if (tokenAddress && !/^0x[a-fA-F0-9]{40}$/.test(tokenAddress as string)) {
+        res.status(400).json({
+          error: {
+            code: 400,
+            message: 'Invalid token address format',
+            details:
+              'Token address must be a valid 40-character hex string with 0x prefix',
+            timestamp: new Date().toISOString(),
+          },
+        });
+        return;
+      }
+
+      const result = await this.addressService.getActiveTraders(
+        tokenAddress as string,
+        limit,
+        minTxCount
+      );
+
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * @swagger
+   * /addresses/suspicious:
+   *   get:
+   *     summary: Get suspicious addresses (high risk score)
+   *     description: Retrieve addresses with high risk scores or flagged as suspicious
+   *     tags: [Addresses]
+   *     parameters:
+   *       - name: tokenAddress
+   *         in: query
+   *         description: Filter by specific token address
+   *         schema:
+   *           type: string
+   *           pattern: '^0x[a-fA-F0-9]{40}$'
+   *       - name: limit
+   *         in: query
+   *         description: Number of results to return (max 100)
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 100
+   *           default: 50
+   *       - name: minRiskScore
+   *         in: query
+   *         description: Minimum risk score threshold (0.0 - 1.0)
+   *         schema:
+   *           type: number
+   *           minimum: 0
+   *           maximum: 1
+   *           default: 0.7
+   *     responses:
+   *       200:
+   *         description: Successfully retrieved suspicious addresses
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     $ref: '#/components/schemas/AddressProfile'
+   *                 filters:
+   *                   type: object
+   *                 timestamp:
+   *                   type: string
+   *                   format: date-time
+   *       400:
+   *         $ref: '#/components/schemas/Error'
+   *       500:
+   *         $ref: '#/components/schemas/Error'
+   */
+  getSuspiciousAddresses = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { tokenAddress, minRiskScore } = req.query;
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+      const minRisk = Math.min(
+        Math.max(parseFloat(minRiskScore as string) || 0.7, 0),
+        1
+      );
+
+      // Validate token address format if provided
+      if (tokenAddress && !/^0x[a-fA-F0-9]{40}$/.test(tokenAddress as string)) {
+        res.status(400).json({
+          error: {
+            code: 400,
+            message: 'Invalid token address format',
+            details:
+              'Token address must be a valid 40-character hex string with 0x prefix',
+            timestamp: new Date().toISOString(),
+          },
+        });
+        return;
+      }
+
+      const result = await this.addressService.getSuspiciousAddresses(
+        tokenAddress as string,
+        limit,
+        minRisk
+      );
+
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 }
