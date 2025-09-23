@@ -2,6 +2,10 @@
 import { prisma, initializeDatabaseConfig } from '@msq-tx-monitor/database';
 import { config } from '../config';
 import { AddressStatsCalculator } from './addressStatsCalculator';
+import {
+  AddressStatsCacheService,
+  CachedAddressStats,
+} from './addressStatsCacheService';
 
 export interface TransactionData {
   hash: string;
@@ -34,6 +38,7 @@ export interface AddressStatistic {
 export class DatabaseService {
   private initialized = false;
   private addressStatsCalculator = new AddressStatsCalculator();
+  private cacheService = AddressStatsCacheService.getInstance();
 
   async initialize(): Promise<void> {
     if (this.initialized) {
@@ -47,6 +52,10 @@ export class DatabaseService {
       // Test database connection
       await prisma.$connect();
       console.log('Database connected successfully');
+
+      // Initialize cache service and address stats calculator
+      await this.cacheService.initialize();
+      await this.addressStatsCalculator.initialize();
 
       this.initialized = true;
     } catch (error) {
@@ -75,7 +84,9 @@ export class DatabaseService {
       });
 
       // Update address statistics using advanced calculator
-      await this.addressStatsCalculator.updateAddressStatistics(transactionData);
+      await this.addressStatsCalculator.updateAddressStatistics(
+        transactionData
+      );
 
       if (config.logging.enableDatabaseLogs) {
         console.log(`Transaction saved: ${transactionData.hash}`);
@@ -124,7 +135,10 @@ export class DatabaseService {
 
         // Update address statistics for each transaction using advanced calculator
         for (const transaction of transactions) {
-          await this.addressStatsCalculator.updateAddressStatistics(transaction, tx);
+          await this.addressStatsCalculator.updateAddressStatistics(
+            transaction,
+            tx
+          );
         }
       });
 
@@ -186,6 +200,27 @@ export class DatabaseService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any[]> {
     if (tokenAddress) {
+      // Try cache first for specific token address
+      if (this.cacheService.isReady()) {
+        try {
+          const cachedStats = await this.cacheService.getAddressStats(
+            address,
+            tokenAddress
+          );
+          if (cachedStats) {
+            // Convert cached format back to database format
+            const dbStats = this.convertCachedStatsToDbFormat(cachedStats);
+            return [dbStats];
+          }
+        } catch (error) {
+          console.error(
+            '❌ Cache lookup error, falling back to database:',
+            error
+          );
+        }
+      }
+
+      // Cache miss or cache unavailable - query database
       const result = await prisma.addressStatistics.findUnique({
         where: {
           address_tokenAddress: {
@@ -194,12 +229,92 @@ export class DatabaseService {
           },
         },
       });
+
+      // Update cache for future queries
+      if (result && this.cacheService.isReady()) {
+        const cachedStats = this.convertDbStatsToCachedFormat(result);
+        const isWhaleOrRisky = result.isWhale || result.isSuspicious;
+        await this.cacheService.setAddressStats(cachedStats, isWhaleOrRisky);
+      }
+
       return result ? [result] : [];
     }
 
+    // For queries without specific token address, query database directly
     return prisma.addressStatistics.findMany({
       where: { address },
     });
+  }
+
+  /**
+   * Convert cached stats format to database format
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private convertCachedStatsToDbFormat(cachedStats: CachedAddressStats): any {
+    return {
+      id: BigInt(0), // Will be ignored in most use cases
+      address: cachedStats.address,
+      tokenAddress: cachedStats.tokenAddress,
+      totalSent: BigInt(cachedStats.totalSent),
+      totalReceived: BigInt(cachedStats.totalReceived),
+      transactionCountSent: cachedStats.transactionCountSent,
+      transactionCountReceived: cachedStats.transactionCountReceived,
+      avgTransactionSize: cachedStats.avgTransactionSize,
+      avgTransactionSizeSent: cachedStats.avgTransactionSizeSent,
+      avgTransactionSizeReceived: cachedStats.avgTransactionSizeReceived,
+      maxTransactionSize: BigInt(cachedStats.maxTransactionSize),
+      maxTransactionSizeSent: BigInt(cachedStats.maxTransactionSizeSent),
+      maxTransactionSizeReceived: BigInt(
+        cachedStats.maxTransactionSizeReceived
+      ),
+      velocityScore: cachedStats.velocityScore,
+      diversityScore: cachedStats.diversityScore,
+      dormancyPeriod: cachedStats.dormancyPeriod,
+      riskScore: cachedStats.riskScore,
+      isWhale: cachedStats.isWhale,
+      isSuspicious: cachedStats.isSuspicious,
+      isActive: cachedStats.isActive,
+      behavioralFlags: cachedStats.behavioralFlags,
+      lastActivityType: cachedStats.lastActivityType,
+      addressLabel: cachedStats.addressLabel,
+      firstSeen: cachedStats.firstSeen ? new Date(cachedStats.firstSeen) : null,
+      lastSeen: cachedStats.lastSeen ? new Date(cachedStats.lastSeen) : null,
+      updatedAt: new Date(cachedStats.updatedAt),
+    };
+  }
+
+  /**
+   * Convert database stats format to cached format
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private convertDbStatsToCachedFormat(dbStats: any): CachedAddressStats {
+    return {
+      address: dbStats.address,
+      tokenAddress: dbStats.tokenAddress,
+      totalSent: dbStats.totalSent.toString(),
+      totalReceived: dbStats.totalReceived.toString(),
+      transactionCountSent: dbStats.transactionCountSent,
+      transactionCountReceived: dbStats.transactionCountReceived,
+      avgTransactionSize: Number(dbStats.avgTransactionSize),
+      avgTransactionSizeSent: Number(dbStats.avgTransactionSizeSent),
+      avgTransactionSizeReceived: Number(dbStats.avgTransactionSizeReceived),
+      maxTransactionSize: dbStats.maxTransactionSize.toString(),
+      maxTransactionSizeSent: dbStats.maxTransactionSizeSent.toString(),
+      maxTransactionSizeReceived: dbStats.maxTransactionSizeReceived.toString(),
+      velocityScore: Number(dbStats.velocityScore),
+      diversityScore: Number(dbStats.diversityScore),
+      dormancyPeriod: dbStats.dormancyPeriod,
+      riskScore: Number(dbStats.riskScore),
+      isWhale: dbStats.isWhale,
+      isSuspicious: dbStats.isSuspicious,
+      isActive: dbStats.isActive,
+      behavioralFlags: dbStats.behavioralFlags as object | null,
+      lastActivityType: dbStats.lastActivityType,
+      addressLabel: dbStats.addressLabel,
+      firstSeen: dbStats.firstSeen?.toISOString() || null,
+      lastSeen: dbStats.lastSeen?.toISOString() || null,
+      updatedAt: dbStats.updatedAt.toISOString(),
+    };
   }
 
   async getHighValueTransactions(
@@ -269,6 +384,7 @@ export class DatabaseService {
 
   async disconnect(): Promise<void> {
     await prisma.$disconnect();
+    await this.cacheService.disconnect();
     this.initialized = false;
   }
 }

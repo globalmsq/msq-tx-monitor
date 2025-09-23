@@ -6,8 +6,13 @@
  * behavioral pattern analysis for risk assessment.
  */
 
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { prisma } from '@msq-tx-monitor/database';
 import { TransactionData } from './databaseService';
+import {
+  AddressStatsCacheService,
+  CachedAddressStats,
+} from './addressStatsCacheService';
 
 interface BehavioralFlags {
   isBot?: boolean;
@@ -59,8 +64,29 @@ export class AddressStatsCalculator {
     velocity: 0.3,
     diversity: 0.2,
     whaleActivity: 0.3,
-    anomalyPattern: 0.2
+    anomalyPattern: 0.2,
   };
+
+  private cacheService: AddressStatsCacheService;
+
+  constructor() {
+    this.cacheService = AddressStatsCacheService.getInstance();
+  }
+
+  /**
+   * Initialize the cache service
+   */
+  async initialize(): Promise<void> {
+    try {
+      await this.cacheService.initialize();
+    } catch (error) {
+      console.error(
+        '❌ Failed to initialize cache service in AddressStatsCalculator:',
+        error
+      );
+      // Continue without cache if initialization fails
+    }
+  }
 
   /**
    * Calculate and update address statistics for a single transaction
@@ -147,10 +173,12 @@ export class AddressStatsCalculator {
         transactionCountReceived: direction === 'received' ? 1 : 0,
         avgTransactionSize: Number(amount),
         avgTransactionSizeSent: direction === 'sent' ? Number(amount) : 0,
-        avgTransactionSizeReceived: direction === 'received' ? Number(amount) : 0,
+        avgTransactionSizeReceived:
+          direction === 'received' ? Number(amount) : 0,
         maxTransactionSize: amount,
         maxTransactionSizeSent: direction === 'sent' ? amount : BigInt(0),
-        maxTransactionSizeReceived: direction === 'received' ? amount : BigInt(0),
+        maxTransactionSizeReceived:
+          direction === 'received' ? amount : BigInt(0),
         firstSeen: timestamp,
         lastSeen: timestamp,
         lastActivityType: direction,
@@ -165,6 +193,80 @@ export class AddressStatsCalculator {
         updatedAt: new Date(),
       },
     });
+
+    // Update cache after successful database update
+    await this.updateCacheAfterStatsUpdate(address, tokenAddress, updates);
+  }
+
+  /**
+   * Update cache after successful database statistics update
+   */
+  private async updateCacheAfterStatsUpdate(
+    address: string,
+    tokenAddress: string,
+    _updates: AddressStatsUpdate
+  ): Promise<void> {
+    if (!this.cacheService.isReady()) {
+      return; // Skip cache update if cache is not available
+    }
+
+    try {
+      // Get updated stats from database for cache
+      const prismaClient = prisma;
+      const updatedStats = await prismaClient.addressStatistics.findUnique({
+        where: {
+          address_tokenAddress: {
+            address,
+            tokenAddress,
+          },
+        },
+      });
+
+      if (updatedStats) {
+        // Convert to cache format
+        const cachedStats: CachedAddressStats = {
+          address: updatedStats.address,
+          tokenAddress: updatedStats.tokenAddress,
+          totalSent: updatedStats.totalSent.toString(),
+          totalReceived: updatedStats.totalReceived.toString(),
+          transactionCountSent: updatedStats.transactionCountSent,
+          transactionCountReceived: updatedStats.transactionCountReceived,
+          avgTransactionSize: Number(updatedStats.avgTransactionSize),
+          avgTransactionSizeSent: Number(updatedStats.avgTransactionSizeSent),
+          avgTransactionSizeReceived: Number(
+            updatedStats.avgTransactionSizeReceived
+          ),
+          maxTransactionSize: updatedStats.maxTransactionSize.toString(),
+          maxTransactionSizeSent:
+            updatedStats.maxTransactionSizeSent.toString(),
+          maxTransactionSizeReceived:
+            updatedStats.maxTransactionSizeReceived.toString(),
+          velocityScore: Number(updatedStats.velocityScore),
+          diversityScore: Number(updatedStats.diversityScore),
+          dormancyPeriod: updatedStats.dormancyPeriod,
+          riskScore: Number(updatedStats.riskScore),
+          isWhale: updatedStats.isWhale,
+          isSuspicious: updatedStats.isSuspicious,
+          isActive: updatedStats.isActive,
+          behavioralFlags: updatedStats.behavioralFlags as object | null,
+          lastActivityType: updatedStats.lastActivityType,
+          addressLabel: updatedStats.addressLabel,
+          firstSeen: updatedStats.firstSeen?.toISOString() || null,
+          lastSeen: updatedStats.lastSeen?.toISOString() || null,
+          updatedAt: updatedStats.updatedAt.toISOString(),
+        };
+
+        // Determine cache TTL based on address characteristics
+        const isWhaleOrRisky =
+          updatedStats.isWhale || updatedStats.isSuspicious;
+
+        // Update cache with appropriate TTL
+        await this.cacheService.setAddressStats(cachedStats, isWhaleOrRisky);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to update cache for address ${address}:`, error);
+      // Don't throw error - cache update failure shouldn't break the main process
+    }
   }
 
   /**
@@ -182,7 +284,6 @@ export class AddressStatsCalculator {
     }
 
     const updates: AddressStatsUpdate = {};
-    const now = new Date();
 
     // Update totals and counts
     if (direction === 'sent') {
@@ -197,12 +298,14 @@ export class AddressStatsCalculator {
       );
 
       // Update maximum sent
-      updates.maxTransactionSizeSent = amount > currentStats.maxTransactionSizeSent
-        ? amount
-        : currentStats.maxTransactionSizeSent;
+      updates.maxTransactionSizeSent =
+        amount > currentStats.maxTransactionSizeSent
+          ? amount
+          : currentStats.maxTransactionSizeSent;
     } else {
       updates.totalReceived = currentStats.totalReceived + amount;
-      updates.transactionCountReceived = currentStats.transactionCountReceived + 1;
+      updates.transactionCountReceived =
+        currentStats.transactionCountReceived + 1;
 
       // Calculate new average for received transactions
       updates.avgTransactionSizeReceived = this.calculateNewAverage(
@@ -212,27 +315,36 @@ export class AddressStatsCalculator {
       );
 
       // Update maximum received
-      updates.maxTransactionSizeReceived = amount > currentStats.maxTransactionSizeReceived
-        ? amount
-        : currentStats.maxTransactionSizeReceived;
+      updates.maxTransactionSizeReceived =
+        amount > currentStats.maxTransactionSizeReceived
+          ? amount
+          : currentStats.maxTransactionSizeReceived;
     }
 
     // Update overall averages and maximums
-    const totalTransactions = (currentStats.transactionCountSent || 0) +
-                             (currentStats.transactionCountReceived || 0) + 1;
-    const totalVolume = (currentStats.totalSent || BigInt(0)) +
-                       (currentStats.totalReceived || BigInt(0)) + amount;
+    const totalTransactions =
+      (currentStats.transactionCountSent || 0) +
+      (currentStats.transactionCountReceived || 0) +
+      1;
+    const totalVolume =
+      (currentStats.totalSent || BigInt(0)) +
+      (currentStats.totalReceived || BigInt(0)) +
+      amount;
 
     updates.avgTransactionSize = Number(totalVolume) / totalTransactions;
-    updates.maxTransactionSize = amount > currentStats.maxTransactionSize
-      ? amount
-      : currentStats.maxTransactionSize;
+    updates.maxTransactionSize =
+      amount > currentStats.maxTransactionSize
+        ? amount
+        : currentStats.maxTransactionSize;
 
     // Update timestamps and activity
     updates.lastSeen = timestamp;
     updates.lastActivityType = direction;
     updates.isActive = true;
-    updates.dormancyPeriod = this.calculateDormancyPeriod(currentStats.lastSeen, timestamp);
+    updates.dormancyPeriod = this.calculateDormancyPeriod(
+      currentStats.lastSeen,
+      timestamp
+    );
 
     // Calculate behavioral metrics
     updates.velocityScore = await this.calculateVelocityScore(
@@ -244,14 +356,17 @@ export class AddressStatsCalculator {
     updates.diversityScore = this.calculateDiversityScore(currentStats);
 
     // Update whale status
-    const newTotalSent = direction === 'sent'
-      ? (currentStats.totalSent || BigInt(0)) + amount
-      : currentStats.totalSent || BigInt(0);
-    const newTotalReceived = direction === 'received'
-      ? (currentStats.totalReceived || BigInt(0)) + amount
-      : currentStats.totalReceived || BigInt(0);
+    const newTotalSent =
+      direction === 'sent'
+        ? (currentStats.totalSent || BigInt(0)) + amount
+        : currentStats.totalSent || BigInt(0);
+    const newTotalReceived =
+      direction === 'received'
+        ? (currentStats.totalReceived || BigInt(0)) + amount
+        : currentStats.totalReceived || BigInt(0);
 
-    updates.isWhale = (newTotalSent + newTotalReceived) >= AddressStatsCalculator.WHALE_THRESHOLD;
+    updates.isWhale =
+      newTotalSent + newTotalReceived >= AddressStatsCalculator.WHALE_THRESHOLD;
 
     // Update behavioral flags
     updates.behavioralFlags = this.updateBehavioralFlags(
@@ -307,9 +422,13 @@ export class AddressStatsCalculator {
     totalTransactions: number
   ): Promise<number> {
     const daysSinceFirstSeen = currentStats.firstSeen
-      ? Math.max(1, Math.floor(
-          (timestamp.getTime() - currentStats.firstSeen.getTime()) / (1000 * 60 * 60 * 24)
-        ))
+      ? Math.max(
+          1,
+          Math.floor(
+            (timestamp.getTime() - currentStats.firstSeen.getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
+        )
       : 1;
 
     const transactionsPerDay = totalTransactions / daysSinceFirstSeen;
@@ -327,8 +446,9 @@ export class AddressStatsCalculator {
   ): number {
     // This is a simplified version. In production, we would analyze
     // the number of unique counterparties this address has interacted with
-    const totalTransactions = (currentStats.transactionCountSent || 0) +
-                             (currentStats.transactionCountReceived || 0);
+    const totalTransactions =
+      (currentStats.transactionCountSent || 0) +
+      (currentStats.transactionCountReceived || 0);
 
     // Assume diversity increases with transaction count (simplified)
     return Math.min(1, totalTransactions / 100);
@@ -357,10 +477,12 @@ export class AddressStatsCalculator {
     velocityScore: number,
     totalTransactions: number
   ): BehavioralFlags {
-    const flags: BehavioralFlags = { ...currentFlags } || {};
+    const flags: BehavioralFlags = { ...(currentFlags || {}) };
 
     // Update based on transaction characteristics
-    flags.hasLargeTransactions = (flags.hasLargeTransactions || false) ||
+    flags.hasLargeTransactions =
+      flags.hasLargeTransactions ||
+      false ||
       amount >= AddressStatsCalculator.WHALE_THRESHOLD;
 
     flags.hasHighFrequency = velocityScore > 0.8;
@@ -369,8 +491,8 @@ export class AddressStatsCalculator {
     flags.isBot = velocityScore > 0.9 && totalTransactions > 50;
 
     // Pattern analysis (simplified)
-    flags.hasSuspiciousPatterns = velocityScore > 0.95 &&
-      amount >= AddressStatsCalculator.WHALE_THRESHOLD;
+    flags.hasSuspiciousPatterns =
+      velocityScore > 0.95 && amount >= AddressStatsCalculator.WHALE_THRESHOLD;
 
     return flags;
   }
@@ -411,8 +533,10 @@ export class AddressStatsCalculator {
   /**
    * Batch update statistics for multiple transactions
    */
-  async updateAddressStatisticsBatch(transactions: TransactionData[]): Promise<void> {
-    await prisma.$transaction(async (tx) => {
+  async updateAddressStatisticsBatch(
+    transactions: TransactionData[]
+  ): Promise<void> {
+    await prisma.$transaction(async tx => {
       for (const transaction of transactions) {
         await this.updateAddressStatistics(transaction, tx);
       }

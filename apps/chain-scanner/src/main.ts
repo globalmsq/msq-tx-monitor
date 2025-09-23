@@ -51,7 +51,6 @@ class ChainScanner {
       }
     );
 
-
     // Forward connection status to WebSocket clients
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.web3Service.on('connection', (status: any) => {

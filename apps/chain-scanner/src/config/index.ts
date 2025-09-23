@@ -33,6 +33,28 @@ export const config = {
     // Environment variables: MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE, MYSQL_USERNAME, MYSQL_PASSWORD
   },
 
+  redis: {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    password: process.env.REDIS_PASSWORD || undefined,
+    db: parseInt(process.env.REDIS_DB || '0', 10),
+    keyPrefix: process.env.REDIS_KEY_PREFIX || 'msq:',
+    ttl: {
+      // TTL values in seconds
+      addressStats: parseInt(process.env.CACHE_TTL_ADDRESS_STATS || '300', 10), // 5 minutes
+      whaleAddresses: parseInt(
+        process.env.CACHE_TTL_WHALE_ADDRESSES || '600',
+        10
+      ), // 10 minutes
+      riskyAddresses: parseInt(
+        process.env.CACHE_TTL_RISKY_ADDRESSES || '600',
+        10
+      ), // 10 minutes
+      rankings: parseInt(process.env.CACHE_TTL_RANKINGS || '60', 10), // 1 minute
+      summary: parseInt(process.env.CACHE_TTL_SUMMARY || '30', 10), // 30 seconds
+    },
+  },
+
   monitoring: {
     batchSize: parseInt(process.env.BATCH_SIZE || '100', 10),
     processingInterval: parseInt(process.env.PROCESSING_INTERVAL || '1000', 10),

@@ -84,7 +84,7 @@ export class MockDataService {
       token: transaction.token,
       value: transaction.value,
       from: transaction.from.slice(0, 8) + '...',
-      to: transaction.to.slice(0, 8) + '...'
+      to: transaction.to.slice(0, 8) + '...',
     });
 
     if (this.onTransactionCallback) {
@@ -122,7 +122,8 @@ export class MockDataService {
   private getRandomAddress(exclude?: string): string {
     let address;
     do {
-      address = this.addresses[Math.floor(Math.random() * this.addresses.length)];
+      address =
+        this.addresses[Math.floor(Math.random() * this.addresses.length)];
     } while (address === exclude);
     return address;
   }
@@ -137,7 +138,9 @@ export class MockDataService {
     };
 
     const range = ranges[token as keyof typeof ranges] || ranges.MSQ;
-    const value = Math.floor(Math.random() * (range.max - range.min) + range.min);
+    const value = Math.floor(
+      Math.random() * (range.max - range.min) + range.min
+    );
 
     return value.toLocaleString();
   }
