@@ -1,0 +1,54 @@
+{
+  "name": "@msq-tx-monitor/tx-dashboard",
+  "version": "1.0.0",
+  "description": "Modern React dashboard for MSQ transaction monitoring",
+  "private": true,
+  "main": "dist/index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "start": "vite",
+    "start:prod": "vite preview",
+    "test": "jest --config jest.config.ts",
+    "test:watch": "jest --config jest.config.ts --watch",
+    "test:coverage": "jest --config jest.config.ts --coverage",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
+    "format": "prettier --check \"src/**/*.{ts,tsx}\"",
+    "format:fix": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "depcheck": "depcheck || true",
+    "typecheck": "tsc --noEmit --project tsconfig.app.json"
+  },
+  "dependencies": {
+    "@msq-tx-monitor/tx-types": "workspace:*",
+    "@msq-tx-monitor/msq-common": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5",
+    "@types/node": "^20.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@typescript-eslint/eslint-plugin": "^7.10.0",
+    "@typescript-eslint/parser": "^7.10.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.36.1",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "typescript": "^5.4.5",
+    "vite": "^7.0.0"
+  },
+  "keywords": [
+    "react",
+    "dashboard",
+    "blockchain",
+    "transaction",
+    "monitoring",
+    "msq",
+    "real-time",
+    "websocket"
+  ]
+}
