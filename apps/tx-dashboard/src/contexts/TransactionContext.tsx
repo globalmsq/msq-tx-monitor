@@ -170,7 +170,7 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
     // Set up WebSocket connection
     const unsubscribeMessages = wsService.subscribe((message: TransactionMessage) => {
       switch (message.type) {
-        case 'transaction':
+        case 'new_transaction':
           if (message.data) {
             dispatch({ type: 'ADD_TRANSACTION', payload: message.data });
           }
