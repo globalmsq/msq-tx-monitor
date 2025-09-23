@@ -1,8 +1,3 @@
-import dotenv from 'dotenv';
-
-// Load environment variables
-dotenv.config();
-
 export const config = {
   server: {
     port: parseInt(process.env.CHAIN_SCANNER_PORT || '8001', 10),

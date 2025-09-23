@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Web3Service } from './services/web3Service';
 import { DatabaseService } from './services/databaseService';
 import { TokenService } from './services/tokenService';

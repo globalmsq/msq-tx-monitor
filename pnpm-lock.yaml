@@ -197,7 +197,72 @@ importers:
         specifier: ^6.0.1
         version: 6.0.1(webpack@5.101.3)
 
-  apps/tx-analyzer: {}
+  apps/tx-analyzer:
+    dependencies:
+      '@msq-tx-monitor/database':
+        specifier: workspace:*
+        version: link:../../libs/database
+      compression:
+        specifier: ^1.8.1
+        version: 1.8.1
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
+      dotenv:
+        specifier: ^17.2.2
+        version: 17.2.2
+      express:
+        specifier: ^4.19.2
+        version: 4.21.2
+      helmet:
+        specifier: ^8.1.0
+        version: 8.1.0
+      morgan:
+        specifier: ^1.10.1
+        version: 1.10.1
+      redis:
+        specifier: ^4.6.14
+        version: 4.6.14
+      tslib:
+        specifier: ^2.3.0
+        version: 2.8.1
+      tsx:
+        specifier: ^4.20.5
+        version: 4.20.5
+    devDependencies:
+      '@types/compression':
+        specifier: ^1.8.1
+        version: 1.8.1
+      '@types/cors':
+        specifier: ^2.8.19
+        version: 2.8.19
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.21
+      '@types/morgan':
+        specifier: ^1.9.10
+        version: 1.9.10
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^7.10.0
+        version: 7.10.0(@typescript-eslint/parser@7.10.0(eslint@8.57.0)(typescript@5.4.5))(eslint@8.57.0)(typescript@5.4.5)
+      '@typescript-eslint/parser':
+        specifier: ^7.10.0
+        version: 7.10.0(eslint@8.57.0)(typescript@5.4.5)
+      eslint:
+        specifier: ^8.57.0
+        version: 8.57.0
+      eslint-config-prettier:
+        specifier: ^10.0.0
+        version: 10.1.8(eslint@8.57.0)
+      prettier:
+        specifier: ^3.1.0
+        version: 3.2.5
+      typescript:
+        specifier: ^5.4.5
+        version: 5.4.5
+      webpack-cli:
+        specifier: ^6.0.1
+        version: 6.0.1(webpack@5.101.3)
 
   apps/tx-api:
     dependencies:
