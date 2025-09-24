@@ -10,22 +10,12 @@ import {
   ConnectionState,
   TransactionMessage,
 } from '../services/websocket';
-
-// Transaction types from shared types
-interface Transaction {
-  id: string;
-  hash: string;
-  from: string;
-  to: string;
-  value: string;
-  token: string;
-  timestamp: number;
-  blockNumber: number;
-  gasUsed: string;
-  gasPrice: string;
-  status: 'pending' | 'confirmed' | 'failed';
-  anomalyScore?: number;
-}
+import { FilterState, useUrlFilterSync } from '../hooks/useUrlFilterSync';
+import { applyFiltersToTransactions } from '../utils/filterUtils';
+import {
+  Transaction,
+  adaptWebSocketTransactionForUI,
+} from '../types/transaction';
 
 interface TransactionStats {
   totalTransactions: number;
@@ -44,11 +34,12 @@ interface TransactionState {
   // Transaction data
   transactions: Transaction[];
   recentTransactions: Transaction[];
+  filteredTransactions: Transaction[];
+  filteredRecentTransactions: Transaction[];
   stats: TransactionStats;
 
-  // Filters
-  selectedTokens: string[];
-  showAnomalies: boolean;
+  // Enhanced filters
+  filters: FilterState;
 
   // UI state
   isLoading: boolean;
@@ -62,6 +53,8 @@ type TransactionAction =
   | { type: 'UPDATE_STATS'; payload: Partial<TransactionStats> }
   | { type: 'SET_TOKEN_FILTER'; payload: string[] }
   | { type: 'TOGGLE_ANOMALIES'; payload: boolean }
+  | { type: 'SET_FILTERS'; payload: FilterState }
+  | { type: 'UPDATE_FILTERED_DATA' }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'CLEAR_ERROR' };
@@ -80,12 +73,38 @@ const initialState: TransactionState = {
   isConnected: false,
   transactions: [],
   recentTransactions: [],
+  filteredTransactions: [],
+  filteredRecentTransactions: [],
   stats: initialStats,
-  selectedTokens: ['MSQ', 'SUT', 'KWT', 'P2UC'],
-  showAnomalies: false,
+  filters: {
+    tokens: ['MSQ', 'SUT', 'KWT', 'P2UC'],
+    showAnomalies: false,
+    amountRange: { min: '', max: '' },
+    timeRange: { from: '', to: '' },
+    addressSearch: '',
+    riskLevel: 'all',
+  },
   isLoading: false,
   error: null,
 };
+
+// Helper function to apply filters and update filtered data
+function applyFiltersToState(state: TransactionState): TransactionState {
+  const filteredTransactions = applyFiltersToTransactions(
+    state.transactions,
+    state.filters
+  );
+  const filteredRecentTransactions = applyFiltersToTransactions(
+    state.recentTransactions,
+    state.filters
+  );
+
+  return {
+    ...state,
+    filteredTransactions,
+    filteredRecentTransactions,
+  };
+}
 
 function transactionReducer(
   state: TransactionState,
@@ -113,19 +132,23 @@ function transactionReducer(
         50
       ); // Keep last 50
 
-      return {
+      const newState = {
         ...state,
         transactions: updatedTransactions,
         recentTransactions: updatedRecent,
       };
+
+      return applyFiltersToState(newState);
     }
 
-    case 'UPDATE_TRANSACTIONS':
-      return {
+    case 'UPDATE_TRANSACTIONS': {
+      const newState = {
         ...state,
         transactions: action.payload,
         recentTransactions: action.payload.slice(0, 50),
       };
+      return applyFiltersToState(newState);
+    }
 
     case 'UPDATE_STATS':
       return {
@@ -133,17 +156,38 @@ function transactionReducer(
         stats: { ...state.stats, ...action.payload },
       };
 
-    case 'SET_TOKEN_FILTER':
-      return {
+    case 'SET_TOKEN_FILTER': {
+      const newState = {
         ...state,
-        selectedTokens: action.payload,
+        filters: {
+          ...state.filters,
+          tokens: action.payload,
+        },
       };
+      return applyFiltersToState(newState);
+    }
 
-    case 'TOGGLE_ANOMALIES':
-      return {
+    case 'TOGGLE_ANOMALIES': {
+      const newState = {
         ...state,
-        showAnomalies: action.payload,
+        filters: {
+          ...state.filters,
+          showAnomalies: action.payload,
+        },
       };
+      return applyFiltersToState(newState);
+    }
+
+    case 'SET_FILTERS': {
+      const newState = {
+        ...state,
+        filters: action.payload,
+      };
+      return applyFiltersToState(newState);
+    }
+
+    case 'UPDATE_FILTERED_DATA':
+      return applyFiltersToState(state);
 
     case 'SET_LOADING':
       return {
@@ -174,6 +218,8 @@ interface TransactionContextType {
   actions: {
     toggleTokenFilter: (token: string) => void;
     toggleAnomalies: () => void;
+    setFilters: (filters: FilterState) => void;
+    updateFilters: (updates: Partial<FilterState>) => void;
     clearError: () => void;
     reconnect: () => void;
     disconnect: () => void;
@@ -190,36 +236,30 @@ interface TransactionProviderProps {
 
 export function TransactionProvider({ children }: TransactionProviderProps) {
   const [state, dispatch] = useReducer(transactionReducer, initialState);
+  const { parseFiltersFromUrl, updateUrlFromFilters } = useUrlFilterSync();
+
+  // Initialize filters from URL on mount
+  useEffect(() => {
+    const urlFilters = parseFiltersFromUrl();
+    if (JSON.stringify(urlFilters) !== JSON.stringify(state.filters)) {
+      dispatch({ type: 'SET_FILTERS', payload: urlFilters });
+    }
+  }, [parseFiltersFromUrl, state.filters]);
+
+  // Update URL when filters change
+  useEffect(() => {
+    updateUrlFromFilters(state.filters, true);
+  }, [state.filters, updateUrlFromFilters]);
 
   useEffect(() => {
     // Set up WebSocket connection
     const unsubscribeMessages = wsService.subscribe(
       (message: TransactionMessage) => {
         switch (message.type) {
-          case 'new_transaction':
+          case 'transaction':
             if (message.data) {
-              const txData = message.data as any;
-              // Create unique ID to prevent React key conflicts
-              const uniqueId = `${txData.transactionHash || txData.hash}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-              const mappedTransaction: Transaction = {
-                id: uniqueId,
-                hash: txData.transactionHash || txData.hash || '',
-                from: txData.from || '',
-                to: txData.to || '',
-                value: txData.value || '0',
-                token: txData.tokenSymbol || txData.token || 'UNKNOWN',
-                timestamp: txData.timestamp instanceof Date
-                  ? txData.timestamp.getTime()
-                  : typeof txData.timestamp === 'number'
-                    ? txData.timestamp
-                    : Date.now(),
-                blockNumber: txData.blockNumber || 0,
-                gasUsed: txData.gasUsed?.toString() || '0',
-                gasPrice: txData.gasPrice?.toString() || '0',
-                status: 'confirmed' as const,
-                anomalyScore: txData.anomalyScore,
-              };
+              const txData = message.data as Record<string, unknown>;
+              const mappedTransaction = adaptWebSocketTransactionForUI(txData);
               dispatch({
                 type: 'ADD_TRANSACTION',
                 payload: mappedTransaction,
@@ -268,7 +308,7 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
         } else if (connectionState === ConnectionState.CONNECTED) {
           dispatch({ type: 'CLEAR_ERROR' });
           // Request initial data
-          wsService.send({ type: 'subscribe', tokens: state.selectedTokens });
+          wsService.send({ type: 'subscribe', tokens: state.filters.tokens });
         }
       }
     );
@@ -281,22 +321,22 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       unsubscribeState();
       wsService.disconnect();
     };
-  }, [state.selectedTokens]);
+  }, [state.filters.tokens]);
 
   // Update token subscription when filter changes
   useEffect(() => {
     if (wsService.isConnected()) {
       wsService.send({
         type: 'subscribe',
-        tokens: state.selectedTokens,
-        includeAnomalies: state.showAnomalies,
+        tokens: state.filters.tokens,
+        includeAnomalies: state.filters.showAnomalies,
       });
     }
-  }, [state.selectedTokens, state.showAnomalies]);
+  }, [state.filters.tokens, state.filters.showAnomalies]);
 
   const actions = {
     toggleTokenFilter: (token: string) => {
-      const currentTokens = state.selectedTokens;
+      const currentTokens = state.filters.tokens;
       const newTokens = currentTokens.includes(token)
         ? currentTokens.filter(t => t !== token)
         : [...currentTokens, token];
@@ -305,7 +345,19 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
     },
 
     toggleAnomalies: () => {
-      dispatch({ type: 'TOGGLE_ANOMALIES', payload: !state.showAnomalies });
+      dispatch({
+        type: 'TOGGLE_ANOMALIES',
+        payload: !state.filters.showAnomalies,
+      });
+    },
+
+    setFilters: (filters: FilterState) => {
+      dispatch({ type: 'SET_FILTERS', payload: filters });
+    },
+
+    updateFilters: (updates: Partial<FilterState>) => {
+      const newFilters = { ...state.filters, ...updates };
+      dispatch({ type: 'SET_FILTERS', payload: newFilters });
     },
 
     clearError: () => {
@@ -353,6 +405,8 @@ export function useTransactionData() {
   return {
     transactions: state.transactions,
     recentTransactions: state.recentTransactions,
+    filteredTransactions: state.filteredTransactions,
+    filteredRecentTransactions: state.filteredRecentTransactions,
     stats: state.stats,
     isLoading: state.isLoading,
   };
@@ -361,9 +415,10 @@ export function useTransactionData() {
 export function useTransactionFilters() {
   const { state, actions } = useTransactions();
   return {
-    selectedTokens: state.selectedTokens,
-    showAnomalies: state.showAnomalies,
+    filters: state.filters,
     toggleTokenFilter: actions.toggleTokenFilter,
     toggleAnomalies: actions.toggleAnomalies,
+    setFilters: actions.setFilters,
+    updateFilters: actions.updateFilters,
   };
 }

@@ -7,21 +7,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
-
-interface Transaction {
-  id: string;
-  hash: string;
-  from: string;
-  to: string;
-  value: string;
-  token: string;
-  timestamp: number;
-  blockNumber: number;
-  gasUsed: string;
-  gasPrice: string;
-  status: 'pending' | 'confirmed' | 'failed';
-  anomalyScore?: number;
-}
+import { Transaction } from '../types/transaction';
 
 interface TransactionDetailModalProps {
   transaction: Transaction | null;
