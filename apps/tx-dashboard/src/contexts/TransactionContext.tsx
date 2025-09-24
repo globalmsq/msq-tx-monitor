@@ -193,11 +193,30 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
     const unsubscribeMessages = wsService.subscribe(
       (message: TransactionMessage) => {
         switch (message.type) {
-          case 'transaction':
+          case 'new_transaction':
             if (message.data) {
+              const txData = message.data as any;
+              const mappedTransaction: Transaction = {
+                id: txData.transactionHash || txData.hash || Date.now().toString(),
+                hash: txData.transactionHash || txData.hash || '',
+                from: txData.from || '',
+                to: txData.to || '',
+                value: txData.value || '0',
+                token: txData.tokenSymbol || txData.token || 'UNKNOWN',
+                timestamp: txData.timestamp instanceof Date
+                  ? txData.timestamp.getTime()
+                  : typeof txData.timestamp === 'number'
+                    ? txData.timestamp
+                    : Date.now(),
+                blockNumber: txData.blockNumber || 0,
+                gasUsed: txData.gasUsed?.toString() || '0',
+                gasPrice: txData.gasPrice?.toString() || '0',
+                status: 'confirmed' as const,
+                anomalyScore: txData.anomalyScore,
+              };
               dispatch({
                 type: 'ADD_TRANSACTION',
-                payload: message.data as Transaction,
+                payload: mappedTransaction,
               });
             }
             break;

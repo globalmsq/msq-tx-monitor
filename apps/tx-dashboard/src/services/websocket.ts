@@ -245,5 +245,5 @@ export class WebSocketService {
 
 // Singleton instance
 export const wsService = new WebSocketService({
-  url: import.meta.env.VITE_WS_ENDPOINT + '/ws' || 'ws://localhost:8001/ws',
+  url: import.meta.env.VITE_WS_ENDPOINT || 'ws://localhost:8001',
 });
