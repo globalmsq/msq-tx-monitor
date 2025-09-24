@@ -101,6 +101,9 @@ function transactionReducer(
 
     case 'ADD_TRANSACTION': {
       const newTransaction = action.payload;
+
+      // Don't check for duplicates - one transaction can have multiple token transfers
+      // Each transfer event should be shown separately in the feed
       const updatedTransactions = [newTransaction, ...state.transactions].slice(
         0,
         1000
@@ -196,8 +199,11 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
           case 'new_transaction':
             if (message.data) {
               const txData = message.data as any;
+              // Create unique ID to prevent React key conflicts
+              const uniqueId = `${txData.transactionHash || txData.hash}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
               const mappedTransaction: Transaction = {
-                id: txData.transactionHash || txData.hash || Date.now().toString(),
+                id: uniqueId,
                 hash: txData.transactionHash || txData.hash || '',
                 from: txData.from || '',
                 to: txData.to || '',
