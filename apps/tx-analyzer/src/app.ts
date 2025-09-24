@@ -1,7 +1,6 @@
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { config } from './config';
 import { analyzeRoutes } from './routes/analyze.routes';
 
 export function createApp(): Application {

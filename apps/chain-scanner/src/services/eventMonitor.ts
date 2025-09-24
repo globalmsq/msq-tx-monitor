@@ -120,20 +120,41 @@ export class EventMonitor {
       const currentBlockNumber = await this.web3Service.getLatestBlockNumber();
 
       if (currentBlockNumber > this.lastProcessedBlock) {
-        console.log(
-          `🔍 New block detected: ${currentBlockNumber} (last processed: ${this.lastProcessedBlock})`
+        const totalBlocksToProcess =
+          currentBlockNumber - this.lastProcessedBlock;
+        const maxBlocksThisPoll = Math.min(
+          totalBlocksToProcess,
+          config.monitoring.maxBlocksPerPoll
         );
 
-        // Process blocks from lastProcessedBlock + 1 to currentBlockNumber
+        console.log(
+          `🔍 New blocks detected: ${currentBlockNumber} (last processed: ${this.lastProcessedBlock})`
+        );
+
+        if (totalBlocksToProcess > config.monitoring.maxBlocksPerPoll) {
+          console.log(
+            `⚠️ Too many blocks behind (${totalBlocksToProcess}), processing ${maxBlocksThisPoll} blocks this round`
+          );
+        }
+
+        // Process limited number of blocks to prevent RPC overload
+        const endBlock = this.lastProcessedBlock + maxBlocksThisPoll;
         for (
           let blockNum = this.lastProcessedBlock + 1;
-          blockNum <= currentBlockNumber;
+          blockNum <= endBlock;
           blockNum++
         ) {
           await this.processBlock(blockNum);
         }
 
-        this.lastProcessedBlock = currentBlockNumber;
+        this.lastProcessedBlock = endBlock;
+
+        // Log remaining blocks if any
+        if (endBlock < currentBlockNumber) {
+          console.log(
+            `📝 ${currentBlockNumber - endBlock} blocks remaining for next poll cycle`
+          );
+        }
       }
     } catch (error) {
       console.error('❌ Error polling for new blocks:', error);
@@ -156,28 +177,35 @@ export class EventMonitor {
           `❌ Error fetching events for all tokens in block ${blockNumber}:`,
           error
         );
-        // Fallback to individual token requests if batch fails
-        console.log(
-          `🔄 Falling back to individual token requests for block ${blockNumber}`
-        );
-        for (const tokenAddress of tokenAddresses) {
-          try {
-            await this.fetchTokenEventsWithRetry(
-              tokenAddress,
-              blockNumber,
-              blockNumber
-            );
-            // Add delay between requests to avoid rate limiting
-            await new Promise(resolve =>
-              setTimeout(resolve, config.monitoring.requestDelay)
-            );
-          } catch (individualError) {
-            console.error(
-              `❌ Error fetching events for token ${tokenAddress} in block ${blockNumber}:`,
-              individualError
-            );
-            // Continue with other tokens even if one fails
+
+        // Only fallback to individual tokens if explicitly enabled
+        if (!config.monitoring.disableIndividualTokenFallback) {
+          console.log(
+            `🔄 Falling back to individual token requests for block ${blockNumber}`
+          );
+          for (const tokenAddress of tokenAddresses) {
+            try {
+              await this.fetchTokenEventsWithRetry(
+                tokenAddress,
+                blockNumber,
+                blockNumber
+              );
+              // Add delay between requests to avoid rate limiting
+              await new Promise(resolve =>
+                setTimeout(resolve, config.monitoring.requestDelay)
+              );
+            } catch (individualError) {
+              console.error(
+                `❌ Error fetching events for token ${tokenAddress} in block ${blockNumber}:`,
+                individualError
+              );
+              // Continue with other tokens even if one fails
+            }
           }
+        } else {
+          console.log(
+            `⚠️ Individual token fallback disabled, skipping block ${blockNumber} events`
+          );
         }
       }
     } catch (error) {
@@ -189,27 +217,45 @@ export class EventMonitor {
     tokenAddresses: string[],
     fromBlock: number,
     toBlock: number,
-    retries: number = 3
+    retries?: number
   ): Promise<void> {
-    for (let attempt = 0; attempt < retries; attempt++) {
+    const maxRetries = retries ?? config.monitoring.maxRetryAttempts;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         await this.fetchAllTokenEvents(tokenAddresses, fromBlock, toBlock);
         return; // Success, exit retry loop
       } catch (error) {
-        const isLastAttempt = attempt === retries - 1;
+        const isLastAttempt = attempt === maxRetries - 1;
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+
+        // Check if it's a rate limit error
+        const isRateLimitError =
+          errorMessage.toLowerCase().includes('rate limit') ||
+          errorMessage.toLowerCase().includes('too many requests') ||
+          errorMessage.includes('429');
 
         if (isLastAttempt) {
           throw error; // Re-throw on final attempt
         }
 
-        // Exponential backoff: 1s, 2s, 4s
-        const delay = 1000 * Math.pow(2, attempt);
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-        console.warn(
-          `⚠️ Retry ${attempt + 1}/${retries} for all tokens after ${delay}ms:`,
-          errorMessage
-        );
+        // Use different delays based on error type
+        let delay: number;
+        if (isRateLimitError) {
+          delay = config.monitoring.rateLimitBackoffMs;
+          console.warn(
+            `🚫 Rate limit detected, backing off ${delay}ms for all tokens (attempt ${attempt + 1}/${maxRetries})`
+          );
+        } else {
+          // Exponential backoff for other errors: 1s, 2s
+          delay = 1000 * Math.pow(2, attempt);
+          console.warn(
+            `⚠️ Retry ${attempt + 1}/${maxRetries} for all tokens after ${delay}ms:`,
+            errorMessage
+          );
+        }
+
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
@@ -219,27 +265,45 @@ export class EventMonitor {
     tokenAddress: string,
     fromBlock: number,
     toBlock: number,
-    retries: number = 3
+    retries?: number
   ): Promise<void> {
-    for (let attempt = 0; attempt < retries; attempt++) {
+    const maxRetries = retries ?? config.monitoring.maxRetryAttempts;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         await this.fetchTokenEvents(tokenAddress, fromBlock, toBlock);
         return; // Success, exit retry loop
       } catch (error) {
-        const isLastAttempt = attempt === retries - 1;
+        const isLastAttempt = attempt === maxRetries - 1;
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+
+        // Check if it's a rate limit error
+        const isRateLimitError =
+          errorMessage.toLowerCase().includes('rate limit') ||
+          errorMessage.toLowerCase().includes('too many requests') ||
+          errorMessage.includes('429');
 
         if (isLastAttempt) {
           throw error; // Re-throw on final attempt
         }
 
-        // Exponential backoff: 1s, 2s, 4s
-        const delay = 1000 * Math.pow(2, attempt);
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-        console.warn(
-          `⚠️ Retry ${attempt + 1}/${retries} for token ${tokenAddress} after ${delay}ms:`,
-          errorMessage
-        );
+        // Use different delays based on error type
+        let delay: number;
+        if (isRateLimitError) {
+          delay = config.monitoring.rateLimitBackoffMs;
+          console.warn(
+            `🚫 Rate limit detected for token ${tokenAddress}, backing off ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
+          );
+        } else {
+          // Exponential backoff for other errors: 1s, 2s
+          delay = 1000 * Math.pow(2, attempt);
+          console.warn(
+            `⚠️ Retry ${attempt + 1}/${maxRetries} for token ${tokenAddress} after ${delay}ms:`,
+            errorMessage
+          );
+        }
+
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
@@ -464,69 +528,77 @@ export class EventMonitor {
 
   private async createTransactionData(
     processedEvent: ProcessedEvent,
-    _eventData: EventData
+    eventData: EventData
   ): Promise<TransactionData | null> {
     try {
+      // Basic transaction data from event logs (no additional RPC calls needed)
+      const basicTransactionData: TransactionData = {
+        hash: processedEvent.transactionHash,
+        blockNumber: processedEvent.blockNumber,
+        blockHash: eventData.blockHash,
+        transactionIndex: parseInt(eventData.transactionIndex, 16),
+        from: processedEvent.from,
+        to: processedEvent.to,
+        value: processedEvent.value,
+        gasPrice: '0', // Will be filled if enableTxDetails is true
+        gasUsed: '0', // Will be filled if enableTxDetails is true
+        tokenAddress: processedEvent.tokenAddress,
+        tokenSymbol: processedEvent.tokenSymbol,
+        tokenDecimals: processedEvent.tokenDecimals,
+        timestamp: processedEvent.timestamp,
+        confirmations: 0, // Will be updated later in batch
+      };
+
+      // Only fetch additional transaction details if explicitly enabled
+      if (!config.monitoring.enableTxDetails) {
+        return basicTransactionData;
+      }
+
+      // Enhanced mode: fetch additional details (requires more RPC calls)
       if (!this.web3Service.isConnected()) {
         console.warn(
-          'Web3 service not connected, skipping transaction data creation'
+          'Web3 service not connected, returning basic transaction data'
         );
-        return null;
+        return basicTransactionData;
       }
 
       const web3 = this.web3Service.getWeb3Instance();
       if (!web3) {
         console.warn(
-          'Web3 instance not available, skipping transaction data creation'
+          'Web3 instance not available, returning basic transaction data'
         );
-        return null;
+        return basicTransactionData;
       }
 
-      // Get transaction details
-      const transaction = await web3.eth.getTransaction(
-        processedEvent.transactionHash
-      );
-      if (!transaction) {
+      try {
+        // Get transaction details for gas price
+        const transaction = await web3.eth.getTransaction(
+          processedEvent.transactionHash
+        );
+        if (transaction?.gasPrice) {
+          basicTransactionData.gasPrice = transaction.gasPrice.toString();
+        }
+
+        // Get transaction receipt for gas usage
+        const receipt = await web3.eth.getTransactionReceipt(
+          processedEvent.transactionHash
+        );
+        if (receipt?.gasUsed) {
+          basicTransactionData.gasUsed = receipt.gasUsed.toString();
+        }
+
+        // Get current block number for confirmations (most expensive call)
+        const currentBlockNumber = await web3.eth.getBlockNumber();
+        basicTransactionData.confirmations =
+          Number(currentBlockNumber) - processedEvent.blockNumber;
+      } catch (detailError) {
         console.warn(
-          `Transaction not found: ${processedEvent.transactionHash}`
+          `Failed to fetch transaction details for ${processedEvent.transactionHash}, using basic data:`,
+          detailError
         );
-        return null;
       }
 
-      // Get transaction receipt for gas usage
-      const receipt = await web3.eth.getTransactionReceipt(
-        processedEvent.transactionHash
-      );
-      if (!receipt) {
-        console.warn(
-          `Transaction receipt not found: ${processedEvent.transactionHash}`
-        );
-        return null;
-      }
-
-      // Get current block number for confirmations
-      const currentBlockNumber = await web3.eth.getBlockNumber();
-      const confirmations =
-        Number(currentBlockNumber) - processedEvent.blockNumber;
-
-      const transactionData: TransactionData = {
-        hash: processedEvent.transactionHash,
-        blockNumber: processedEvent.blockNumber,
-        blockHash: receipt.blockHash,
-        transactionIndex: Number(receipt.transactionIndex),
-        from: processedEvent.from,
-        to: processedEvent.to,
-        value: processedEvent.value,
-        gasPrice: transaction.gasPrice?.toString() || '0',
-        gasUsed: receipt.gasUsed.toString(),
-        tokenAddress: processedEvent.tokenAddress,
-        tokenSymbol: processedEvent.tokenSymbol,
-        tokenDecimals: processedEvent.tokenDecimals,
-        timestamp: processedEvent.timestamp,
-        confirmations,
-      };
-
-      return transactionData;
+      return basicTransactionData;
     } catch (error) {
       console.error('Error creating transaction data:', error);
       return null;

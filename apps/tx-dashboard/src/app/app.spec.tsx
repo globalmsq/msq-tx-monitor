@@ -13,14 +13,13 @@ describe('App', () => {
     expect(baseElement).toBeTruthy();
   });
 
-  it('should have a greeting as the title', () => {
-    const { getAllByText } = render(
+  it('should render transaction dashboard elements', () => {
+    const { getByText } = render(
       <BrowserRouter>
         <App />
       </BrowserRouter>
     );
-    expect(
-      getAllByText(new RegExp('Welcome tx-dashboard', 'gi')).length > 0
-    ).toBeTruthy();
+    // Check for key dashboard elements
+    expect(getByText(/Transaction Monitor/i)).toBeTruthy();
   });
 });

@@ -8,6 +8,7 @@
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { prisma } from '@msq-tx-monitor/database';
+// Note: Removed Decimal import - using simplified conversion approach
 import { TransactionData } from './databaseService';
 import {
   AddressStatsCacheService,
@@ -74,6 +75,47 @@ export class AddressStatsCalculator {
   constructor() {
     this.cacheService = AddressStatsCacheService.getInstance();
     this.rankingService = AddressRankingService.getInstance();
+  }
+
+  /**
+   * Safely convert Decimal/Prisma values to BigInt, handling scientific notation
+   */
+  private static safeDecimalToBigInt(value: any): bigint {
+    // Handle null/undefined
+    if (value == null) {
+      return BigInt(0);
+    }
+
+    // If the value has a toFixed method (like Prisma Decimal), use it
+    if (value && typeof value.toFixed === 'function') {
+      return BigInt(value.toFixed());
+    }
+
+    const stringValue = value.toString();
+
+    // Check if the value is in scientific notation
+    if (stringValue.includes('e') || stringValue.includes('E')) {
+      // Convert scientific notation to regular notation
+      const num = Number(stringValue);
+      if (!Number.isInteger(num) || !Number.isFinite(num)) {
+        // Round to nearest integer for decimal values or handle infinity
+        return BigInt(
+          Math.round(Math.max(0, Math.min(num, Number.MAX_SAFE_INTEGER)))
+        );
+      }
+      return BigInt(Math.round(num));
+    }
+
+    // Handle regular string/number
+    try {
+      return BigInt(stringValue);
+    } catch (error) {
+      console.warn(
+        `Failed to convert value to BigInt: ${stringValue}, using 0`,
+        error
+      );
+      return BigInt(0);
+    }
   }
 
   /**
@@ -293,7 +335,10 @@ export class AddressStatsCalculator {
 
     // Update totals and counts
     if (direction === 'sent') {
-      updates.totalSent = (BigInt(currentStats.totalSent.toString()) + amount).toString();
+      updates.totalSent = (
+        AddressStatsCalculator.safeDecimalToBigInt(currentStats.totalSent) +
+        amount
+      ).toString();
       updates.transactionCountSent = currentStats.transactionCountSent + 1;
 
       // Calculate new average for sent transactions
@@ -305,11 +350,17 @@ export class AddressStatsCalculator {
 
       // Update maximum sent
       updates.maxTransactionSizeSent =
-        amount > BigInt(currentStats.maxTransactionSizeSent.toString())
+        amount >
+        AddressStatsCalculator.safeDecimalToBigInt(
+          currentStats.maxTransactionSizeSent
+        )
           ? amount.toString()
-          : currentStats.maxTransactionSizeSent;
+          : currentStats.maxTransactionSizeSent.toString();
     } else {
-      updates.totalReceived = (BigInt(currentStats.totalReceived.toString()) + amount).toString();
+      updates.totalReceived = (
+        AddressStatsCalculator.safeDecimalToBigInt(currentStats.totalReceived) +
+        amount
+      ).toString();
       updates.transactionCountReceived =
         currentStats.transactionCountReceived + 1;
 
@@ -322,9 +373,12 @@ export class AddressStatsCalculator {
 
       // Update maximum received
       updates.maxTransactionSizeReceived =
-        amount > BigInt(currentStats.maxTransactionSizeReceived.toString())
+        amount >
+        AddressStatsCalculator.safeDecimalToBigInt(
+          currentStats.maxTransactionSizeReceived
+        )
           ? amount.toString()
-          : currentStats.maxTransactionSizeReceived;
+          : currentStats.maxTransactionSizeReceived.toString();
     }
 
     // Update overall averages and maximums
@@ -333,15 +387,20 @@ export class AddressStatsCalculator {
       (currentStats.transactionCountReceived || 0) +
       1;
     const totalVolume =
-      (currentStats.totalSent || BigInt(0)) +
-      (currentStats.totalReceived || BigInt(0)) +
+      AddressStatsCalculator.safeDecimalToBigInt(currentStats.totalSent || 0) +
+      AddressStatsCalculator.safeDecimalToBigInt(
+        currentStats.totalReceived || 0
+      ) +
       amount;
 
     updates.avgTransactionSize = Number(totalVolume) / totalTransactions;
     updates.maxTransactionSize =
-      amount > BigInt(currentStats.maxTransactionSize.toString())
+      amount >
+      AddressStatsCalculator.safeDecimalToBigInt(
+        currentStats.maxTransactionSize
+      )
         ? amount.toString()
-        : currentStats.maxTransactionSize;
+        : currentStats.maxTransactionSize.toString();
 
     // Update timestamps and activity
     updates.lastSeen = timestamp;
@@ -364,12 +423,20 @@ export class AddressStatsCalculator {
     // Update whale status
     const newTotalSent =
       direction === 'sent'
-        ? (currentStats.totalSent || BigInt(0)) + amount
-        : currentStats.totalSent || BigInt(0);
+        ? AddressStatsCalculator.safeDecimalToBigInt(
+            currentStats.totalSent || 0
+          ) + amount
+        : AddressStatsCalculator.safeDecimalToBigInt(
+            currentStats.totalSent || 0
+          );
     const newTotalReceived =
       direction === 'received'
-        ? (currentStats.totalReceived || BigInt(0)) + amount
-        : currentStats.totalReceived || BigInt(0);
+        ? AddressStatsCalculator.safeDecimalToBigInt(
+            currentStats.totalReceived || 0
+          ) + amount
+        : AddressStatsCalculator.safeDecimalToBigInt(
+            currentStats.totalReceived || 0
+          );
 
     updates.isWhale =
       newTotalSent + newTotalReceived >= AddressStatsCalculator.WHALE_THRESHOLD;

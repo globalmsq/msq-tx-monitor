@@ -166,12 +166,4 @@ export interface ChainScannerConfig {
   tokenAddresses: Record<string, string>;
 }
 
-// Export all types
-export * from './transaction';
-export * from './address';
-export * from './anomaly';
-export * from './token';
-export * from './api';
-export * from './websocket';
-export * from './statistics';
-export * from './config';
+// All types are defined above in this file - no additional modules to export

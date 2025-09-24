@@ -1,9 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    './index.html',
-    './src/**/*.{js,ts,jsx,tsx}',
-  ],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   darkMode: 'class',
   theme: {
     extend: {
@@ -85,15 +82,12 @@ module.exports = {
         xs: '2px',
       },
       boxShadow: {
-        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
-        'glow': '0 0 20px rgba(59, 130, 246, 0.5)',
+        glass: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+        glow: '0 0 20px rgba(59, 130, 246, 0.5)',
         'glow-green': '0 0 20px rgba(34, 197, 94, 0.5)',
         'glow-red': '0 0 20px rgba(239, 68, 68, 0.5)',
       },
     },
   },
-  plugins: [
-    require('@tailwindcss/forms'),
-    require('@tailwindcss/typography'),
-  ],
-}
+  plugins: [require('@tailwindcss/forms'), require('@tailwindcss/typography')],
+};

@@ -75,7 +75,7 @@ export class RiskCalculator {
     return Math.min(riskScore, 1.0);
   }
 
-  static isWhaleTransaction(amount: string, tokenSymbol: string): boolean {
+  static isWhaleTransaction(amount: string, _tokenSymbol: string): boolean {
     const value = BigInt(amount);
     return value > this.WHALE_THRESHOLD;
   }

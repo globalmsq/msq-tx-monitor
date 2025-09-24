@@ -193,22 +193,38 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
     const unsubscribeMessages = wsService.subscribe(
       (message: TransactionMessage) => {
         switch (message.type) {
-          case 'new_transaction':
+          case 'transaction':
             if (message.data) {
-              dispatch({ type: 'ADD_TRANSACTION', payload: message.data });
+              dispatch({
+                type: 'ADD_TRANSACTION',
+                payload: message.data as Transaction,
+              });
             }
             break;
 
           case 'connection':
-            if (message.data?.stats) {
-              dispatch({ type: 'UPDATE_STATS', payload: message.data.stats });
+            if (
+              message.data &&
+              typeof message.data === 'object' &&
+              'stats' in message.data
+            ) {
+              dispatch({
+                type: 'UPDATE_STATS',
+                payload: (message.data as { stats: Partial<TransactionStats> })
+                  .stats,
+              });
             }
             break;
 
           case 'error':
             dispatch({
               type: 'SET_ERROR',
-              payload: message.data?.message || 'WebSocket error',
+              payload:
+                message.data &&
+                typeof message.data === 'object' &&
+                'message' in message.data
+                  ? (message.data as { message: string }).message
+                  : 'WebSocket error',
             });
             break;
         }

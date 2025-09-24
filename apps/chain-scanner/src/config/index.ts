@@ -61,6 +61,16 @@ export const config = {
       10
     ),
     requestDelay: parseInt(process.env.REQUEST_DELAY || '500', 10),
+    // RPC Optimization Settings
+    maxBlocksPerPoll: parseInt(process.env.MAX_BLOCKS_PER_POLL || '10', 10),
+    enableTxDetails: process.env.ENABLE_TX_DETAILS === 'true',
+    disableIndividualTokenFallback:
+      process.env.DISABLE_INDIVIDUAL_TOKEN_FALLBACK === 'true',
+    maxRetryAttempts: parseInt(process.env.MAX_RETRY_ATTEMPTS || '2', 10),
+    rateLimitBackoffMs: parseInt(
+      process.env.RATE_LIMIT_BACKOFF_MS || '5000',
+      10
+    ),
   },
 
   websocket: {

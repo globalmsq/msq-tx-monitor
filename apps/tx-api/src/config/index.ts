@@ -27,8 +27,7 @@ export const config = {
     origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
     methods: process.env.CORS_METHODS || 'GET,POST,PUT,DELETE,OPTIONS',
     allowedHeaders:
-      process.env.CORS_ALLOWED_HEADERS ||
-      'Content-Type,Authorization,X-Requested-With',
+      process.env.CORS_ALLOWED_HEADERS || 'Content-Type,X-Requested-With',
   },
 
   rateLimit: {
@@ -36,14 +35,6 @@ export const config = {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10),
     skipSuccessfulRequests:
       process.env.RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS === 'true',
-  },
-
-  security: {
-    jwtSecret:
-      process.env.JWT_SECRET ||
-      'your-super-secret-jwt-key-change-this-in-production',
-    jwtExpiresIn: process.env.JWT_EXPIRE_IN || '1h',
-    bcryptSaltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS || '10', 10),
   },
 
   pagination: {

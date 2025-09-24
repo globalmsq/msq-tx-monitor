@@ -128,10 +128,6 @@ export const createValidationError = (message: string, details?: unknown) => {
   return new ApiError(400, message, details);
 };
 
-export const createUnauthorizedError = (message: string = 'Unauthorized') => {
-  return new ApiError(401, message);
-};
-
 export const createForbiddenError = (message: string = 'Forbidden') => {
   return new ApiError(403, message);
 };

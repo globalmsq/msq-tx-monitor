@@ -45,3 +45,15 @@ docker-compose*.yml
 # Generated files
 *.d.ts
 CHANGELOG.md
+
+# Configuration files (소스코드만 포맷팅)
+package.json
+*.json
+nx.json
+tsconfig*.json
+jest.config.*
+vite.config.*
+webpack.config.*
+rollup.config.*
+.eslintrc*
+.prettierrc*

@@ -3,21 +3,21 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "sourceRoot": "apps/tx-analyzer/src",
-  "tags": ["type:app", "scope:backend", "lang:python"],
+  "tags": ["type:app", "scope:backend", "lang:typescript"],
   "targets": {
     "serve": {
       "executor": "nx:run-commands",
       "defaultConfiguration": "development",
       "options": {
         "cwd": "apps/tx-analyzer",
-        "command": "uvicorn src.main:app --reload --port 8002 --host 0.0.0.0"
+        "command": "tsx watch --clear-screen=false src/main.ts"
       },
       "configurations": {
         "development": {
-          "command": "uvicorn src.main:app --reload --port 8002 --host 0.0.0.0"
+          "command": "tsx watch --clear-screen=false src/main.ts"
         },
         "production": {
-          "command": "uvicorn src.main:app --port 8002 --host 0.0.0.0"
+          "command": "node dist/main.js"
         }
       }
     },
@@ -25,26 +25,28 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/tx-analyzer",
-        "command": "python -m pip install -r requirements.txt"
+        "command": "rm -rf dist && tsc --project tsconfig.app.json"
       }
     },
     "test": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/tx-analyzer",
-        "command": "python -m pytest"
+        "command": "jest --config jest.config.ts"
       }
     },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/tx-analyzer",
-        "commands": [
-          "black --check src/",
-          "isort --check-only src/",
-          "flake8 src/"
-        ],
-        "parallel": false
+        "command": "eslint \"src/**/*.ts\""
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/tx-analyzer",
+        "command": "tsc --noEmit --project tsconfig.app.json"
       }
     }
   }
