@@ -256,7 +256,7 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
     const unsubscribeMessages = wsService.subscribe(
       (message: TransactionMessage) => {
         switch (message.type) {
-          case 'transaction':
+          case 'new_transaction':
             if (message.data) {
               const txData = message.data as Record<string, unknown>;
               const mappedTransaction = adaptWebSocketTransactionForUI(txData);
