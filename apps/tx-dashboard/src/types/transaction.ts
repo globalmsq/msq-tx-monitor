@@ -1,4 +1,5 @@
 import { Transaction as SharedTransaction } from '@msq-tx-monitor/tx-types';
+import { formatTokenAmount } from '../utils/tokenUtils';
 
 // UI-specific transaction interface that extends the shared type
 export interface UITransaction {
@@ -6,8 +7,10 @@ export interface UITransaction {
   hash: string;
   from: string; // mapped from fromAddress
   to: string; // mapped from toAddress
-  value: string;
+  value: string; // formatted value with decimals
+  rawValue: string; // original raw value
   token: string; // mapped from tokenSymbol
+  tokenAddress?: string; // token contract address
   timestamp: number; // converted from Date to number
   blockNumber: number;
   gasUsed: string;
@@ -18,13 +21,19 @@ export interface UITransaction {
 
 // Adapter function to convert shared Transaction to UI Transaction
 export function adaptTransactionForUI(tx: SharedTransaction): UITransaction {
+  const rawValue = tx.value;
+  const tokenAddress = tx.tokenAddress;
+  const tokenSymbol = tx.tokenSymbol;
+
   return {
     id: tx.id,
     hash: tx.hash,
     from: tx.fromAddress,
     to: tx.toAddress,
-    value: tx.value,
-    token: tx.tokenSymbol,
+    value: formatTokenAmount(rawValue, tokenSymbol, tokenAddress),
+    rawValue: rawValue,
+    token: tokenSymbol,
+    tokenAddress: tokenAddress,
     timestamp: tx.timestamp.getTime(),
     blockNumber: tx.blockNumber,
     gasUsed: tx.gasUsed?.toString() || '0',
@@ -40,13 +49,21 @@ export function adaptWebSocketTransactionForUI(
 ): UITransaction {
   const uniqueId = `${txData.transactionHash || txData.hash}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
+  const rawValue = (txData.value || '0') as string;
+  const tokenAddress = (txData.tokenAddress || '') as string;
+  const tokenSymbol = (txData.tokenSymbol ||
+    txData.token ||
+    'UNKNOWN') as string;
+
   return {
     id: uniqueId,
     hash: (txData.transactionHash || txData.hash || '') as string,
     from: (txData.from || '') as string,
     to: (txData.to || '') as string,
-    value: (txData.value || '0') as string,
-    token: (txData.tokenSymbol || txData.token || 'UNKNOWN') as string,
+    value: formatTokenAmount(rawValue, tokenSymbol, tokenAddress),
+    rawValue: rawValue,
+    token: tokenSymbol,
+    tokenAddress: tokenAddress,
     timestamp:
       txData.timestamp instanceof Date
         ? txData.timestamp.getTime()

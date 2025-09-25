@@ -14,9 +14,11 @@ export function applyFiltersToTransactions(
       return false;
     }
 
-    // Amount range filter
+    // Amount range filter (use rawValue for filtering, not formatted value)
     if (filters.amountRange.min || filters.amountRange.max) {
-      const value = parseFloat(tx.value) || 0;
+      // Convert raw value to decimal representation for filtering
+      const rawValue = tx.rawValue || tx.value;
+      const value = parseFloat(rawValue) || 0;
 
       if (
         filters.amountRange.min &&

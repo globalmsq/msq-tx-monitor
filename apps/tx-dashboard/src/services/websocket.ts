@@ -11,7 +11,12 @@ export interface WebSocketConfig {
 }
 
 export interface TransactionMessage {
-  type: 'new_transaction' | 'connection' | 'error' | 'heartbeat';
+  type:
+    | 'new_transaction'
+    | 'connection'
+    | 'error'
+    | 'heartbeat'
+    | 'stats_update';
   data: unknown;
   timestamp: number;
 }

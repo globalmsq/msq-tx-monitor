@@ -2,6 +2,7 @@ import WebSocket from 'ws';
 import { createServer } from 'http';
 import { config } from '../config';
 import { EVENT_TYPES, CONNECTION_STATUS } from '../config/constants';
+import { StatisticsService } from './statisticsService';
 
 export interface Client {
   id: string;
@@ -25,8 +26,10 @@ export class WebSocketServer {
   private clients: Map<string, Client> = new Map();
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private isRunning = false;
+  private statisticsService: StatisticsService;
 
-  constructor() {
+  constructor(statisticsService: StatisticsService) {
+    this.statisticsService = statisticsService;
     this.setupSignalHandlers();
   }
 
@@ -98,16 +101,8 @@ export class WebSocketServer {
         return;
       }
 
-      // Send welcome message
-      this.sendToClient(clientId, {
-        type: EVENT_TYPES.CONNECTION_STATUS,
-        data: {
-          status: CONNECTION_STATUS.CONNECTED,
-          clientId,
-          serverTime: new Date(),
-        },
-        timestamp: new Date(),
-      });
+      // Send welcome message with stats
+      this.sendWelcomeMessageWithStats(clientId);
 
       // Set up client event handlers
       this.setupClientHandlers(clientId, socket);
@@ -193,20 +188,40 @@ export class WebSocketServer {
     }
   }
 
-  private handleSubscription(
+  private async handleSubscription(
     clientId: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     subscriptionData: any
-  ): void {
+  ): Promise<void> {
     // In this implementation, all clients receive all events
     // This could be extended to support selective subscriptions
     console.log(`Client ${clientId} subscribed to:`, subscriptionData);
 
-    this.sendToClient(clientId, {
-      type: 'subscription_confirmed',
-      data: { subscription: subscriptionData },
-      timestamp: new Date(),
-    });
+    try {
+      // Get fresh statistics for subscription confirmation
+      const stats = await this.statisticsService.getDashboardStats();
+
+      this.sendToClient(clientId, {
+        type: 'subscription_confirmed',
+        data: {
+          subscription: subscriptionData,
+          stats: stats,
+        },
+        timestamp: new Date(),
+      });
+    } catch (error) {
+      console.error(
+        `Error sending stats with subscription confirmation to ${clientId}:`,
+        error
+      );
+
+      // Send confirmation without stats as fallback
+      this.sendToClient(clientId, {
+        type: 'subscription_confirmed',
+        data: { subscription: subscriptionData },
+        timestamp: new Date(),
+      });
+    }
   }
 
   private handleUnsubscription(
@@ -225,6 +240,49 @@ export class WebSocketServer {
 
   private generateClientId(): string {
     return `client_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  }
+
+  /**
+   * Send welcome message with dashboard statistics
+   */
+  private async sendWelcomeMessageWithStats(clientId: string): Promise<void> {
+    try {
+      // Get fresh statistics
+      const stats = await this.statisticsService.getDashboardStats();
+
+      // Send connection message with stats
+      this.sendToClient(clientId, {
+        type: 'connection',
+        data: {
+          status: CONNECTION_STATUS.CONNECTED,
+          clientId,
+          serverTime: new Date(),
+          stats: stats,
+        },
+        timestamp: new Date(),
+      });
+
+      if (config.logging.enableDatabaseLogs) {
+        console.log(`📊 Stats sent to client ${clientId}:`, {
+          totalTransactions: stats.totalTransactions,
+          activeAddresses: stats.activeAddresses,
+          tokenStatsCount: stats.tokenStats.length,
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Error sending stats to client ${clientId}:`, error);
+
+      // Send connection message without stats as fallback
+      this.sendToClient(clientId, {
+        type: EVENT_TYPES.CONNECTION_STATUS,
+        data: {
+          status: CONNECTION_STATUS.CONNECTED,
+          clientId,
+          serverTime: new Date(),
+        },
+        timestamp: new Date(),
+      });
+    }
   }
 
   private startHeartbeat(): void {
@@ -392,6 +450,31 @@ export class WebSocketServer {
     }
 
     this.isRunning = false;
+  }
+
+  /**
+   * Broadcast updated statistics to all connected clients
+   */
+  async broadcastStatsUpdate(): Promise<void> {
+    if (!this.isRunning || this.clients.size === 0) {
+      return;
+    }
+
+    try {
+      const stats = await this.statisticsService.getDashboardStats();
+
+      this.broadcast({
+        type: 'stats_update',
+        data: { stats },
+        timestamp: new Date(),
+      });
+
+      if (config.logging.enableDatabaseLogs) {
+        console.log('📊 Stats update broadcasted to all clients');
+      }
+    } catch (error) {
+      console.error('❌ Error broadcasting stats update:', error);
+    }
   }
 
   private cleanup(): void {

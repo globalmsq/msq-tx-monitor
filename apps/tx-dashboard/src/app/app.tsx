@@ -109,8 +109,14 @@ function TokenFilter() {
 
 function StatsCards() {
   const { stats } = useTransactionData();
+  const { filters } = useTransactionFilters();
 
-  const statItems = [
+  // Filter token stats based on selected tokens
+  const filteredTokenStats = stats.tokenStats.filter(tokenStat =>
+    filters.tokens.includes(tokenStat.tokenSymbol)
+  );
+
+  const generalStats = [
     {
       label: 'Total Transactions',
       value: stats.totalTransactions.toLocaleString(),
@@ -121,36 +127,79 @@ function StatsCards() {
       value: stats.activeAddresses.toLocaleString(),
       change: '+5%',
     },
-    { label: 'Volume (24h)', value: stats.volume24h, change: '+18%' },
-    { label: 'Avg. Tx Size', value: stats.avgTxSize, change: '-3%' },
   ];
 
   return (
-    <div className='grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6'>
-      {statItems.map((stat, index) => (
-        <div
-          key={index}
-          className='glass rounded-xl lg:rounded-2xl p-4 lg:p-6 animate-fade-in'
-        >
-          <h3 className='text-white/70 text-xs lg:text-sm font-medium truncate'>
-            {stat.label}
-          </h3>
-          <p className='text-lg lg:text-2xl font-bold text-white mt-1 lg:mt-2'>
-            {stat.value}
-          </p>
-          <p
-            className={cn(
-              'text-xs lg:text-sm mt-1',
-              stat.change.startsWith('+') ? 'text-green-400' : 'text-red-400'
-            )}
+    <div className='space-y-6'>
+      {/* General Statistics */}
+      <div className='grid grid-cols-2 gap-3 lg:gap-6'>
+        {generalStats.map((stat, index) => (
+          <div
+            key={index}
+            className='glass rounded-xl lg:rounded-2xl p-4 lg:p-6 animate-fade-in'
           >
-            <span className='hidden sm:inline'>
-              {stat.change} from last 24h
-            </span>
-            <span className='sm:hidden'>{stat.change}</span>
-          </p>
+            <h3 className='text-white/70 text-xs lg:text-sm font-medium truncate'>
+              {stat.label}
+            </h3>
+            <p className='text-lg lg:text-2xl font-bold text-white mt-1 lg:mt-2'>
+              {stat.value}
+            </p>
+            <p
+              className={cn(
+                'text-xs lg:text-sm mt-1',
+                stat.change.startsWith('+') ? 'text-green-400' : 'text-red-400'
+              )}
+            >
+              <span className='hidden sm:inline'>
+                {stat.change} from last 24h
+              </span>
+              <span className='sm:hidden'>{stat.change}</span>
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Token-specific Statistics */}
+      {filteredTokenStats.length > 0 && (
+        <div>
+          <h3 className='text-white/70 text-sm font-medium mb-3'>
+            Token Statistics
+          </h3>
+          <div className='grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 lg:gap-4'>
+            {filteredTokenStats.map((tokenStat, _index) => (
+              <div
+                key={tokenStat.tokenAddress}
+                className='glass rounded-xl p-4 animate-fade-in'
+              >
+                <h4 className='text-white font-medium text-sm mb-3 flex items-center'>
+                  <span className='w-2 h-2 rounded-full bg-primary-500 mr-2'></span>
+                  {tokenStat.tokenSymbol}
+                </h4>
+                <div className='space-y-2 text-xs'>
+                  <div className='flex justify-between'>
+                    <span className='text-white/60'>24h Volume:</span>
+                    <span className='text-white'>{tokenStat.volume24h}</span>
+                  </div>
+                  <div className='flex justify-between'>
+                    <span className='text-white/60'>Avg Size:</span>
+                    <span className='text-white'>{tokenStat.avgTxSize}</span>
+                  </div>
+                  <div className='flex justify-between'>
+                    <span className='text-white/60'>Total Volume:</span>
+                    <span className='text-white'>{tokenStat.totalVolume}</span>
+                  </div>
+                  <div className='flex justify-between'>
+                    <span className='text-white/60'>Transactions:</span>
+                    <span className='text-white'>
+                      {tokenStat.transactionCount.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      ))}
+      )}
     </div>
   );
 }

@@ -17,12 +17,19 @@ import {
   adaptWebSocketTransactionForUI,
 } from '../types/transaction';
 
-interface TransactionStats {
-  totalTransactions: number;
-  activeAddresses: number;
+interface TokenStats {
+  tokenSymbol: string;
+  tokenAddress: string;
   volume24h: string;
   avgTxSize: string;
   totalVolume: string;
+  transactionCount: number;
+}
+
+interface TransactionStats {
+  totalTransactions: number;
+  activeAddresses: number;
+  tokenStats: TokenStats[];
   successRate: number;
 }
 
@@ -62,9 +69,7 @@ type TransactionAction =
 const initialStats: TransactionStats = {
   totalTransactions: 0,
   activeAddresses: 0,
-  volume24h: '$0',
-  avgTxSize: '$0',
-  totalVolume: '$0',
+  tokenStats: [],
   successRate: 0,
 };
 
@@ -268,6 +273,20 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
             break;
 
           case 'connection':
+            if (
+              message.data &&
+              typeof message.data === 'object' &&
+              'stats' in message.data
+            ) {
+              dispatch({
+                type: 'UPDATE_STATS',
+                payload: (message.data as { stats: Partial<TransactionStats> })
+                  .stats,
+              });
+            }
+            break;
+
+          case 'stats_update':
             if (
               message.data &&
               typeof message.data === 'object' &&
