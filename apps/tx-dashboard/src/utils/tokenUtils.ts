@@ -1,4 +1,4 @@
-import { getTokenConfig } from '../config/tokens';
+import { getTokenConfigBySymbol, getTokenConfigByAddress } from '../config/tokens';
 
 /**
  * Format token amount with proper decimals
@@ -21,24 +21,19 @@ export function formatTokenAmount(
       return `0 ${tokenSymbol}`;
     }
 
-    // Get token decimals - first try by symbol, then by address
+    // Get token decimals - try by symbol first (more efficient), then by address
     let decimals = 18; // default
 
-    // Try to find token config by address first (more reliable)
-    if (tokenAddress) {
-      const configByAddress = getTokenConfig(tokenAddress);
+    // Try to find token config by symbol first (faster and more reliable)
+    const configBySymbol = getTokenConfigBySymbol(tokenSymbol);
+    if (configBySymbol) {
+      decimals = configBySymbol.decimals;
+    } else if (tokenAddress) {
+      // Fallback to address-based lookup
+      const configByAddress = getTokenConfigByAddress(tokenAddress);
       if (configByAddress) {
         decimals = configByAddress.decimals;
       }
-    } else {
-      // Fallback to symbol-based lookup
-      const knownDecimals: Record<string, number> = {
-        MSQ: 18,
-        KWT: 18,
-        SUT: 18,
-        P2UC: 6,
-      };
-      decimals = knownDecimals[tokenSymbol.toUpperCase()] || 18;
     }
 
     // Calculate the divisor based on decimals
@@ -85,6 +80,85 @@ export function formatTokenAmount(
 }
 
 /**
+ * Format token value with proper decimals (numeric value only)
+ * @param rawValue - Raw token value (string representation of wei-like value)
+ * @param tokenSymbol - Token symbol (MSQ, KWT, SUT, P2UC)
+ * @param tokenAddress - Token contract address (used if symbol lookup fails)
+ * @returns Formatted numeric value without symbol
+ */
+export function formatTokenValue(
+  rawValue: string,
+  tokenSymbol: string,
+  tokenAddress?: string
+): string {
+  try {
+    // Convert raw value to number for calculation
+    const rawAmount = BigInt(rawValue);
+
+    // If rawAmount is 0, return early
+    if (rawAmount === 0n) {
+      return '0';
+    }
+
+    // Get token decimals - try by symbol first (more efficient), then by address
+    let decimals = 18; // default
+
+    // Try to find token config by symbol first (faster and more reliable)
+    const configBySymbol = getTokenConfigBySymbol(tokenSymbol);
+    if (configBySymbol) {
+      decimals = configBySymbol.decimals;
+    } else if (tokenAddress) {
+      // Fallback to address-based lookup
+      const configByAddress = getTokenConfigByAddress(tokenAddress);
+      if (configByAddress) {
+        decimals = configByAddress.decimals;
+      }
+    }
+
+    // Calculate the divisor based on decimals
+    const divisor = BigInt(10 ** decimals);
+
+    // Calculate the formatted amount
+    const integerPart = rawAmount / divisor;
+    const fractionalPart = rawAmount % divisor;
+
+    // Convert to decimal representation
+    const decimalValue =
+      Number(integerPart) + Number(fractionalPart) / Number(divisor);
+
+    // Format the number based on size
+    let formattedNumber: string;
+
+    if (decimalValue === 0) {
+      formattedNumber = '0';
+    } else if (decimalValue >= 1_000_000) {
+      // Format as millions (e.g., 1.2M)
+      formattedNumber = (decimalValue / 1_000_000).toFixed(1) + 'M';
+    } else if (decimalValue >= 1_000) {
+      // Format as thousands (e.g., 1.2K)
+      formattedNumber = (decimalValue / 1_000).toFixed(1) + 'K';
+    } else if (decimalValue >= 1) {
+      // Regular numbers with 2 decimal places
+      formattedNumber = decimalValue.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      });
+    } else if (decimalValue >= 0.01) {
+      // Small numbers with more precision
+      formattedNumber = decimalValue.toFixed(4);
+    } else {
+      // Very small numbers
+      formattedNumber = '<0.01';
+    }
+
+    return formattedNumber;
+  } catch (error) {
+    console.error('Error formatting token value:', error);
+    return rawValue;
+  }
+}
+
+/**
  * Format token amount for display in statistics (more concise)
  * @param rawValue - Raw token value (string representation)
  * @param tokenSymbol - Token symbol
@@ -103,21 +177,19 @@ export function formatTokenAmountForStats(
       return `0 ${tokenSymbol}`;
     }
 
-    // Get token decimals
-    let decimals = 18;
-    if (tokenAddress) {
-      const config = getTokenConfig(tokenAddress);
-      if (config) {
-        decimals = config.decimals;
+    // Get token decimals - try by symbol first (more efficient), then by address
+    let decimals = 18; // default
+
+    // Try to find token config by symbol first (faster and more reliable)
+    const configBySymbol = getTokenConfigBySymbol(tokenSymbol);
+    if (configBySymbol) {
+      decimals = configBySymbol.decimals;
+    } else if (tokenAddress) {
+      // Fallback to address-based lookup
+      const configByAddress = getTokenConfigByAddress(tokenAddress);
+      if (configByAddress) {
+        decimals = configByAddress.decimals;
       }
-    } else {
-      const knownDecimals: Record<string, number> = {
-        MSQ: 18,
-        KWT: 18,
-        SUT: 18,
-        P2UC: 6,
-      };
-      decimals = knownDecimals[tokenSymbol.toUpperCase()] || 18;
     }
 
     const divisor = BigInt(10 ** decimals);

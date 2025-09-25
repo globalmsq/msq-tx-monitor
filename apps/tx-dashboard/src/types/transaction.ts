@@ -1,5 +1,5 @@
 import { Transaction as SharedTransaction } from '@msq-tx-monitor/tx-types';
-import { formatTokenAmount } from '../utils/tokenUtils';
+import { formatTokenValue } from '../utils/tokenUtils';
 
 // UI-specific transaction interface that extends the shared type
 export interface UITransaction {
@@ -30,7 +30,7 @@ export function adaptTransactionForUI(tx: SharedTransaction): UITransaction {
     hash: tx.hash,
     from: tx.fromAddress,
     to: tx.toAddress,
-    value: formatTokenAmount(rawValue, tokenSymbol, tokenAddress),
+    value: formatTokenValue(rawValue, tokenSymbol, tokenAddress),
     rawValue: rawValue,
     token: tokenSymbol,
     tokenAddress: tokenAddress,
@@ -60,7 +60,7 @@ export function adaptWebSocketTransactionForUI(
     hash: (txData.transactionHash || txData.hash || '') as string,
     from: (txData.from || '') as string,
     to: (txData.to || '') as string,
-    value: formatTokenAmount(rawValue, tokenSymbol, tokenAddress),
+    value: formatTokenValue(rawValue, tokenSymbol, tokenAddress),
     rawValue: rawValue,
     token: tokenSymbol,
     tokenAddress: tokenAddress,
