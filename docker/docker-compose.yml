@@ -108,6 +108,7 @@ services:
       - REDIS_PORT=6379
       - CORS_ORIGIN=http://localhost:3000
       - RATE_LIMIT_MAX_REQUESTS=100
+      - ENABLE_QUERY_LOGS=false
     networks:
       - msq-tx-monitor-network
     depends_on:
@@ -120,55 +121,57 @@ services:
       timeout: 10s
       retries: 5
 
-  chain-scanner:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.packages
-      target: chain-scanner
-    container_name: msq-tx-monitor-chain-scanner
-    restart: unless-stopped
-    ports:
-      - 8001:8001
-    environment:
-      - NODE_ENV=development
-      - CHAIN_SCANNER_PORT=8001
-      - WS_SERVER_PORT=8001
-      # HTTP RPC endpoints (no API keys needed)
-      - PRIMARY_RPC_ENDPOINT=https://polygon-rpc.com
-      - BACKUP_RPC_ENDPOINT=https://polygon-bor.publicnode.com
-      # Database configuration (same as tx-api)
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=msq-tx-monitor
-      - MYSQL_USERNAME=user
-      - MYSQL_PASSWORD=pass
-      # Redis configuration
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      # HTTP RPC configuration
-      - RPC_TIMEOUT=10000
-      - RPC_RECONNECT_INTERVAL=5000
-      - RPC_MAX_RECONNECT_ATTEMPTS=10
-      # Monitoring configuration
-      - BATCH_SIZE=100
-      - PROCESSING_INTERVAL=1000
-      - CONFIRMATION_BLOCKS=12
-      - IGNORE_ZERO_VALUE_TRANSFERS=true
-      - BLOCK_POLLING_INTERVAL=10000
-      - REQUEST_DELAY=500
-      # Security/CORS
-      - CORS_ORIGIN=http://localhost:3000
-    networks:
-      - msq-tx-monitor-network
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "pgrep", "-f", "npm start"]
-      timeout: 10s
-      retries: 5
+  # chain-scanner:
+  #   build:
+  #     context: ..
+  #     dockerfile: docker/Dockerfile.packages
+  #     target: chain-scanner
+  #   container_name: msq-tx-monitor-chain-scanner
+  #   restart: unless-stopped
+  #   ports:
+  #     - 8001:8001
+  #   environment:
+  #     - NODE_ENV=development
+  #     - CHAIN_SCANNER_PORT=8001
+  #     - WS_SERVER_PORT=8001
+  #     # HTTP RPC endpoints (no API keys needed)
+  #     - PRIMARY_RPC_ENDPOINT=https://polygon-rpc.com
+  #     - BACKUP_RPC_ENDPOINT=https://polygon-bor.publicnode.com
+  #     # Database configuration (same as tx-api)
+  #     - MYSQL_HOST=mysql
+  #     - MYSQL_PORT=3306
+  #     - MYSQL_DATABASE=msq-tx-monitor
+  #     - MYSQL_USERNAME=user
+  #     - MYSQL_PASSWORD=pass
+  #     # Redis configuration
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     # HTTP RPC configuration
+  #     - RPC_TIMEOUT=10000
+  #     - RPC_RECONNECT_INTERVAL=5000
+  #     - RPC_MAX_RECONNECT_ATTEMPTS=10
+  #     # Monitoring configuration
+  #     - BATCH_SIZE=100
+  #     - PROCESSING_INTERVAL=1000
+  #     - CONFIRMATION_BLOCKS=12
+  #     - IGNORE_ZERO_VALUE_TRANSFERS=true
+  #     - BLOCK_POLLING_INTERVAL=10000
+  #     - REQUEST_DELAY=500
+  #     # Security/CORS
+  #     - CORS_ORIGIN=http://localhost:3000
+  #     # Database Logging
+  #     - ENABLE_QUERY_LOGS=false
+  #   networks:
+  #     - msq-tx-monitor-network
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "pgrep", "-f", "npm start"]
+  #     timeout: 10s
+  #     retries: 5
 
   # tx-analyzer:
   #   build:
@@ -190,6 +193,8 @@ services:
   #     - ANOMALY_THRESHOLD=0.85
   #     - WHALE_THRESHOLD=1000000
   #     - DETECTION_WINDOW_SIZE=100
+  #     # Database Logging
+  #     - ENABLE_QUERY_LOGS=false
   #   networks:
   #     - msq-tx-monitor-network
   #   depends_on:

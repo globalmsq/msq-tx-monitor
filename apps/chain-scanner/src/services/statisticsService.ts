@@ -2,6 +2,11 @@
 import { prisma } from '@msq-tx-monitor/database';
 import { config } from '../config';
 import Web3 from 'web3';
+import { formatUnits } from 'ethers';
+import { TokenService } from './tokenService';
+
+// Type for Prisma Decimal values
+type PrismaDecimal = { toString(): string };
 
 export interface TokenStats {
   tokenSymbol: string;
@@ -21,10 +26,25 @@ export interface DashboardStats {
 
 export class StatisticsService {
   private initialized = false;
-  private tokenService: any; // TokenService
+  private tokenService?: TokenService;
 
-  constructor(tokenService?: any) {
+  constructor(tokenService?: TokenService) {
     this.tokenService = tokenService;
+  }
+
+  /**
+   * Safely convert value to bigint, handling scientific notation
+   */
+  private safeBigInt(value: PrismaDecimal | string | number | bigint | null | undefined): bigint {
+    if (!value) return 0n;
+    const strValue = value.toString();
+
+    // Check for scientific notation
+    if (strValue.includes('e') || strValue.includes('E')) {
+      return BigInt(Math.floor(Number(strValue)));
+    }
+
+    return BigInt(strValue);
   }
 
   async initialize(): Promise<void> {
@@ -138,10 +158,10 @@ export class StatisticsService {
         },
       });
 
-      return BigInt(result._sum.value?.toString() || '0');
+      return this.safeBigInt(result._sum.value);
     } catch (error) {
       console.error('Error getting 24h volume:', error);
-      return BigInt(0);
+      return 0n;
     }
   }
 
@@ -160,10 +180,10 @@ export class StatisticsService {
       const avgValue = result._avg.value;
       return avgValue
         ? BigInt(Math.floor(Number(avgValue.toString())))
-        : BigInt(0);
+        : 0n;
     } catch (error) {
       console.error('Error getting average transaction size:', error);
-      return BigInt(0);
+      return 0n;
     }
   }
 
@@ -223,13 +243,13 @@ export class StatisticsService {
       const avgValue = result._avg.value;
       return avgValue
         ? BigInt(Math.floor(Number(avgValue.toString())))
-        : BigInt(0);
+        : 0n;
     } catch (error) {
       console.error(
         `Error getting average tx size for ${tokenAddress}:`,
         error
       );
-      return BigInt(0);
+      return 0n;
     }
   }
 
@@ -247,10 +267,10 @@ export class StatisticsService {
         },
       });
 
-      return BigInt(result._sum.value?.toString() || '0');
+      return this.safeBigInt(result._sum.value);
     } catch (error) {
       console.error(`Error getting total volume for ${tokenAddress}:`, error);
-      return BigInt(0);
+      return 0n;
     }
   }
 
@@ -271,9 +291,9 @@ export class StatisticsService {
         }
       }
 
-      // Convert amount using token's decimals
-      const divisor = BigInt(10 ** decimals);
-      const tokenAmount = Number(amount) / Number(divisor);
+      // Use ethers formatUnits for precise decimal conversion
+      const formattedValue = formatUnits(amount.toString(), decimals);
+      const tokenAmount = parseFloat(formattedValue);
 
       // Format the number
       if (tokenAmount === 0) {
@@ -362,9 +382,9 @@ export class StatisticsService {
         // Unique holders (approximate - addresses that sent or received this token)
         prisma.$queryRaw<{ count: bigint }[]>`
           SELECT COUNT(DISTINCT address) as count FROM (
-            SELECT fromAddress as address FROM Transaction WHERE tokenAddress = ${tokenAddress}
+            SELECT fromAddress as address FROM transactions WHERE tokenAddress = ${tokenAddress}
             UNION
-            SELECT toAddress as address FROM Transaction WHERE tokenAddress = ${tokenAddress}
+            SELECT toAddress as address FROM transactions WHERE tokenAddress = ${tokenAddress}
           ) as token_addresses
         `,
       ]);
@@ -372,7 +392,7 @@ export class StatisticsService {
       return {
         totalTransactions: transactionCount,
         volume24h: this.formatCurrency(
-          BigInt(volume24h._sum.value?.toString() || '0')
+          this.safeBigInt(volume24h._sum.value)
         ),
         uniqueHolders: Number(uniqueHolders[0]?.count || 0),
       };

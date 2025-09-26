@@ -23,6 +23,7 @@
     "@msq-tx-monitor/database": "workspace:*",
     "axios": "^1.6.0",
     "dotenv": "^17.2.2",
+    "ethers": "^6.15.0",
     "node-cron": "^3.0.3",
     "redis": "^4.6.7",
     "tslib": "^2.3.0",

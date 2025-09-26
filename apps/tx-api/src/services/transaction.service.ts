@@ -4,6 +4,8 @@ import {
   TransactionFilters,
   PaginationParams,
   TransactionListResponse,
+  CursorPaginationParams,
+  CursorTransactionListResponse,
   AddressTransactionSummary,
 } from '../types/transaction.types';
 import { RedisConnection } from '../cache/redis';
@@ -132,6 +134,97 @@ export class TransactionService {
       await RedisConnection.set(cacheKey, JSON.stringify(response), 60);
     } catch (error) {
       console.warn('Failed to cache transactions:', error);
+    }
+
+    return response;
+  }
+
+  /**
+   * Get transactions with cursor-based pagination
+   */
+  async getTransactionsCursor(
+    filters: TransactionFilters = {},
+    pagination: CursorPaginationParams
+  ): Promise<CursorTransactionListResponse> {
+    const cacheKey = `transactions_cursor:${JSON.stringify({ filters, pagination })}`;
+
+    // Try to get from cache first
+    try {
+      const cached = await RedisConnection.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      console.warn('Cache miss for cursor transactions:', error);
+    }
+
+    // Build Prisma where clause
+    const where = this.buildPrismaWhereClause(filters);
+
+    // Add cursor conditions
+    if (pagination.afterId) {
+      where.id = { lt: BigInt(pagination.afterId) };
+    } else if (pagination.beforeId) {
+      where.id = { gt: BigInt(pagination.beforeId) };
+    }
+
+    // Get one extra record to determine if there are more results
+    const limit = pagination.limit + 1;
+
+    // Get results with cursor-based ordering
+    const transactions = await prisma.transaction.findMany({
+      where,
+      orderBy: [{ id: 'desc' }], // Use ID for consistent cursor ordering
+      take: limit,
+    });
+
+    // Check if there are more results
+    const hasMore = transactions.length > pagination.limit;
+    const actualTransactions = hasMore
+      ? transactions.slice(0, pagination.limit)
+      : transactions;
+
+    // Determine cursor values
+    let nextId: number | undefined;
+    let prevId: number | undefined;
+    let hasPrev = false;
+
+    if (actualTransactions.length > 0) {
+      if (pagination.afterId) {
+        // Going forward (older records)
+        nextId = hasMore ? Number(actualTransactions[actualTransactions.length - 1].id) : undefined;
+        prevId = Number(actualTransactions[0].id);
+        hasPrev = true;
+      } else if (pagination.beforeId) {
+        // Going backward (newer records)
+        nextId = Number(actualTransactions[actualTransactions.length - 1].id);
+        prevId = hasMore ? Number(actualTransactions[0].id) : undefined;
+        hasPrev = hasMore;
+      } else {
+        // Initial request (most recent records)
+        nextId = hasMore ? Number(actualTransactions[actualTransactions.length - 1].id) : undefined;
+        prevId = undefined;
+        hasPrev = false;
+      }
+    }
+
+    const response: CursorTransactionListResponse = {
+      data: actualTransactions.map(this.transformTransactionResponse),
+      cursor: {
+        limit: pagination.limit,
+        hasNext: !!nextId,
+        hasPrev,
+        nextId,
+        prevId,
+      },
+      filters,
+    };
+
+    // Cache the response for 30 seconds (shorter than offset pagination due to real-time nature)
+    try {
+      await RedisConnection.set(cacheKey, JSON.stringify(response), 30);
+    } catch (error) {
+      console.warn('Failed to cache cursor transactions:', error);
     }
 
     return response;

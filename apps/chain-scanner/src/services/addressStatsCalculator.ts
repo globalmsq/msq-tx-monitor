@@ -80,15 +80,15 @@ export class AddressStatsCalculator {
   /**
    * Safely convert Decimal/Prisma values to BigInt, handling scientific notation
    */
-  private static safeDecimalToBigInt(value: any): bigint {
+  private static safeDecimalToBigInt(value: string | number | bigint | { toFixed: (digits: number) => string } | null | undefined): bigint {
     // Handle null/undefined
     if (value == null) {
       return BigInt(0);
     }
 
     // If the value has a toFixed method (like Prisma Decimal), use it
-    if (value && typeof value.toFixed === 'function') {
-      return BigInt(value.toFixed());
+    if (value && typeof value === 'object' && 'toFixed' in value && typeof value.toFixed === 'function') {
+      return BigInt(value.toFixed(0));
     }
 
     const stringValue = value.toString();

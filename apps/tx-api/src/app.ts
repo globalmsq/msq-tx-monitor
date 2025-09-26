@@ -17,7 +17,6 @@ import {
   requestId,
   securityHeaders,
   apiVersionHeader,
-  corsPreflightHandler,
   requestSizeLimit,
   requestLogger,
 } from './middleware/security';
@@ -45,14 +44,15 @@ app.use(
 app.use(requestSizeLimit);
 app.use(speedLimiter);
 
-// CORS configuration with preflight handling
-app.use(corsPreflightHandler);
+// CORS configuration
 app.use(
   cors({
     origin: config.cors.origin,
     methods: config.cors.methods,
     allowedHeaders: config.cors.allowedHeaders,
     credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 200,
   })
 );
 

@@ -1,5 +1,6 @@
 import { Transaction as SharedTransaction } from '@msq-tx-monitor/tx-types';
 import { formatTokenValue } from '../utils/tokenUtils';
+import { ApiTransaction } from '../services/api';
 
 // UI-specific transaction interface that extends the shared type
 export interface UITransaction {
@@ -75,6 +76,28 @@ export function adaptWebSocketTransactionForUI(
     gasPrice: txData.gasPrice?.toString() || '0',
     status: 'confirmed' as const,
     anomalyScore: txData.anomalyScore as number | undefined,
+  };
+}
+
+// Adapter function to convert API transaction to UI Transaction
+export function adaptApiTransactionForUI(
+  apiTx: ApiTransaction
+): UITransaction {
+  return {
+    id: apiTx.id.toString(),
+    hash: apiTx.hash,
+    from: apiTx.from_address,
+    to: apiTx.to_address,
+    value: formatTokenValue(apiTx.amount_raw || apiTx.amount, apiTx.token_symbol, apiTx.token_address),
+    rawValue: apiTx.amount_raw || apiTx.amount,
+    token: apiTx.token_symbol,
+    tokenAddress: apiTx.token_address,
+    timestamp: new Date(apiTx.timestamp).getTime(),
+    blockNumber: apiTx.block_number,
+    gasUsed: '0', // Not available in API response
+    gasPrice: '0', // Not available in API response
+    status: 'confirmed' as const, // Assume confirmed for now
+    anomalyScore: apiTx.anomaly_score,
   };
 }
 

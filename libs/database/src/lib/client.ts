@@ -24,7 +24,7 @@ export const prisma =
   globalThis.prisma ||
   new PrismaClient({
     log:
-      process.env.NODE_ENV === 'development'
+      process.env.ENABLE_QUERY_LOGS === 'true'
         ? ['query', 'error', 'warn']
         : ['error'],
   });

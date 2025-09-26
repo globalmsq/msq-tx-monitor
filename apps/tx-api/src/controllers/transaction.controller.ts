@@ -3,6 +3,7 @@ import { TransactionService } from '../services/transaction.service';
 import {
   TransactionFilters,
   PaginationParams,
+  CursorPaginationParams,
 } from '../types/transaction.types';
 import { config } from '../config';
 
@@ -156,6 +157,166 @@ export class TransactionController {
       );
 
       const result = await this.transactionService.getTransactions(
+        filters,
+        pagination
+      );
+
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * @swagger
+   * /transactions/cursor:
+   *   get:
+   *     summary: List transactions with cursor-based pagination
+   *     description: Get a cursor-paginated list of blockchain transactions with optional filtering (optimized for real-time data)
+   *     tags: [Transactions]
+   *     parameters:
+   *       - $ref: '#/components/parameters/TokenFilter'
+   *       - name: from_address
+   *         in: query
+   *         description: Filter by sender address
+   *         schema:
+   *           type: string
+   *           pattern: '^0x[a-fA-F0-9]{40}$'
+   *       - name: to_address
+   *         in: query
+   *         description: Filter by recipient address
+   *         schema:
+   *           type: string
+   *           pattern: '^0x[a-fA-F0-9]{40}$'
+   *       - name: min_amount
+   *         in: query
+   *         description: Minimum transaction amount in wei
+   *         schema:
+   *           type: string
+   *       - name: max_amount
+   *         in: query
+   *         description: Maximum transaction amount in wei
+   *         schema:
+   *           type: string
+   *       - name: start_date
+   *         in: query
+   *         description: Start date for filtering (ISO string)
+   *         schema:
+   *           type: string
+   *           format: date-time
+   *       - name: end_date
+   *         in: query
+   *         description: End date for filtering (ISO string)
+   *         schema:
+   *           type: string
+   *           format: date-time
+   *       - name: anomaly_threshold
+   *         in: query
+   *         description: Minimum anomaly score (0-1)
+   *         schema:
+   *           type: number
+   *           minimum: 0
+   *           maximum: 1
+   *       - name: has_anomaly
+   *         in: query
+   *         description: Filter transactions with/without anomalies
+   *         schema:
+   *           type: boolean
+   *       - name: afterId
+   *         in: query
+   *         description: Get transactions after this ID (for pagination)
+   *         schema:
+   *           type: integer
+   *       - name: beforeId
+   *         in: query
+   *         description: Get transactions before this ID (for pagination)
+   *         schema:
+   *           type: integer
+   *       - $ref: '#/components/parameters/LimitParam'
+   *     responses:
+   *       200:
+   *         description: Successfully retrieved transactions
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     $ref: '#/components/schemas/Transaction'
+   *                 cursor:
+   *                   type: object
+   *                   properties:
+   *                     limit:
+   *                       type: integer
+   *                     hasNext:
+   *                       type: boolean
+   *                     hasPrev:
+   *                       type: boolean
+   *                     nextId:
+   *                       type: integer
+   *                     prevId:
+   *                       type: integer
+   *                     total:
+   *                       type: integer
+   *                 filters:
+   *                   type: object
+   *                 timestamp:
+   *                   type: string
+   *                   format: date-time
+   *       400:
+   *         $ref: '#/components/schemas/Error'
+   *       429:
+   *         $ref: '#/components/schemas/Error'
+   *       500:
+   *         $ref: '#/components/schemas/Error'
+   */
+  getTransactionsCursor = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      // Parse cursor pagination parameters
+      const limit = Math.min(
+        parseInt(req.query.limit as string) || config.pagination.defaultLimit,
+        config.pagination.maxLimit
+      );
+      const afterId = req.query.afterId
+        ? parseInt(req.query.afterId as string)
+        : undefined;
+      const beforeId = req.query.beforeId
+        ? parseInt(req.query.beforeId as string)
+        : undefined;
+
+      const pagination: CursorPaginationParams = { limit, afterId, beforeId };
+
+      // Parse filters
+      const filters: TransactionFilters = {
+        token: req.query.token as string,
+        from_address: req.query.from_address as string,
+        to_address: req.query.to_address as string,
+        min_amount: req.query.min_amount as string,
+        max_amount: req.query.max_amount as string,
+        start_date: req.query.start_date as string,
+        end_date: req.query.end_date as string,
+        anomaly_threshold: req.query.anomaly_threshold
+          ? parseFloat(req.query.anomaly_threshold as string)
+          : undefined,
+        has_anomaly: req.query.has_anomaly
+          ? req.query.has_anomaly === 'true'
+          : undefined,
+      };
+
+      // Remove undefined values
+      Object.keys(filters).forEach(
+        key =>
+          filters[key as keyof TransactionFilters] === undefined &&
+          delete filters[key as keyof TransactionFilters]
+      );
+
+      const result = await this.transactionService.getTransactionsCursor(
         filters,
         pagination
       );

@@ -1,4 +1,5 @@
 import { getTokenConfigBySymbol, getTokenConfigByAddress } from '../config/tokens';
+import { formatUnits } from 'ethers';
 
 /**
  * Format token amount with proper decimals
@@ -92,8 +93,14 @@ export function formatTokenValue(
   tokenAddress?: string
 ): string {
   try {
-    // Convert raw value to number for calculation
-    const rawAmount = BigInt(rawValue);
+    // Convert raw value to BigInt, handling scientific notation
+    let rawAmount: bigint;
+    if (rawValue.includes('e') || rawValue.includes('E')) {
+      // Handle scientific notation by converting through Number first
+      rawAmount = BigInt(Math.floor(Number(rawValue)));
+    } else {
+      rawAmount = BigInt(rawValue);
+    }
 
     // If rawAmount is 0, return early
     if (rawAmount === 0n) {
@@ -115,16 +122,9 @@ export function formatTokenValue(
       }
     }
 
-    // Calculate the divisor based on decimals
-    const divisor = BigInt(10 ** decimals);
-
-    // Calculate the formatted amount
-    const integerPart = rawAmount / divisor;
-    const fractionalPart = rawAmount % divisor;
-
-    // Convert to decimal representation
-    const decimalValue =
-      Number(integerPart) + Number(fractionalPart) / Number(divisor);
+    // Use ethers formatUnits to convert from wei-like value to decimal
+    const formattedValue = formatUnits(rawAmount.toString(), decimals);
+    const decimalValue = parseFloat(formattedValue);
 
     // Format the number based on size
     let formattedNumber: string;
@@ -171,7 +171,14 @@ export function formatTokenAmountForStats(
   tokenAddress?: string
 ): string {
   try {
-    const rawAmount = BigInt(rawValue);
+    // Convert raw value to BigInt, handling scientific notation
+    let rawAmount: bigint;
+    if (rawValue.includes('e') || rawValue.includes('E')) {
+      // Handle scientific notation by converting through Number first
+      rawAmount = BigInt(Math.floor(Number(rawValue)));
+    } else {
+      rawAmount = BigInt(rawValue);
+    }
 
     if (rawAmount === 0n) {
       return `0 ${tokenSymbol}`;
@@ -192,8 +199,9 @@ export function formatTokenAmountForStats(
       }
     }
 
-    const divisor = BigInt(10 ** decimals);
-    const decimalValue = Number(rawAmount) / Number(divisor);
+    // Use ethers formatUnits for precise decimal conversion
+    const formattedValue = formatUnits(rawAmount.toString(), decimals);
+    const decimalValue = parseFloat(formattedValue);
 
     // More aggressive formatting for statistics
     if (decimalValue >= 1_000_000_000) {

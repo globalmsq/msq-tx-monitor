@@ -15,7 +15,9 @@ import { applyFiltersToTransactions } from '../utils/filterUtils';
 import {
   Transaction,
   adaptWebSocketTransactionForUI,
+  adaptApiTransactionForUI,
 } from '../types/transaction';
+import { apiService } from '../services/api';
 
 interface TokenStats {
   tokenSymbol: string;
@@ -48,6 +50,12 @@ interface TransactionState {
   // Enhanced filters
   filters: FilterState;
 
+  // Cursor pagination state
+  hasMore: boolean;
+  lastTransactionId: number | null;
+  totalCount: number;
+  isInitialLoad: boolean;
+
   // UI state
   isLoading: boolean;
   error: string | null;
@@ -57,6 +65,9 @@ type TransactionAction =
   | { type: 'SET_CONNECTION_STATE'; payload: ConnectionState }
   | { type: 'ADD_TRANSACTION'; payload: Transaction }
   | { type: 'UPDATE_TRANSACTIONS'; payload: Transaction[] }
+  | { type: 'SET_INITIAL_DATA'; payload: { transactions: Transaction[]; totalCount?: number; hasMore: boolean; lastId?: number } }
+  | { type: 'LOAD_MORE_DATA'; payload: { transactions: Transaction[]; hasMore: boolean; lastId?: number } }
+  | { type: 'SET_INITIAL_LOAD_COMPLETE' }
   | { type: 'UPDATE_STATS'; payload: Partial<TransactionStats> }
   | { type: 'SET_TOKEN_FILTER'; payload: string[] }
   | { type: 'TOGGLE_ANOMALIES'; payload: boolean }
@@ -82,13 +93,17 @@ const initialState: TransactionState = {
   filteredRecentTransactions: [],
   stats: initialStats,
   filters: {
-    tokens: ['MSQ', 'SUT', 'KWT', 'P2UC'],
+    tokens: [], // Allow all tokens initially
     showAnomalies: false,
     amountRange: { min: '', max: '' },
     timeRange: { from: '', to: '' },
     addressSearch: '',
     riskLevel: 'all',
   },
+  hasMore: true,
+  lastTransactionId: null,
+  totalCount: 0,
+  isInitialLoad: true,
   isLoading: false,
   error: null,
 };
@@ -126,8 +141,12 @@ function transactionReducer(
     case 'ADD_TRANSACTION': {
       const newTransaction = action.payload;
 
-      // Don't check for duplicates - one transaction can have multiple token transfers
-      // Each transfer event should be shown separately in the feed
+      // Check for duplicates based on transaction hash
+      const isDuplicate = state.transactions.some(tx => tx.hash === newTransaction.hash);
+      if (isDuplicate) {
+        return state; // Skip duplicate transactions
+      }
+
       const updatedTransactions = [newTransaction, ...state.transactions].slice(
         0,
         1000
@@ -141,6 +160,7 @@ function transactionReducer(
         ...state,
         transactions: updatedTransactions,
         recentTransactions: updatedRecent,
+        totalCount: state.totalCount + 1,
       };
 
       return applyFiltersToState(newState);
@@ -154,6 +174,47 @@ function transactionReducer(
       };
       return applyFiltersToState(newState);
     }
+
+    case 'SET_INITIAL_DATA': {
+      const newState = {
+        ...state,
+        transactions: action.payload.transactions,
+        recentTransactions: action.payload.transactions.slice(0, 50),
+        totalCount: action.payload.totalCount || state.totalCount,
+        hasMore: action.payload.hasMore,
+        lastTransactionId: action.payload.lastId || null,
+        isInitialLoad: false,
+        isLoading: false,
+      };
+      return applyFiltersToState(newState);
+    }
+
+    case 'LOAD_MORE_DATA': {
+      // Merge new data with existing, avoiding duplicates
+      const existingHashes = new Set(state.transactions.map(tx => tx.hash));
+      const newTransactions = action.payload.transactions.filter(
+        tx => !existingHashes.has(tx.hash)
+      );
+
+      const updatedTransactions = [...state.transactions, ...newTransactions];
+
+      const newState = {
+        ...state,
+        transactions: updatedTransactions,
+        recentTransactions: updatedTransactions, // Show all loaded transactions
+        hasMore: action.payload.hasMore,
+        lastTransactionId: action.payload.lastId || state.lastTransactionId,
+        isLoading: false,
+      };
+      return applyFiltersToState(newState);
+    }
+
+    case 'SET_INITIAL_LOAD_COMPLETE':
+      return {
+        ...state,
+        isInitialLoad: false,
+        isLoading: false,
+      };
 
     case 'UPDATE_STATS':
       return {
@@ -225,6 +286,8 @@ interface TransactionContextType {
     toggleAnomalies: () => void;
     setFilters: (filters: FilterState) => void;
     updateFilters: (updates: Partial<FilterState>) => void;
+    loadMore: () => Promise<void>;
+    refreshData: () => Promise<void>;
     clearError: () => void;
     reconnect: () => void;
     disconnect: () => void;
@@ -250,6 +313,44 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       dispatch({ type: 'SET_FILTERS', payload: urlFilters });
     }
   }, [parseFiltersFromUrl, state.filters]);
+
+  // Load initial transaction data on mount
+  useEffect(() => {
+    const loadInitialData = async () => {
+      if (!state.isInitialLoad) return;
+
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'CLEAR_ERROR' });
+
+      try {
+        const response = await apiService.getTransactionsCursor(
+          {}, // No filters for initial load
+          { limit: 50 }
+        );
+
+        const uiTransactions = response.data.map(adaptApiTransactionForUI);
+        const lastId = uiTransactions.length > 0 ? Number(uiTransactions[uiTransactions.length - 1].id) : undefined;
+
+        dispatch({
+          type: 'SET_INITIAL_DATA',
+          payload: {
+            transactions: uiTransactions,
+            totalCount: response.cursor.total,
+            hasMore: response.cursor.hasNext,
+            lastId,
+          },
+        });
+      } catch (error) {
+        dispatch({
+          type: 'SET_ERROR',
+          payload: error instanceof Error ? error.message : 'Failed to load initial data',
+        });
+        dispatch({ type: 'SET_INITIAL_LOAD_COMPLETE' });
+      }
+    };
+
+    loadInitialData();
+  }, [state.isInitialLoad]);
 
   // Update URL when filters change
   useEffect(() => {
@@ -379,6 +480,69 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       dispatch({ type: 'SET_FILTERS', payload: newFilters });
     },
 
+    loadMore: async () => {
+      if (state.isLoading || !state.hasMore || !state.lastTransactionId) return;
+
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'CLEAR_ERROR' });
+
+      try {
+        const response = await apiService.getTransactionsCursor(
+          {}, // Apply current filters if needed
+          { limit: 50, afterId: state.lastTransactionId }
+        );
+
+        const uiTransactions = response.data.map(adaptApiTransactionForUI);
+        const lastId = uiTransactions.length > 0 ? Number(uiTransactions[uiTransactions.length - 1].id) : undefined;
+
+        dispatch({
+          type: 'LOAD_MORE_DATA',
+          payload: {
+            transactions: uiTransactions,
+            hasMore: response.cursor.hasNext,
+            lastId,
+          },
+        });
+      } catch (error) {
+        dispatch({
+          type: 'SET_ERROR',
+          payload: error instanceof Error ? error.message : 'Failed to load more data',
+        });
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+    },
+
+    refreshData: async () => {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'CLEAR_ERROR' });
+
+      try {
+        const response = await apiService.getTransactionsCursor(
+          {}, // No filters for refresh
+          { limit: 50 }
+        );
+
+        const uiTransactions = response.data.map(adaptApiTransactionForUI);
+        const lastId = uiTransactions.length > 0 ? Number(uiTransactions[uiTransactions.length - 1].id) : undefined;
+
+        dispatch({
+          type: 'SET_INITIAL_DATA',
+          payload: {
+            transactions: uiTransactions,
+            totalCount: response.cursor.total,
+            hasMore: response.cursor.hasNext,
+            lastId,
+          },
+        });
+      } catch (error) {
+        dispatch({
+          type: 'SET_ERROR',
+          payload: error instanceof Error ? error.message : 'Failed to refresh data',
+        });
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+    },
+
     clearError: () => {
       dispatch({ type: 'CLEAR_ERROR' });
     },
@@ -420,7 +584,7 @@ export function useConnectionState() {
 }
 
 export function useTransactionData() {
-  const { state } = useTransactions();
+  const { state, actions } = useTransactions();
   return {
     transactions: state.transactions,
     recentTransactions: state.recentTransactions,
@@ -428,6 +592,12 @@ export function useTransactionData() {
     filteredRecentTransactions: state.filteredRecentTransactions,
     stats: state.stats,
     isLoading: state.isLoading,
+    isInitialLoad: state.isInitialLoad,
+    hasMore: state.hasMore,
+    lastTransactionId: state.lastTransactionId,
+    totalCount: state.totalCount,
+    loadMore: actions.loadMore,
+    refreshData: actions.refreshData,
   };
 }
 

@@ -35,6 +35,12 @@ export interface PaginationParams {
   offset: number;
 }
 
+export interface CursorPaginationParams {
+  limit: number;
+  afterId?: number;
+  beforeId?: number;
+}
+
 export interface TransactionListResponse {
   data: Transaction[];
   pagination: {
@@ -44,6 +50,19 @@ export interface TransactionListResponse {
     totalPages: number;
     hasNext: boolean;
     hasPrev: boolean;
+  };
+  filters: TransactionFilters;
+}
+
+export interface CursorTransactionListResponse {
+  data: Transaction[];
+  cursor: {
+    limit: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+    nextId?: number;
+    prevId?: number;
+    total?: number;
   };
   filters: TransactionFilters;
 }

@@ -63,9 +63,9 @@ export class AnalyzeService {
       // Unique addresses (both from and to)
       prisma.$queryRaw<Array<{ count: bigint }>>`
         SELECT COUNT(DISTINCT address) as count FROM (
-          SELECT fromAddress as address FROM Transaction ${this.buildWhereClause(whereClause)}
+          SELECT fromAddress as address FROM transactions ${this.buildWhereClause(whereClause)}
           UNION
-          SELECT toAddress as address FROM Transaction ${this.buildWhereClause(whereClause)}
+          SELECT toAddress as address FROM transactions ${this.buildWhereClause(whereClause)}
         ) as unique_addresses
       `,
 
@@ -145,7 +145,7 @@ export class AnalyzeService {
         SUM(value) as volume,
         AVG(value) as averageSize,
         COUNT(DISTINCT CONCAT(fromAddress, toAddress)) as uniqueAddresses
-      FROM Transaction
+      FROM transactions
       ${this.buildWhereClause(whereClause)}
       GROUP BY period
       ORDER BY period DESC
@@ -206,9 +206,9 @@ export class AnalyzeService {
       // Get unique addresses for this token
       const uniqueAddresses = await prisma.$queryRaw<Array<{ count: bigint }>>`
         SELECT COUNT(DISTINCT address) as count FROM (
-          SELECT fromAddress as address FROM Transaction WHERE tokenAddress = ${stat.tokenAddress} ${this.buildWhereClause(whereClause, false)}
+          SELECT fromAddress as address FROM transactions WHERE tokenAddress = ${stat.tokenAddress} ${this.buildWhereClause(whereClause, false)}
           UNION
-          SELECT toAddress as address FROM Transaction WHERE tokenAddress = ${stat.tokenAddress} ${this.buildWhereClause(whereClause, false)}
+          SELECT toAddress as address FROM transactions WHERE tokenAddress = ${stat.tokenAddress} ${this.buildWhereClause(whereClause, false)}
         ) as unique_addresses
       `;
 
