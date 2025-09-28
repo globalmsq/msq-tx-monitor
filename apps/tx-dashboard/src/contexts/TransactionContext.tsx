@@ -453,8 +453,8 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
           });
         } else if (connectionState === ConnectionState.CONNECTED) {
           dispatch({ type: 'CLEAR_ERROR' });
-          // Request initial data
-          wsService.send({ type: 'subscribe', tokens: state.filters.tokens });
+          // Request initial data - subscribe to all tokens
+          wsService.send({ type: 'subscribe', tokens: [] });
         }
       }
     );
@@ -467,18 +467,18 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       unsubscribeState();
       wsService.disconnect();
     };
-  }, [state.filters.tokens]);
+  }, []); // Remove dependency on tokens filter
 
-  // Update token subscription when filter changes
+  // Update anomaly subscription when filter changes (but not tokens)
   useEffect(() => {
     if (wsService.isConnected()) {
       wsService.send({
         type: 'subscribe',
-        tokens: state.filters.tokens,
+        tokens: [], // Always subscribe to all tokens
         includeAnomalies: state.filters.showAnomalies,
       });
     }
-  }, [state.filters.tokens, state.filters.showAnomalies]);
+  }, [state.filters.showAnomalies]); // Remove tokens dependency
 
   const actions = {
     toggleTokenFilter: (token: string) => {

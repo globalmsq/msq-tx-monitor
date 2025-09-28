@@ -152,7 +152,7 @@ function TableRow({ transaction, onClick, isEven }: TableRowProps) {
           <span className="text-white font-semibold text-sm">
             {transaction.value} {transaction.token}
           </span>
-          {transaction.anomalyScore && transaction.anomalyScore > 0.3 && (
+          {!!transaction.anomalyScore && transaction.anomalyScore > 0.3 && (
             <div className="flex items-center space-x-1 text-orange-400 text-xs mt-1">
               <TrendingUp className="w-3 h-3" />
               <span>Risk: {(transaction.anomalyScore * 100).toFixed(0)}%</span>

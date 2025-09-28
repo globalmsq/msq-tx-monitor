@@ -47,12 +47,9 @@ function ConnectionStatus() {
 
 function StatsCards() {
   const { stats, isInitialLoad } = useTransactionData();
-  const { filters } = useTransactionFilters();
 
-  // Filter token stats based on selected tokens
-  const filteredTokenStats = stats.tokenStats.filter(tokenStat =>
-    filters.tokens.includes(tokenStat.tokenSymbol)
-  );
+  // Show all token stats regardless of filter selection
+  const filteredTokenStats = stats.tokenStats;
 
   const generalStats = [
     {
