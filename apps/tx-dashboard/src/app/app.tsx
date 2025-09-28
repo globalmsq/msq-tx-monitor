@@ -153,7 +153,8 @@ function TransactionFeed() {
     isInitialLoad,
     hasMore,
     loadMore,
-    totalCount
+    totalCount,
+    stats
   } = useTransactionData();
   const { filters, updateFilters, toggleTokenFilter } = useTransactionFilters();
   const [selectedTransaction, setSelectedTransaction] =
@@ -246,7 +247,7 @@ function TransactionFeed() {
           )}
         </div>
         <span className='text-sm text-white/70 whitespace-nowrap'>
-          {isInitialLoad ? 'Loading...' : `${filteredRecentTransactions.length}${totalCount > filteredRecentTransactions.length ? ` of ${totalCount}` : ''} transactions`}
+          {isInitialLoad ? 'Loading...' : `${(totalCount || stats.totalTransactions).toLocaleString()} transactions found`}
         </span>
       </div>
 
