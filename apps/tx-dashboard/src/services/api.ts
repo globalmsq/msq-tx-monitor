@@ -79,7 +79,10 @@ class ApiService {
 
   constructor(config: Partial<ApiConfig> = {}) {
     this.config = {
-      baseURL: config.baseURL || import.meta.env.VITE_API_ENDPOINT || 'http://localhost:8000/api/v1',
+      baseURL:
+        config.baseURL ||
+        import.meta.env.VITE_API_ENDPOINT ||
+        'http://localhost:8000/api/v1',
       timeout: config.timeout || 10000,
     };
   }

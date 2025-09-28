@@ -1,8 +1,50 @@
-import { getTokenConfigBySymbol, getTokenConfigByAddress } from '../config/tokens';
+import {
+  getTokenConfigBySymbol,
+  getTokenConfigByAddress,
+} from '../config/tokens';
 import { formatUnits } from 'ethers';
 
 /**
- * Format token amount with proper decimals
+ * Get token decimals from symbol or address
+ */
+function getTokenDecimals(tokenSymbol: string, tokenAddress?: string): number {
+  const configBySymbol = getTokenConfigBySymbol(tokenSymbol);
+  if (configBySymbol) {
+    return configBySymbol.decimals;
+  }
+
+  if (tokenAddress) {
+    const configByAddress = getTokenConfigByAddress(tokenAddress);
+    if (configByAddress) {
+      return configByAddress.decimals;
+    }
+  }
+
+  return 18; // default
+}
+
+/**
+ * Convert raw token value to decimal number
+ */
+function rawToDecimal(rawValue: string, decimals: number): number {
+  let rawAmount: bigint;
+
+  if (rawValue.includes('e') || rawValue.includes('E')) {
+    rawAmount = BigInt(Math.floor(Number(rawValue)));
+  } else {
+    rawAmount = BigInt(rawValue);
+  }
+
+  if (rawAmount === 0n) {
+    return 0;
+  }
+
+  const formattedValue = formatUnits(rawAmount.toString(), decimals);
+  return parseFloat(formattedValue);
+}
+
+/**
+ * Format token amount with proper decimals (includes symbol)
  * @param rawValue - Raw token value (string representation of wei-like value)
  * @param tokenSymbol - Token symbol (MSQ, KWT, SUT, P2UC)
  * @param tokenAddress - Token contract address (used if symbol lookup fails)
@@ -14,62 +56,26 @@ export function formatTokenAmount(
   tokenAddress?: string
 ): string {
   try {
-    // Convert raw value to number for calculation
-    const rawAmount = BigInt(rawValue);
+    const decimals = getTokenDecimals(tokenSymbol, tokenAddress);
+    const decimalValue = rawToDecimal(rawValue, decimals);
 
-    // If rawAmount is 0, return early
-    if (rawAmount === 0n) {
+    if (decimalValue === 0) {
       return `0 ${tokenSymbol}`;
     }
 
-    // Get token decimals - try by symbol first (more efficient), then by address
-    let decimals = 18; // default
-
-    // Try to find token config by symbol first (faster and more reliable)
-    const configBySymbol = getTokenConfigBySymbol(tokenSymbol);
-    if (configBySymbol) {
-      decimals = configBySymbol.decimals;
-    } else if (tokenAddress) {
-      // Fallback to address-based lookup
-      const configByAddress = getTokenConfigByAddress(tokenAddress);
-      if (configByAddress) {
-        decimals = configByAddress.decimals;
-      }
-    }
-
-    // Calculate the divisor based on decimals
-    const divisor = BigInt(10 ** decimals);
-
-    // Calculate the formatted amount
-    const integerPart = rawAmount / divisor;
-    const fractionalPart = rawAmount % divisor;
-
-    // Convert to decimal representation
-    const decimalValue =
-      Number(integerPart) + Number(fractionalPart) / Number(divisor);
-
-    // Format the number based on size
     let formattedNumber: string;
-
-    if (decimalValue === 0) {
-      formattedNumber = '0';
-    } else if (decimalValue >= 1_000_000) {
-      // Format as millions (e.g., 1.2M)
+    if (decimalValue >= 1_000_000) {
       formattedNumber = (decimalValue / 1_000_000).toFixed(1) + 'M';
     } else if (decimalValue >= 1_000) {
-      // Format as thousands (e.g., 1.2K)
       formattedNumber = (decimalValue / 1_000).toFixed(1) + 'K';
     } else if (decimalValue >= 1) {
-      // Regular numbers with 2 decimal places
       formattedNumber = decimalValue.toLocaleString('en-US', {
         minimumFractionDigits: 0,
         maximumFractionDigits: 2,
       });
     } else if (decimalValue >= 0.01) {
-      // Small numbers with more precision
       formattedNumber = decimalValue.toFixed(4);
     } else {
-      // Very small numbers
       formattedNumber = '<0.01';
     }
 
@@ -93,59 +99,24 @@ export function formatTokenValue(
   tokenAddress?: string
 ): string {
   try {
-    // Convert raw value to BigInt, handling scientific notation
-    let rawAmount: bigint;
-    if (rawValue.includes('e') || rawValue.includes('E')) {
-      // Handle scientific notation by converting through Number first
-      rawAmount = BigInt(Math.floor(Number(rawValue)));
-    } else {
-      rawAmount = BigInt(rawValue);
-    }
+    const decimals = getTokenDecimals(tokenSymbol, tokenAddress);
+    const decimalValue = rawToDecimal(rawValue, decimals);
 
-    // If rawAmount is 0, return early
-    if (rawAmount === 0n) {
+    if (decimalValue === 0) {
       return '0';
     }
 
-    // Get token decimals - try by symbol first (more efficient), then by address
-    let decimals = 18; // default
-
-    // Try to find token config by symbol first (faster and more reliable)
-    const configBySymbol = getTokenConfigBySymbol(tokenSymbol);
-    if (configBySymbol) {
-      decimals = configBySymbol.decimals;
-    } else if (tokenAddress) {
-      // Fallback to address-based lookup
-      const configByAddress = getTokenConfigByAddress(tokenAddress);
-      if (configByAddress) {
-        decimals = configByAddress.decimals;
-      }
-    }
-
-    // Use ethers formatUnits to convert from wei-like value to decimal
-    const formattedValue = formatUnits(rawAmount.toString(), decimals);
-    const decimalValue = parseFloat(formattedValue);
-
-    // Format the number - show full numbers without K/M abbreviation
-    let formattedNumber: string;
-
-    if (decimalValue === 0) {
-      formattedNumber = '0';
-    } else if (decimalValue >= 1) {
-      // Show full numbers with comma separators
-      formattedNumber = decimalValue.toLocaleString('en-US', {
+    // Show full numbers without K/M abbreviation
+    if (decimalValue >= 1) {
+      return decimalValue.toLocaleString('en-US', {
         minimumFractionDigits: 0,
         maximumFractionDigits: 2,
       });
     } else if (decimalValue >= 0.01) {
-      // Small numbers with more precision
-      formattedNumber = decimalValue.toFixed(4);
+      return decimalValue.toFixed(4);
     } else {
-      // Very small numbers
-      formattedNumber = '<0.01';
+      return '<0.01';
     }
-
-    return formattedNumber;
   } catch (error) {
     console.error('Error formatting token value:', error);
     return rawValue;
@@ -165,37 +136,12 @@ export function formatTokenAmountForStats(
   tokenAddress?: string
 ): string {
   try {
-    // Convert raw value to BigInt, handling scientific notation
-    let rawAmount: bigint;
-    if (rawValue.includes('e') || rawValue.includes('E')) {
-      // Handle scientific notation by converting through Number first
-      rawAmount = BigInt(Math.floor(Number(rawValue)));
-    } else {
-      rawAmount = BigInt(rawValue);
-    }
+    const decimals = getTokenDecimals(tokenSymbol, tokenAddress);
+    const decimalValue = rawToDecimal(rawValue, decimals);
 
-    if (rawAmount === 0n) {
+    if (decimalValue === 0) {
       return `0 ${tokenSymbol}`;
     }
-
-    // Get token decimals - try by symbol first (more efficient), then by address
-    let decimals = 18; // default
-
-    // Try to find token config by symbol first (faster and more reliable)
-    const configBySymbol = getTokenConfigBySymbol(tokenSymbol);
-    if (configBySymbol) {
-      decimals = configBySymbol.decimals;
-    } else if (tokenAddress) {
-      // Fallback to address-based lookup
-      const configByAddress = getTokenConfigByAddress(tokenAddress);
-      if (configByAddress) {
-        decimals = configByAddress.decimals;
-      }
-    }
-
-    // Use ethers formatUnits for precise decimal conversion
-    const formattedValue = formatUnits(rawAmount.toString(), decimals);
-    const decimalValue = parseFloat(formattedValue);
 
     // More aggressive formatting for statistics
     if (decimalValue >= 1_000_000_000) {

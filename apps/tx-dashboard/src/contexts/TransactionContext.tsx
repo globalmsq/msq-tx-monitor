@@ -66,8 +66,23 @@ type TransactionAction =
   | { type: 'SET_CONNECTION_STATE'; payload: ConnectionState }
   | { type: 'ADD_TRANSACTION'; payload: Transaction }
   | { type: 'UPDATE_TRANSACTIONS'; payload: Transaction[] }
-  | { type: 'SET_INITIAL_DATA'; payload: { transactions: Transaction[]; totalCount?: number; hasMore: boolean; lastId?: number } }
-  | { type: 'LOAD_MORE_DATA'; payload: { transactions: Transaction[]; hasMore: boolean; lastId?: number } }
+  | {
+      type: 'SET_INITIAL_DATA';
+      payload: {
+        transactions: Transaction[];
+        totalCount?: number;
+        hasMore: boolean;
+        lastId?: number;
+      };
+    }
+  | {
+      type: 'LOAD_MORE_DATA';
+      payload: {
+        transactions: Transaction[];
+        hasMore: boolean;
+        lastId?: number;
+      };
+    }
   | { type: 'SET_INITIAL_LOAD_COMPLETE' }
   | { type: 'UPDATE_STATS'; payload: Partial<TransactionStats> }
   | { type: 'SET_TOKEN_FILTER'; payload: string[] }
@@ -145,7 +160,9 @@ function transactionReducer(
       const newTransaction = action.payload;
 
       // Check for duplicates based on transaction hash
-      const isDuplicate = state.transactions.some(tx => tx.hash === newTransaction.hash);
+      const isDuplicate = state.transactions.some(
+        tx => tx.hash === newTransaction.hash
+      );
       if (isDuplicate) {
         return state; // Skip duplicate transactions
       }
@@ -163,7 +180,10 @@ function transactionReducer(
       const newTotalCount = state.totalCount + 1;
       const updatedStats = {
         ...state.stats,
-        totalTransactions: Math.max(state.stats.totalTransactions + 1, newTotalCount),
+        totalTransactions: Math.max(
+          state.stats.totalTransactions + 1,
+          newTotalCount
+        ),
       };
 
       const newState = {
@@ -189,9 +209,10 @@ function transactionReducer(
     case 'SET_INITIAL_DATA': {
       // Only update totalCount if API provides a valid value
       // This prevents resetting the count during refresh operations
-      const newTotalCount = action.payload.totalCount !== undefined
-        ? action.payload.totalCount
-        : state.totalCount;
+      const newTotalCount =
+        action.payload.totalCount !== undefined
+          ? action.payload.totalCount
+          : state.totalCount;
 
       const newState = {
         ...state,
@@ -237,9 +258,10 @@ function transactionReducer(
       const updatedStats = { ...state.stats, ...action.payload };
 
       // If totalTransactions is updated via stats, also update totalCount
-      const newTotalCount = action.payload.totalTransactions !== undefined
-        ? Math.max(action.payload.totalTransactions, state.totalCount)
-        : state.totalCount;
+      const newTotalCount =
+        action.payload.totalTransactions !== undefined
+          ? Math.max(action.payload.totalTransactions, state.totalCount)
+          : state.totalCount;
 
       return {
         ...state,
@@ -353,7 +375,10 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
         );
 
         const uiTransactions = response.data.map(adaptApiTransactionForUI);
-        const lastId = uiTransactions.length > 0 ? Number(uiTransactions[uiTransactions.length - 1].id) : undefined;
+        const lastId =
+          uiTransactions.length > 0
+            ? Number(uiTransactions[uiTransactions.length - 1].id)
+            : undefined;
 
         dispatch({
           type: 'SET_INITIAL_DATA',
@@ -367,7 +392,10 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       } catch (error) {
         dispatch({
           type: 'SET_ERROR',
-          payload: error instanceof Error ? error.message : 'Failed to load initial data',
+          payload:
+            error instanceof Error
+              ? error.message
+              : 'Failed to load initial data',
         });
         dispatch({ type: 'SET_INITIAL_LOAD_COMPLETE' });
       }
@@ -517,7 +545,10 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
         );
 
         const uiTransactions = response.data.map(adaptApiTransactionForUI);
-        const lastId = uiTransactions.length > 0 ? Number(uiTransactions[uiTransactions.length - 1].id) : undefined;
+        const lastId =
+          uiTransactions.length > 0
+            ? Number(uiTransactions[uiTransactions.length - 1].id)
+            : undefined;
 
         dispatch({
           type: 'LOAD_MORE_DATA',
@@ -530,7 +561,8 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       } catch (error) {
         dispatch({
           type: 'SET_ERROR',
-          payload: error instanceof Error ? error.message : 'Failed to load more data',
+          payload:
+            error instanceof Error ? error.message : 'Failed to load more data',
         });
         dispatch({ type: 'SET_LOADING', payload: false });
       }
@@ -547,7 +579,10 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
         );
 
         const uiTransactions = response.data.map(adaptApiTransactionForUI);
-        const lastId = uiTransactions.length > 0 ? Number(uiTransactions[uiTransactions.length - 1].id) : undefined;
+        const lastId =
+          uiTransactions.length > 0
+            ? Number(uiTransactions[uiTransactions.length - 1].id)
+            : undefined;
 
         dispatch({
           type: 'SET_INITIAL_DATA',
@@ -561,7 +596,8 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       } catch (error) {
         dispatch({
           type: 'SET_ERROR',
-          payload: error instanceof Error ? error.message : 'Failed to refresh data',
+          payload:
+            error instanceof Error ? error.message : 'Failed to refresh data',
         });
         dispatch({ type: 'SET_LOADING', payload: false });
       }

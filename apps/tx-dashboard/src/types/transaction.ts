@@ -81,9 +81,7 @@ export function adaptWebSocketTransactionForUI(
 }
 
 // Adapter function to convert API transaction to UI Transaction
-export function adaptApiTransactionForUI(
-  apiTx: ApiTransaction
-): UITransaction {
+export function adaptApiTransactionForUI(apiTx: ApiTransaction): UITransaction {
   // Calculate Txn Fee (gasUsed * gasPrice / 10^18)
   let txnFee: string | undefined = undefined;
   if (apiTx.gas_used && apiTx.gas_price) {
@@ -109,7 +107,11 @@ export function adaptApiTransactionForUI(
     hash: apiTx.hash,
     from: apiTx.from_address,
     to: apiTx.to_address,
-    value: formatTokenValue(apiTx.amount_raw || apiTx.amount, apiTx.token_symbol, apiTx.token_address),
+    value: formatTokenValue(
+      apiTx.amount_raw || apiTx.amount,
+      apiTx.token_symbol,
+      apiTx.token_address
+    ),
     rawValue: apiTx.amount_raw || apiTx.amount,
     token: apiTx.token_symbol,
     tokenAddress: apiTx.token_address,

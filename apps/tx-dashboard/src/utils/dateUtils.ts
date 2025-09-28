@@ -58,7 +58,11 @@ export function formatShortDate(timestamp: number | Date): string {
 /**
  * Truncate a string (typically addresses or hashes) and add ellipsis
  */
-export function truncateString(str: string, startChars: number = 6, endChars: number = 4): string {
+export function truncateString(
+  str: string,
+  startChars: number = 6,
+  endChars: number = 4
+): string {
   if (str.length <= startChars + endChars + 3) {
     return str;
   }

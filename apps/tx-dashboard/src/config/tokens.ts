@@ -29,12 +29,16 @@ export const TOKEN_CONFIG: Record<string, TokenConfig> = {
 };
 
 // Helper function to get token config by symbol
-export function getTokenConfigBySymbol(symbol: string): TokenConfig | undefined {
+export function getTokenConfigBySymbol(
+  symbol: string
+): TokenConfig | undefined {
   return TOKEN_CONFIG[symbol.toUpperCase()];
 }
 
 // Helper function to get token config by address
-export function getTokenConfigByAddress(address: string): TokenConfig | undefined {
+export function getTokenConfigByAddress(
+  address: string
+): TokenConfig | undefined {
   const normalizedAddress = address.toLowerCase();
   return Object.values(TOKEN_CONFIG).find(
     config => config.address.toLowerCase() === normalizedAddress
@@ -42,7 +46,9 @@ export function getTokenConfigByAddress(address: string): TokenConfig | undefine
 }
 
 // Helper function to get token config (by address or symbol)
-export function getTokenConfig(addressOrSymbol: string): TokenConfig | undefined {
+export function getTokenConfig(
+  addressOrSymbol: string
+): TokenConfig | undefined {
   // First try by symbol (if it's a known symbol)
   const bySymbol = getTokenConfigBySymbol(addressOrSymbol);
   if (bySymbol) {

@@ -13,7 +13,11 @@ import { useState } from 'react';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
 import { TransactionTable } from '../components/TransactionTable';
 import { AddressSearchInput } from '../components/filters/AddressSearchInput';
-import { InitialLoadingSkeleton, LoadMoreButton, InitialStatsLoadingSkeleton } from '../components/LoadingSkeleton';
+import {
+  InitialLoadingSkeleton,
+  LoadMoreButton,
+  InitialStatsLoadingSkeleton,
+} from '../components/LoadingSkeleton';
 import { getFilterSummary, hasActiveFilters } from '../utils/filterUtils';
 import { cn } from '../utils/cn';
 import {
@@ -44,7 +48,6 @@ function ConnectionStatus() {
   );
 }
 
-
 function StatsCards() {
   const { stats, isInitialLoad } = useTransactionData();
 
@@ -66,14 +69,20 @@ function StatsCards() {
 
     // Format with K/M/B suffixes with improved precision
     if (numericValue >= 1e9) {
-      const billions = (numericValue / 1e9);
-      return billions.toFixed(billions >= 10 ? 1 : 2).replace(/\.0+$/, '') + 'B';
+      const billions = numericValue / 1e9;
+      return (
+        billions.toFixed(billions >= 10 ? 1 : 2).replace(/\.0+$/, '') + 'B'
+      );
     } else if (numericValue >= 1e6) {
-      const millions = (numericValue / 1e6);
-      return millions.toFixed(millions >= 10 ? 1 : 2).replace(/\.0+$/, '') + 'M';
+      const millions = numericValue / 1e6;
+      return (
+        millions.toFixed(millions >= 10 ? 1 : 2).replace(/\.0+$/, '') + 'M'
+      );
     } else if (numericValue >= 1e3) {
-      const thousands = (numericValue / 1e3);
-      return thousands.toFixed(thousands >= 10 ? 1 : 2).replace(/\.0+$/, '') + 'K';
+      const thousands = numericValue / 1e3;
+      return (
+        thousands.toFixed(thousands >= 10 ? 1 : 2).replace(/\.0+$/, '') + 'K'
+      );
     } else if (numericValue >= 100) {
       // Numbers 100 and above as integers
       return Math.round(numericValue).toString();
@@ -87,16 +96,18 @@ function StatsCards() {
     {
       label: 'Total Transactions',
       value: stats.totalTransactions.toLocaleString(),
-      change: stats.transactionsChange24h >= 0
-        ? `+${stats.transactionsChange24h.toFixed(1)}%`
-        : `${stats.transactionsChange24h.toFixed(1)}%`,
+      change:
+        stats.transactionsChange24h >= 0
+          ? `+${stats.transactionsChange24h.toFixed(1)}%`
+          : `${stats.transactionsChange24h.toFixed(1)}%`,
     },
     {
       label: 'Active Addresses',
       value: stats.activeAddresses.toLocaleString(),
-      change: stats.addressesChange24h >= 0
-        ? `+${stats.addressesChange24h.toFixed(1)}%`
-        : `${stats.addressesChange24h.toFixed(1)}%`,
+      change:
+        stats.addressesChange24h >= 0
+          ? `+${stats.addressesChange24h.toFixed(1)}%`
+          : `${stats.addressesChange24h.toFixed(1)}%`,
     },
   ];
 
@@ -153,11 +164,15 @@ function StatsCards() {
                 <div className='space-y-2 text-xs'>
                   <div className='flex justify-between'>
                     <span className='text-white/60'>24h Volume:</span>
-                    <span className='text-white'>{parseVolumeValue(tokenStat.volume24h)}</span>
+                    <span className='text-white'>
+                      {parseVolumeValue(tokenStat.volume24h)}
+                    </span>
                   </div>
                   <div className='flex justify-between'>
                     <span className='text-white/60'>Total Volume:</span>
-                    <span className='text-white'>{parseVolumeValue(tokenStat.totalVolume)}</span>
+                    <span className='text-white'>
+                      {parseVolumeValue(tokenStat.totalVolume)}
+                    </span>
                   </div>
                   <div className='flex justify-between'>
                     <span className='text-white/60'>Transactions:</span>
@@ -183,7 +198,7 @@ function TransactionFeed() {
     hasMore,
     loadMore,
     totalCount,
-    stats
+    stats,
   } = useTransactionData();
   const { filters, updateFilters, toggleTokenFilter } = useTransactionFilters();
   const [selectedTransaction, setSelectedTransaction] =
@@ -253,8 +268,7 @@ function TransactionFeed() {
           <div className='text-xs text-white/40 flex items-center ml-2'>
             {filters.tokens.length === 0
               ? 'All tokens'
-              : `${filters.tokens.length} selected`
-            }
+              : `${filters.tokens.length} selected`}
           </div>
         </div>
       </div>
@@ -279,7 +293,9 @@ function TransactionFeed() {
           )}
         </div>
         <span className='text-sm text-white/70 whitespace-nowrap'>
-          {isInitialLoad ? 'Loading...' : `${(totalCount || stats.totalTransactions).toLocaleString()} transactions found`}
+          {isInitialLoad
+            ? 'Loading...'
+            : `${(totalCount || stats.totalTransactions).toLocaleString()} transactions found`}
         </span>
       </div>
 
