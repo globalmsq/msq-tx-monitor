@@ -9,12 +9,10 @@ import {
   WifiOff,
   Clock,
   TrendingUp,
-  Filter,
   X,
 } from 'lucide-react';
 import { useState } from 'react';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
-import { AdvancedFilters } from '../components/AdvancedFilters';
 import { AddressSearchInput } from '../components/filters/AddressSearchInput';
 import { InitialLoadingSkeleton, LoadMoreButton, InitialStatsLoadingSkeleton } from '../components/LoadingSkeleton';
 import { cn } from '../utils/cn';
@@ -46,67 +44,6 @@ function ConnectionStatus() {
   );
 }
 
-function TokenFilter() {
-  const { filters, setFilters, toggleTokenFilter } = useTransactionFilters();
-  const tokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-
-  return (
-    <div className='mt-8'>
-      <div className='flex items-center justify-between mb-4'>
-        <h3 className='text-sm font-medium text-white/70'>Filters</h3>
-        <button
-          onClick={() => setShowAdvancedFilters(true)}
-          className='p-1.5 text-white/70 hover:text-white transition-colors rounded hover:bg-white/10'
-          title='Advanced Filters'
-        >
-          <Filter className='w-4 h-4' />
-        </button>
-      </div>
-
-      <div className='space-y-3'>
-        {/* Token Selection */}
-        <div className='space-y-2'>
-          <span className='text-xs font-medium text-white/60 uppercase tracking-wider'>
-            Tokens
-          </span>
-          {tokens.map(token => (
-            <label
-              key={token}
-              className='flex items-center space-x-3 cursor-pointer'
-            >
-              <input
-                type='checkbox'
-                checked={filters.tokens.includes(token)}
-                onChange={() => toggleTokenFilter(token)}
-                className='w-4 h-4 rounded border-white/20 bg-white/10 text-primary-500 focus:ring-primary-500 focus:ring-offset-0'
-              />
-              <span className='text-white/80 text-sm'>{token}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <AdvancedFilters
-        isOpen={showAdvancedFilters}
-        onClose={() => setShowAdvancedFilters(false)}
-        filters={filters}
-        onFiltersChange={setFilters}
-        onApply={() => setShowAdvancedFilters(false)}
-        onReset={() => {
-          setFilters({
-            tokens: ['MSQ', 'SUT', 'KWT', 'P2UC'],
-            showAnomalies: false,
-            amountRange: { min: '', max: '' },
-            timeRange: { from: '', to: '' },
-            addressSearch: '',
-            riskLevel: 'all',
-          });
-        }}
-      />
-    </div>
-  );
-}
 
 function StatsCards() {
   const { stats, isInitialLoad } = useTransactionData();
@@ -218,10 +155,12 @@ function TransactionFeed() {
     loadMore,
     totalCount
   } = useTransactionData();
-  const { filters, updateFilters } = useTransactionFilters();
+  const { filters, updateFilters, toggleTokenFilter } = useTransactionFilters();
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const tokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
 
   const handleTransactionClick = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
@@ -239,9 +178,6 @@ function TransactionFeed() {
 
   const getFilterSummary = () => {
     const summaryParts = [];
-    if (filters.tokens.length > 0 && filters.tokens.length < 4) {
-      summaryParts.push(`Tokens: ${filters.tokens.join(', ')}`);
-    }
     if (filters.addressSearch) {
       summaryParts.push(
         `Address: ${filters.addressSearch.slice(0, 10)}${filters.addressSearch.length > 10 ? '...' : ''}`
@@ -265,9 +201,37 @@ function TransactionFeed() {
 
   return (
     <div className='glass rounded-2xl p-6'>
-      <h2 className='text-xl font-bold text-white mb-6'>
+      <h2 className='text-xl font-bold text-white mb-4'>
         Live Transaction Feed
       </h2>
+
+      {/* Token Selection */}
+      <div className='mb-6'>
+        <div className='flex flex-wrap gap-2'>
+          {tokens.map(token => (
+            <button
+              key={token}
+              onClick={() => toggleTokenFilter(token)}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
+                'border border-white/10 hover:border-white/20',
+                filters.tokens.length === 0 || filters.tokens.includes(token)
+                  ? 'bg-primary-500/20 text-primary-400 border-primary-500/30'
+                  : 'bg-white/5 text-white/60 hover:text-white/80'
+              )}
+            >
+              {token}
+            </button>
+          ))}
+          <div className='text-xs text-white/40 flex items-center ml-2'>
+            {filters.tokens.length === 0
+              ? 'All tokens'
+              : `${filters.tokens.length} selected`
+            }
+          </div>
+        </div>
+      </div>
+
       {/* Header with Search and Filters Summary */}
       <div className='flex flex-col lg:flex-row lg:items-center justify-between mb-4 space-y-3 lg:space-y-0'>
         <div className='flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4'>
@@ -541,8 +505,6 @@ function DashboardContent() {
                 <span>Addresses</span>
               </a>
             </nav>
-
-            <TokenFilter />
           </div>
         </aside>
 
