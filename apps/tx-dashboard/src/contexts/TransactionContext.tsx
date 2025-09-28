@@ -332,13 +332,11 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
   const [state, dispatch] = useReducer(transactionReducer, initialState);
   const { parseFiltersFromUrl, updateUrlFromFilters } = useUrlFilterSync();
 
-  // Initialize filters from URL on mount
+  // Initialize filters from URL on mount only
   useEffect(() => {
     const urlFilters = parseFiltersFromUrl();
-    if (JSON.stringify(urlFilters) !== JSON.stringify(state.filters)) {
-      dispatch({ type: 'SET_FILTERS', payload: urlFilters });
-    }
-  }, [parseFiltersFromUrl, state.filters]);
+    dispatch({ type: 'SET_FILTERS', payload: urlFilters });
+  }, []); // Empty dependency array to run only on mount
 
   // Load initial transaction data on mount
   useEffect(() => {
