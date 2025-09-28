@@ -332,19 +332,17 @@ export class StatisticsService {
   }
 
   /**
-   * Format token amount based on token's decimals
+   * Format token amount based on token's decimals (returns raw numeric value only)
    */
   private formatTokenAmount(amount: bigint, tokenAddress: string): string {
     try {
       let decimals = 18; // Default decimals
-      let symbol = 'TOKEN';
 
       // Get token info if tokenService is available
       if (this.tokenService) {
         const tokenInfo = this.tokenService.getTokenInfo(tokenAddress);
         if (tokenInfo) {
           decimals = tokenInfo.decimals;
-          symbol = tokenInfo.symbol;
         }
       }
 
@@ -352,21 +350,21 @@ export class StatisticsService {
       const formattedValue = formatUnits(amount.toString(), decimals);
       const tokenAmount = parseFloat(formattedValue);
 
-      // Format the number
+      // Return raw numeric value only (no token symbol)
+      // Client will handle K/M/B formatting and display
       if (tokenAmount === 0) {
-        return `0 ${symbol}`;
-      } else if (tokenAmount >= 1000000) {
-        return `${(tokenAmount / 1000000).toFixed(1)}M ${symbol}`;
-      } else if (tokenAmount >= 1000) {
-        return `${(tokenAmount / 1000).toFixed(1)}K ${symbol}`;
+        return '0';
       } else if (tokenAmount < 0.01) {
-        return `<0.01 ${symbol}`;
+        return '0.01';
       } else {
-        return `${tokenAmount.toFixed(2)} ${symbol}`;
+        return tokenAmount.toLocaleString('en-US', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2,
+        });
       }
     } catch (error) {
       console.error('Error formatting token amount:', error);
-      return '0 TOKEN';
+      return '0';
     }
   }
 

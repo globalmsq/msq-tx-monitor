@@ -51,6 +51,38 @@ function StatsCards() {
   // Show all token stats regardless of filter selection
   const filteredTokenStats = stats.tokenStats;
 
+  // Helper function to parse volume values with K/M/B suffixes
+  const parseVolumeValue = (value: string): string => {
+    // Check for empty or null values
+    if (!value) return '0';
+
+    // Extract numeric value from various formats like "123.45 MSQ" or "1,234.56 KWT"
+    const match = value.match(/[\d,]+\.?\d*/);
+    if (!match) return '0';
+
+    // Remove commas and convert to number
+    const numericValue = parseFloat(match[0].replace(/,/g, ''));
+    if (isNaN(numericValue) || numericValue === 0) return '0';
+
+    // Format with K/M/B suffixes with improved precision
+    if (numericValue >= 1e9) {
+      const billions = (numericValue / 1e9);
+      return billions.toFixed(billions >= 10 ? 1 : 2).replace(/\.0+$/, '') + 'B';
+    } else if (numericValue >= 1e6) {
+      const millions = (numericValue / 1e6);
+      return millions.toFixed(millions >= 10 ? 1 : 2).replace(/\.0+$/, '') + 'M';
+    } else if (numericValue >= 1e3) {
+      const thousands = (numericValue / 1e3);
+      return thousands.toFixed(thousands >= 10 ? 1 : 2).replace(/\.0+$/, '') + 'K';
+    } else if (numericValue >= 100) {
+      // Numbers 100 and above as integers
+      return Math.round(numericValue).toString();
+    } else {
+      // Numbers below 100 with decimals
+      return numericValue.toFixed(2).replace(/\.0+$/, '');
+    }
+  };
+
   const generalStats = [
     {
       label: 'Total Transactions',
@@ -121,11 +153,11 @@ function StatsCards() {
                 <div className='space-y-2 text-xs'>
                   <div className='flex justify-between'>
                     <span className='text-white/60'>24h Volume:</span>
-                    <span className='text-white'>{tokenStat.volume24h}</span>
+                    <span className='text-white'>{parseVolumeValue(tokenStat.volume24h)}</span>
                   </div>
                   <div className='flex justify-between'>
                     <span className='text-white/60'>Total Volume:</span>
-                    <span className='text-white'>{tokenStat.totalVolume}</span>
+                    <span className='text-white'>{parseVolumeValue(tokenStat.totalVolume)}</span>
                   </div>
                   <div className='flex justify-between'>
                     <span className='text-white/60'>Transactions:</span>
@@ -186,13 +218,23 @@ function TransactionFeed() {
 
   return (
     <div className='glass rounded-2xl p-6'>
-      <h2 className='text-xl font-bold text-white mb-4'>
+      <h2 className='text-xl font-bold text-white mb-6'>
         Live Transaction Feed
       </h2>
 
-      {/* Token Selection */}
-      <div className='mb-6'>
-        <div className='flex flex-wrap gap-2'>
+      {/* Search and Token Selection - Responsive Layout */}
+      <div className='flex flex-col lg:flex-row gap-4 lg:items-center mb-6'>
+        {/* Address Search */}
+        <div className='flex-1'>
+          <AddressSearchInput
+            value={filters.addressSearch}
+            onChange={handleAddressSearch}
+            placeholder='Search by address...'
+          />
+        </div>
+
+        {/* Token Selection */}
+        <div className='flex flex-wrap gap-2 lg:flex-shrink-0'>
           {tokens.map(token => (
             <button
               key={token}
@@ -217,19 +259,12 @@ function TransactionFeed() {
         </div>
       </div>
 
-      {/* Header with Search and Filters Summary */}
+      {/* Header with Filters Summary and Count */}
       <div className='flex flex-col lg:flex-row lg:items-center justify-between mb-4 space-y-3 lg:space-y-0'>
         <div className='flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4'>
-          <div className='w-full sm:w-64'>
-            <AddressSearchInput
-              value={filters.addressSearch}
-              onChange={handleAddressSearch}
-              placeholder='Search by address...'
-            />
-          </div>
           {filterSummary.length > 0 && (
             <div className='text-sm text-white/70'>
-              <span className='hidden sm:inline'>Filters: </span>
+              <span className='hidden sm:inline'>Active Filters: </span>
               <div className='flex flex-wrap gap-1 sm:inline'>
                 {filterSummary.map((summary, index) => (
                   <span

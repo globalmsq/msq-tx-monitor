@@ -126,19 +126,13 @@ export function formatTokenValue(
     const formattedValue = formatUnits(rawAmount.toString(), decimals);
     const decimalValue = parseFloat(formattedValue);
 
-    // Format the number based on size
+    // Format the number - show full numbers without K/M abbreviation
     let formattedNumber: string;
 
     if (decimalValue === 0) {
       formattedNumber = '0';
-    } else if (decimalValue >= 1_000_000) {
-      // Format as millions (e.g., 1.2M)
-      formattedNumber = (decimalValue / 1_000_000).toFixed(1) + 'M';
-    } else if (decimalValue >= 1_000) {
-      // Format as thousands (e.g., 1.2K)
-      formattedNumber = (decimalValue / 1_000).toFixed(1) + 'K';
     } else if (decimalValue >= 1) {
-      // Regular numbers with 2 decimal places
+      // Show full numbers with comma separators
       formattedNumber = decimalValue.toLocaleString('en-US', {
         minimumFractionDigits: 0,
         maximumFractionDigits: 2,

@@ -249,7 +249,7 @@ export function AddressSearchInput({
       {isOpen && suggestions.length > 0 && (
         <div
           ref={dropdownRef}
-          className='absolute top-full left-0 right-0 mt-1 glass rounded-lg border border-white/10 shadow-lg z-50 max-h-64 overflow-y-auto'
+          className='absolute top-full left-0 right-0 mt-1 bg-dark-900/95 backdrop-blur-md rounded-lg border border-white/20 shadow-xl z-50 max-h-64 overflow-y-auto'
         >
           <div className='p-2'>
             {/* Recent addresses section */}
