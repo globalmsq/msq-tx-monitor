@@ -159,11 +159,19 @@ function transactionReducer(
         50
       ); // Keep last 50
 
+      // Update both totalCount and stats.totalTransactions
+      const newTotalCount = state.totalCount + 1;
+      const updatedStats = {
+        ...state.stats,
+        totalTransactions: Math.max(state.stats.totalTransactions + 1, newTotalCount),
+      };
+
       const newState = {
         ...state,
         transactions: updatedTransactions,
         recentTransactions: updatedRecent,
-        totalCount: state.totalCount + 1,
+        totalCount: newTotalCount,
+        stats: updatedStats,
       };
 
       return applyFiltersToState(newState);
@@ -179,11 +187,17 @@ function transactionReducer(
     }
 
     case 'SET_INITIAL_DATA': {
+      // Only update totalCount if API provides a valid value
+      // This prevents resetting the count during refresh operations
+      const newTotalCount = action.payload.totalCount !== undefined
+        ? action.payload.totalCount
+        : state.totalCount;
+
       const newState = {
         ...state,
         transactions: action.payload.transactions,
         recentTransactions: action.payload.transactions.slice(0, 50),
-        totalCount: action.payload.totalCount || state.totalCount,
+        totalCount: newTotalCount,
         hasMore: action.payload.hasMore,
         lastTransactionId: action.payload.lastId || null,
         isInitialLoad: false,
@@ -219,11 +233,20 @@ function transactionReducer(
         isLoading: false,
       };
 
-    case 'UPDATE_STATS':
+    case 'UPDATE_STATS': {
+      const updatedStats = { ...state.stats, ...action.payload };
+
+      // If totalTransactions is updated via stats, also update totalCount
+      const newTotalCount = action.payload.totalTransactions !== undefined
+        ? Math.max(action.payload.totalTransactions, state.totalCount)
+        : state.totalCount;
+
       return {
         ...state,
-        stats: { ...state.stats, ...action.payload },
+        stats: updatedStats,
+        totalCount: newTotalCount,
       };
+    }
 
     case 'SET_TOKEN_FILTER': {
       const newState = {
