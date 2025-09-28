@@ -23,7 +23,6 @@ interface TokenStats {
   tokenSymbol: string;
   tokenAddress: string;
   volume24h: string;
-  avgTxSize: string;
   totalVolume: string;
   transactionCount: number;
 }
@@ -33,6 +32,8 @@ interface TransactionStats {
   activeAddresses: number;
   tokenStats: TokenStats[];
   successRate: number;
+  transactionsChange24h: number;
+  addressesChange24h: number;
 }
 
 interface TransactionState {
@@ -82,6 +83,8 @@ const initialStats: TransactionStats = {
   activeAddresses: 0,
   tokenStats: [],
   successRate: 0,
+  transactionsChange24h: 0,
+  addressesChange24h: 0,
 };
 
 const initialState: TransactionState = {

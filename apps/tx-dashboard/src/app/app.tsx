@@ -121,12 +121,16 @@ function StatsCards() {
     {
       label: 'Total Transactions',
       value: stats.totalTransactions.toLocaleString(),
-      change: '+12%',
+      change: stats.transactionsChange24h >= 0
+        ? `+${stats.transactionsChange24h.toFixed(1)}%`
+        : `${stats.transactionsChange24h.toFixed(1)}%`,
     },
     {
       label: 'Active Addresses',
       value: stats.activeAddresses.toLocaleString(),
-      change: '+5%',
+      change: stats.addressesChange24h >= 0
+        ? `+${stats.addressesChange24h.toFixed(1)}%`
+        : `${stats.addressesChange24h.toFixed(1)}%`,
     },
   ];
 
@@ -170,7 +174,7 @@ function StatsCards() {
           <h3 className='text-white/70 text-sm font-medium mb-3'>
             Token Statistics
           </h3>
-          <div className='grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 lg:gap-4'>
+          <div className='grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4'>
             {filteredTokenStats.map((tokenStat, _index) => (
               <div
                 key={tokenStat.tokenAddress}
@@ -184,10 +188,6 @@ function StatsCards() {
                   <div className='flex justify-between'>
                     <span className='text-white/60'>24h Volume:</span>
                     <span className='text-white'>{tokenStat.volume24h}</span>
-                  </div>
-                  <div className='flex justify-between'>
-                    <span className='text-white/60'>Avg Size:</span>
-                    <span className='text-white'>{tokenStat.avgTxSize}</span>
                   </div>
                   <div className='flex justify-between'>
                     <span className='text-white/60'>Total Volume:</span>

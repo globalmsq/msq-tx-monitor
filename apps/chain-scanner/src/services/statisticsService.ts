@@ -12,7 +12,6 @@ export interface TokenStats {
   tokenSymbol: string;
   tokenAddress: string;
   volume24h: string;
-  avgTxSize: string;
   totalVolume: string;
   transactionCount: number;
 }
@@ -22,6 +21,8 @@ export interface DashboardStats {
   activeAddresses: number;
   tokenStats: TokenStats[];
   successRate: number;
+  transactionsChange24h: number;
+  addressesChange24h: number;
 }
 
 export class StatisticsService {
@@ -73,18 +74,27 @@ export class StatisticsService {
 
     try {
       // Execute parallel queries for general stats and token stats
-      const [totalTransactionsResult, activeAddressesResult, tokenStatsResult] =
-        await Promise.all([
-          this.getTotalTransactions(),
-          this.getActiveAddresses(),
-          this.getTokenSpecificStats(),
-        ]);
+      const [
+        totalTransactionsResult,
+        activeAddressesResult,
+        tokenStatsResult,
+        transactionsChange24h,
+        addressesChange24h
+      ] = await Promise.all([
+        this.getTotalTransactions(),
+        this.getActiveAddresses(),
+        this.getTokenSpecificStats(),
+        this.getTransactionsChange24h(),
+        this.getAddressesChange24h(),
+      ]);
 
       const stats: DashboardStats = {
         totalTransactions: totalTransactionsResult,
         activeAddresses: activeAddressesResult,
         tokenStats: tokenStatsResult,
         successRate: 100, // All stored transactions are successful by definition
+        transactionsChange24h,
+        addressesChange24h,
       };
 
       if (config.logging.enableDatabaseLogs) {
@@ -104,6 +114,8 @@ export class StatisticsService {
         activeAddresses: 0,
         tokenStats: [],
         successRate: 0,
+        transactionsChange24h: 0,
+        addressesChange24h: 0,
       };
     }
   }
@@ -192,28 +204,51 @@ export class StatisticsService {
    */
   private async getTokenSpecificStats(): Promise<TokenStats[]> {
     try {
-      // Get distinct token addresses from transactions
-      const tokenAddresses = await prisma.transaction.findMany({
-        select: {
-          tokenAddress: true,
-          tokenSymbol: true,
-        },
-        distinct: ['tokenAddress'],
-      });
+      // Use TokenService to get all active tokens, fallback to transaction data if not available
+      if (!this.tokenService) {
+        console.warn('TokenService not available, falling back to transaction-based token discovery');
 
-      const tokenStatsPromises = tokenAddresses.map(async token => {
-        const stats = await this.getTokenStats(token.tokenAddress);
+        // Fallback: Get distinct token addresses from transactions
+        const tokenAddresses = await prisma.transaction.findMany({
+          select: {
+            tokenAddress: true,
+            tokenSymbol: true,
+          },
+          distinct: ['tokenAddress'],
+        });
+
+        const tokenStatsPromises = tokenAddresses.map(async token => {
+          const stats = await this.getTokenStats(token.tokenAddress);
+          const volume24h = await this.getToken24hVolume(token.tokenAddress);
+          return {
+            tokenSymbol: token.tokenSymbol,
+            tokenAddress: token.tokenAddress,
+            volume24h: this.formatTokenAmount(volume24h, token.tokenAddress),
+            totalVolume: this.formatTokenAmount(
+              await this.getTokenTotalVolume(token.tokenAddress),
+              token.tokenAddress
+            ),
+            transactionCount: stats.totalTransactions,
+          };
+        });
+
+        return await Promise.all(tokenStatsPromises);
+      }
+
+      // Get all active tokens from TokenService (includes tokens without transactions)
+      const allTokens = this.tokenService.getAllTokens();
+      console.log(`📊 Calculating stats for ${allTokens.length} tokens:`, allTokens.map(t => t.symbol));
+
+      const tokenStatsPromises = allTokens.map(async token => {
+        const stats = await this.getTokenStats(token.address);
+        const volume24h = await this.getToken24hVolume(token.address);
         return {
-          tokenSymbol: token.tokenSymbol,
-          tokenAddress: token.tokenAddress,
-          volume24h: stats.volume24h,
-          avgTxSize: this.formatTokenAmount(
-            await this.getTokenAvgTxSize(token.tokenAddress),
-            token.tokenAddress
-          ),
+          tokenSymbol: token.symbol,
+          tokenAddress: token.address,
+          volume24h: this.formatTokenAmount(volume24h, token.address),
           totalVolume: this.formatTokenAmount(
-            await this.getTokenTotalVolume(token.tokenAddress),
-            token.tokenAddress
+            await this.getTokenTotalVolume(token.address),
+            token.address
           ),
           transactionCount: stats.totalTransactions,
         };
@@ -270,6 +305,28 @@ export class StatisticsService {
       return this.safeBigInt(result._sum.value);
     } catch (error) {
       console.error(`Error getting total volume for ${tokenAddress}:`, error);
+      return 0n;
+    }
+  }
+
+  /**
+   * Get 24h volume for specific token (returns raw bigint for proper formatting)
+   */
+  private async getToken24hVolume(tokenAddress: string): Promise<bigint> {
+    try {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+      const result = await prisma.transaction.aggregate({
+        _sum: { value: true },
+        where: {
+          tokenAddress,
+          timestamp: { gte: twentyFourHoursAgo },
+        },
+      });
+
+      return this.safeBigInt(result._sum.value);
+    } catch (error) {
+      console.error(`Error getting 24h volume for ${tokenAddress}:`, error);
       return 0n;
     }
   }
@@ -403,6 +460,70 @@ export class StatisticsService {
         volume24h: '$0',
         uniqueHolders: 0,
       };
+    }
+  }
+
+  /**
+   * Calculate 24-hour change percentage for total transactions
+   */
+  private async getTransactionsChange24h(): Promise<number> {
+    try {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
+      const [currentTotal, pastTotal] = await Promise.all([
+        // Current total transactions
+        this.getTotalTransactions(),
+
+        // Total transactions 24 hours ago (transactions before 24h ago)
+        prisma.transaction.count({
+          where: {
+            timestamp: { lt: twentyFourHoursAgo },
+          },
+        }),
+      ]);
+
+      if (pastTotal === 0) {
+        return currentTotal > 0 ? 100 : 0; // If no past data, show 100% if we have current data
+      }
+
+      const changePercent = ((currentTotal - pastTotal) / pastTotal) * 100;
+      return Math.round(changePercent * 10) / 10; // Round to 1 decimal place
+    } catch (error) {
+      console.error('Error calculating transactions change 24h:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Calculate 24-hour change percentage for active addresses
+   */
+  private async getAddressesChange24h(): Promise<number> {
+    try {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+      const [currentActive, pastActive] = await Promise.all([
+        // Current active addresses
+        this.getActiveAddresses(),
+
+        // Active addresses from 24h ago (updated before 24h ago)
+        prisma.addressStatistics.count({
+          where: {
+            isActive: true,
+            updatedAt: { lt: twentyFourHoursAgo },
+          },
+        }),
+      ]);
+
+      if (pastActive === 0) {
+        return currentActive > 0 ? 100 : 0; // If no past data, show 100% if we have current data
+      }
+
+      const changePercent = ((currentActive - pastActive) / pastActive) * 100;
+      return Math.round(changePercent * 10) / 10; // Round to 1 decimal place
+    } catch (error) {
+      console.error('Error calculating addresses change 24h:', error);
+      return 0;
     }
   }
 }
