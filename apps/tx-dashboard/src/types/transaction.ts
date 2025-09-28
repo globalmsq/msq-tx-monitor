@@ -16,6 +16,7 @@ export interface UITransaction {
   blockNumber: number;
   gasUsed: string;
   gasPrice: string;
+  txnFee?: string; // calculated transaction fee in MATIC
   status: 'pending' | 'confirmed' | 'failed';
   anomalyScore?: number;
 }
@@ -83,6 +84,26 @@ export function adaptWebSocketTransactionForUI(
 export function adaptApiTransactionForUI(
   apiTx: ApiTransaction
 ): UITransaction {
+  // Calculate Txn Fee (gasUsed * gasPrice / 10^18)
+  let txnFee: string | undefined = undefined;
+  if (apiTx.gas_used && apiTx.gas_price) {
+    try {
+      // Convert to Number for proper decimal division
+      const gasUsed = Number(apiTx.gas_used);
+      const gasPrice = Number(apiTx.gas_price);
+      const feeInEther = (gasUsed * gasPrice) / 1e18;
+
+      // Format with appropriate precision
+      if (feeInEther < 0.000001) {
+        txnFee = '<0.000001';
+      } else {
+        txnFee = feeInEther.toFixed(6);
+      }
+    } catch (error) {
+      console.warn('Error calculating transaction fee:', error);
+    }
+  }
+
   return {
     id: apiTx.id.toString(),
     hash: apiTx.hash,
@@ -94,8 +115,9 @@ export function adaptApiTransactionForUI(
     tokenAddress: apiTx.token_address,
     timestamp: new Date(apiTx.timestamp).getTime(),
     blockNumber: apiTx.block_number,
-    gasUsed: '0', // Not available in API response
-    gasPrice: '0', // Not available in API response
+    gasUsed: apiTx.gas_used?.toString() || '0',
+    gasPrice: apiTx.gas_price || '0',
+    txnFee: txnFee,
     status: 'confirmed' as const, // Assume confirmed for now
     anomalyScore: apiTx.anomaly_score,
   };

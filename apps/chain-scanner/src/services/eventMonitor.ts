@@ -531,7 +531,7 @@ export class EventMonitor {
     eventData: EventData
   ): Promise<TransactionData | null> {
     try {
-      // Basic transaction data from event logs (no additional RPC calls needed)
+      // Basic transaction data from event logs
       const basicTransactionData: TransactionData = {
         hash: processedEvent.transactionHash,
         blockNumber: processedEvent.blockNumber,
@@ -540,8 +540,8 @@ export class EventMonitor {
         from: processedEvent.from,
         to: processedEvent.to,
         value: processedEvent.value,
-        gasPrice: '0', // Will be filled if enableTxDetails is true
-        gasUsed: '0', // Will be filled if enableTxDetails is true
+        gasPrice: '0', // Will be filled from transaction details
+        gasUsed: '0', // Will be filled from receipt
         tokenAddress: processedEvent.tokenAddress,
         tokenSymbol: processedEvent.tokenSymbol,
         tokenDecimals: processedEvent.tokenDecimals,
@@ -549,12 +549,7 @@ export class EventMonitor {
         confirmations: 0, // Will be updated later in batch
       };
 
-      // Only fetch additional transaction details if explicitly enabled
-      if (!config.monitoring.enableTxDetails) {
-        return basicTransactionData;
-      }
-
-      // Enhanced mode: fetch additional details (requires more RPC calls)
+      // Always try to fetch gas information for transaction fees
       if (!this.web3Service.isConnected()) {
         console.warn(
           'Web3 service not connected, returning basic transaction data'
@@ -587,10 +582,13 @@ export class EventMonitor {
           basicTransactionData.gasUsed = receipt.gasUsed.toString();
         }
 
-        // Get current block number for confirmations (most expensive call)
-        const currentBlockNumber = await web3.eth.getBlockNumber();
-        basicTransactionData.confirmations =
-          Number(currentBlockNumber) - processedEvent.blockNumber;
+        // Only fetch confirmations if enableTxDetails is true (for performance)
+        if (config.monitoring.enableTxDetails) {
+          // Get current block number for confirmations (most expensive call)
+          const currentBlockNumber = await web3.eth.getBlockNumber();
+          basicTransactionData.confirmations =
+            Number(currentBlockNumber) - processedEvent.blockNumber;
+        }
       } catch (detailError) {
         console.warn(
           `Failed to fetch transaction details for ${processedEvent.transactionHash}, using basic data:`,

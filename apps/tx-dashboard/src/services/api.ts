@@ -66,6 +66,8 @@ export interface ApiTransaction {
   token_symbol: string;
   amount: string;
   amount_raw: string;
+  gas_used?: number;
+  gas_price?: string;
   anomaly_score: number;
   anomaly_flags: string[];
   created_at: string;

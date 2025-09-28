@@ -7,14 +7,14 @@ import {
   Wallet,
   Wifi,
   WifiOff,
-  Clock,
-  TrendingUp,
   X,
 } from 'lucide-react';
 import { useState } from 'react';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
+import { TransactionTable } from '../components/TransactionTable';
 import { AddressSearchInput } from '../components/filters/AddressSearchInput';
 import { InitialLoadingSkeleton, LoadMoreButton, InitialStatsLoadingSkeleton } from '../components/LoadingSkeleton';
+import { getFilterSummary, hasActiveFilters } from '../utils/filterUtils';
 import { cn } from '../utils/cn';
 import {
   TransactionProvider,
@@ -78,7 +78,7 @@ function StatsCards() {
   return (
     <div className='space-y-6'>
       {/* General Statistics */}
-      <div className='grid grid-cols-2 gap-3 lg:gap-6'>
+      <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-6'>
         {generalStats.map((stat, index) => (
           <div
             key={index}
@@ -111,7 +111,7 @@ function StatsCards() {
           <h3 className='text-white/70 text-sm font-medium mb-3'>
             Token Statistics
           </h3>
-          <div className='grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4'>
             {filteredTokenStats.map((tokenStat, _index) => (
               <div
                 key={tokenStat.tokenAddress}
@@ -176,28 +176,15 @@ function TransactionFeed() {
     updateFilters({ addressSearch: value });
   };
 
-  const getFilterSummary = () => {
-    const summaryParts = [];
-    if (filters.addressSearch) {
-      summaryParts.push(
-        `Address: ${filters.addressSearch.slice(0, 10)}${filters.addressSearch.length > 10 ? '...' : ''}`
-      );
-    }
-    if (filters.amountRange.min || filters.amountRange.max) {
-      summaryParts.push(
-        `Amount: ${filters.amountRange.min || '0'} - ${filters.amountRange.max || '∞'}`
-      );
-    }
-    if (filters.timeRange.from || filters.timeRange.to) {
-      summaryParts.push('Time filtered');
-    }
-    if (filters.riskLevel !== 'all') {
-      summaryParts.push(`Risk: ${filters.riskLevel}`);
-    }
-    return summaryParts;
-  };
-
-  const filterSummary = getFilterSummary();
+  const filterSummary = getFilterSummary(filters);
+  const hasFilters = hasActiveFilters(filters, {
+    tokens: [],
+    showAnomalies: false,
+    amountRange: { min: '', max: '' },
+    timeRange: { from: '', to: '' },
+    addressSearch: '',
+    riskLevel: 'all',
+  });
 
   return (
     <div className='glass rounded-2xl p-6'>
@@ -266,106 +253,23 @@ function TransactionFeed() {
       <div className='space-y-4'>
         {isInitialLoad ? (
           <InitialLoadingSkeleton />
-        ) : filteredRecentTransactions.length > 0 ? (
+        ) : (
           <>
-            {filteredRecentTransactions.map(tx => (
-              <div
-                key={tx.id}
-                className='glass-dark rounded-lg p-4 animate-slide-up cursor-pointer hover:bg-white/5 transition-all duration-200 border border-transparent hover:border-white/10'
-                onClick={() => handleTransactionClick(tx)}
-              >
-                <div className='flex items-start sm:items-center justify-between'>
-                  <div className='flex items-start sm:items-center space-x-3 sm:space-x-4 flex-1 min-w-0'>
-                    <div className='relative flex-shrink-0'>
-                      <div className='w-8 sm:w-10 h-8 sm:h-10 bg-primary-500/20 rounded-lg flex items-center justify-center'>
-                        <span className='text-primary-400 font-mono text-xs sm:text-sm'>
-                          {tx.token}
-                        </span>
-                      </div>
-                      {(tx.anomalyScore ?? 0) > 0.5 && (
-                        <div className='absolute -top-1 -right-1 w-2.5 sm:w-3 h-2.5 sm:h-3 bg-orange-400 rounded-full border-2 border-dark-900' />
-                      )}
-                    </div>
-                    <div className='flex-1 min-w-0'>
-                      <div className='flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 mb-1'>
-                        <p className='text-white font-mono text-xs sm:text-sm truncate'>
-                          <span className='hidden sm:inline'>
-                            {tx.from.slice(0, 6)}...{tx.from.slice(-4)} →{' '}
-                            {tx.to.slice(0, 6)}...{tx.to.slice(-4)}
-                          </span>
-                          <span className='sm:hidden'>
-                            {tx.from.slice(0, 4)}...{tx.from.slice(-3)} →{' '}
-                            {tx.to.slice(0, 4)}...{tx.to.slice(-3)}
-                          </span>
-                        </p>
-                        <div
-                          className={cn(
-                            'px-2 py-0.5 rounded text-xs font-medium w-fit',
-                            tx.status === 'confirmed'
-                              ? 'bg-green-500/20 text-green-400'
-                              : tx.status === 'pending'
-                                ? 'bg-yellow-500/20 text-yellow-400'
-                                : 'bg-red-500/20 text-red-400'
-                          )}
-                        >
-                          {tx.status}
-                        </div>
-                      </div>
-                      <div className='flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3 text-xs text-white/60'>
-                        <div className='flex items-center space-x-1'>
-                          <Clock className='w-3 h-3' />
-                          <span className='hidden sm:inline'>
-                            {new Date(tx.timestamp).toLocaleString()}
-                          </span>
-                          <span className='sm:hidden'>
-                            {new Date(tx.timestamp).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        {tx.anomalyScore && tx.anomalyScore > 0.3 && (
-                          <div className='flex items-center space-x-1 text-orange-400'>
-                            <TrendingUp className='w-3 h-3' />
-                            <span>
-                              Risk: {(tx.anomalyScore * 100).toFixed(0)}%
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className='text-right flex-shrink-0 ml-2'>
-                    <p className='text-white font-semibold text-sm sm:text-base'>
-                      {tx.value} {tx.token}
-                    </p>
-                    <p className='text-white/60 text-xs hidden sm:block'>
-                      Block #{tx.blockNumber.toLocaleString()}
-                    </p>
-                    <p className='text-white/60 text-xs sm:hidden'>
-                      #{tx.blockNumber.toString().slice(-6)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
+            <TransactionTable
+              transactions={filteredRecentTransactions}
+              onTransactionClick={handleTransactionClick}
+              hasActiveFilters={hasFilters}
+            />
 
             {/* Load More Button */}
-            <LoadMoreButton
-              onLoadMore={loadMore}
-              hasMore={hasMore}
-              isLoading={isLoading}
-            />
+            {filteredRecentTransactions.length > 0 && (
+              <LoadMoreButton
+                onLoadMore={loadMore}
+                hasMore={hasMore}
+                isLoading={isLoading}
+              />
+            )}
           </>
-        ) : (
-          <div className='text-center py-12'>
-            <div className='w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4'>
-              <Activity className='w-8 h-8 text-white/40' />
-            </div>
-            <p className='text-white/60 text-lg mb-2'>No transactions found</p>
-            <p className='text-white/40 text-sm'>
-              {filterSummary.length > 0
-                ? 'No transactions match your current filters'
-                : 'Waiting for new transactions...'}
-            </p>
-          </div>
         )}
       </div>
 
@@ -509,7 +413,7 @@ function DashboardContent() {
         </aside>
 
         {/* Main Content */}
-        <main className='flex-1 p-4 lg:p-6 lg:ml-0'>
+        <main className='flex-1 p-4 lg:p-6 lg:ml-0 overflow-x-hidden'>
           <Routes>
             <Route
               path='/'
