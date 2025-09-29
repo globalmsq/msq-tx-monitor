@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { AddressController } from '../controllers/address.controller';
-import { searchRateLimiter } from '../middleware/rate-limit';
 
 export const addressRoutes = Router();
 const addressController = new AddressController();
@@ -47,11 +46,7 @@ addressRoutes.get('/stats/:address', addressController.getAddressStatistics);
  * @query {number} [limit=10] - Number of results to return (max 20)
  * @returns {AddressSearch[]} Matching addresses with transaction data
  */
-addressRoutes.get(
-  '/search',
-  searchRateLimiter,
-  addressController.searchAddresses
-);
+addressRoutes.get('/search', addressController.searchAddresses);
 
 /**
  * @route GET /api/v1/addresses/:address/profile

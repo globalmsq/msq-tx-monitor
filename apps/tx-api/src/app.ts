@@ -9,11 +9,6 @@ import { databaseMiddleware } from './middleware/database.middleware';
 import { healthCheck } from './controllers/health.controller';
 import { apiRoutes } from './routes';
 import {
-  rateLimiter,
-  speedLimiter,
-  healthRateLimiter,
-} from './middleware/rate-limit';
-import {
   requestId,
   securityHeaders,
   apiVersionHeader,
@@ -40,9 +35,8 @@ app.use(
   })
 );
 
-// Request size and speed limiting
+// Request size limiting
 app.use(requestSizeLimit);
-app.use(speedLimiter);
 
 // CORS configuration
 app.use(
@@ -73,11 +67,9 @@ app.use(databaseMiddleware);
 // Setup API documentation
 setupSwagger(app);
 
-// Health check endpoint with rate limiting
-app.get('/health', healthRateLimiter, healthCheck);
+// Health check endpoint
+app.get('/health', healthCheck);
 
-// Apply global rate limiting to API routes
-app.use('/api/v1', rateLimiter);
 
 // API routes
 app.use('/api/v1', apiRoutes);

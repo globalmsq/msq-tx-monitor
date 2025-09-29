@@ -1,13 +1,13 @@
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import {
   Activity,
   BarChart3,
-  Settings,
   Wallet,
   Wifi,
   WifiOff,
   X,
+  Menu,
 } from 'lucide-react';
 import { useState } from 'react';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
@@ -333,7 +333,29 @@ function TransactionFeed() {
 }
 
 function DashboardContent() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+
+  const navigationItems = [
+    {
+      name: 'Live Transactions',
+      href: '/',
+      icon: Activity,
+      current: location.pathname === '/',
+    },
+    {
+      name: 'Analytics',
+      href: '/analytics',
+      icon: BarChart3,
+      current: location.pathname === '/analytics',
+    },
+    {
+      name: 'Addresses',
+      href: '/addresses',
+      icon: Wallet,
+      current: location.pathname === '/addresses',
+    },
+  ];
 
   return (
     <div className='min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800'>
@@ -341,26 +363,8 @@ function DashboardContent() {
       <header className='glass-dark border-b border-white/10 sticky top-0 z-50'>
         <div className='container mx-auto px-4 sm:px-6 py-4'>
           <div className='flex items-center justify-between'>
+            {/* Left side - Logo and Title */}
             <div className='flex items-center space-x-3'>
-              {/* Mobile menu button */}
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className='p-2 text-white/70 hover:text-white transition-colors lg:hidden'
-              >
-                <svg
-                  className='w-5 h-5'
-                  fill='none'
-                  stroke='currentColor'
-                  viewBox='0 0 24 24'
-                >
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    strokeWidth={2}
-                    d='M4 6h16M4 12h16M4 18h16'
-                  />
-                </svg>
-              </button>
               <div className='w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center'>
                 <Activity className='w-5 h-5 text-white' />
               </div>
@@ -371,113 +375,86 @@ function DashboardContent() {
                 MSQ Monitor
               </h1>
             </div>
+
+            {/* Center - Desktop Navigation */}
+            <nav className='hidden lg:flex items-center space-x-1'>
+              {navigationItems.map((item) => (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center space-x-2 px-4 py-2 rounded-lg transition-all text-sm font-medium',
+                    item.current
+                      ? 'bg-white/10 text-white shadow-glow'
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                  )}
+                >
+                  <item.icon className='w-4 h-4' />
+                  <span>{item.name}</span>
+                </a>
+              ))}
+            </nav>
+
+            {/* Right side - Status and Mobile Menu */}
             <div className='flex items-center space-x-2 sm:space-x-4'>
               <div className='hidden sm:block'>
                 <ConnectionStatus />
               </div>
-              <button className='p-2 text-white/70 hover:text-white transition-colors'>
-                <Settings className='w-5 h-5' />
+
+              {/* Mobile menu button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className='p-2 text-white/70 hover:text-white transition-colors lg:hidden'
+              >
+                <Menu className='w-5 h-5' />
               </button>
             </div>
           </div>
+
+          {/* Mobile Navigation Menu */}
+          {mobileMenuOpen && (
+            <div className='lg:hidden mt-4 pt-4 border-t border-white/10'>
+              <div className='mb-4 sm:hidden'>
+                <ConnectionStatus />
+              </div>
+              <nav className='space-y-2'>
+                {navigationItems.map((item) => (
+                  <a
+                    key={item.name}
+                    href={item.href}
+                    className={cn(
+                      'flex items-center space-x-3 px-3 py-2 rounded-lg transition-all text-sm',
+                      item.current
+                        ? 'bg-white/10 text-white shadow-glow'
+                        : 'text-white/70 hover:text-white hover:bg-white/5'
+                    )}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <item.icon className='w-4 h-4' />
+                    <span>{item.name}</span>
+                  </a>
+                ))}
+              </nav>
+            </div>
+          )}
         </div>
       </header>
 
-      <div className='flex relative'>
-        {/* Mobile Sidebar Overlay */}
-        {sidebarOpen && (
-          <div
-            className='fixed inset-0 bg-black/50 z-40 lg:hidden'
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Sidebar */}
-        <aside
-          className={cn(
-            'w-64 min-h-screen glass-dark border-r border-white/10 transition-transform duration-300 lg:translate-x-0',
-            'fixed lg:static top-0 left-0 z-50',
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          )}
-        >
-          <div className='p-4 lg:p-6'>
-            {/* Mobile close button */}
-            <div className='flex justify-between items-center mb-4 lg:hidden'>
-              <div className='flex items-center space-x-3'>
-                <div className='w-6 h-6 bg-gradient-primary rounded flex items-center justify-center'>
-                  <Activity className='w-4 h-4 text-white' />
-                </div>
-                <span className='text-white font-semibold text-sm'>
-                  MSQ Monitor
-                </span>
+      {/* Main Content - Now full width */}
+      <main className='p-4 lg:p-6 overflow-x-hidden'>
+        <Routes>
+          <Route
+            path='/'
+            element={
+              <div className='space-y-4 lg:space-y-6'>
+                <StatsCards />
+                <TransactionFeed />
               </div>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className='p-2 text-white/70 hover:text-white transition-colors'
-              >
-                <X className='w-5 h-5' />
-              </button>
-            </div>
-
-            {/* Mobile Connection Status */}
-            <div className='mb-4 lg:hidden'>
-              <ConnectionStatus />
-            </div>
-
-            <nav className='space-y-2'>
-              <a
-                href='/'
-                className={cn(
-                  'flex items-center space-x-3 px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-all',
-                  'text-white bg-white/10 shadow-glow text-sm lg:text-base'
-                )}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Activity className='w-4 lg:w-5 h-4 lg:h-5' />
-                <span>Live Transactions</span>
-              </a>
-              <a
-                href='/analytics'
-                className={cn(
-                  'flex items-center space-x-3 px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-all',
-                  'text-white/70 hover:text-white hover:bg-white/5 text-sm lg:text-base'
-                )}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <BarChart3 className='w-4 lg:w-5 h-4 lg:h-5' />
-                <span>Analytics</span>
-              </a>
-              <a
-                href='/addresses'
-                className={cn(
-                  'flex items-center space-x-3 px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-all',
-                  'text-white/70 hover:text-white hover:bg-white/5 text-sm lg:text-base'
-                )}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Wallet className='w-4 lg:w-5 h-4 lg:h-5' />
-                <span>Addresses</span>
-              </a>
-            </nav>
-          </div>
-        </aside>
-
-        {/* Main Content */}
-        <main className='flex-1 p-4 lg:p-6 lg:ml-0 overflow-x-hidden'>
-          <Routes>
-            <Route
-              path='/'
-              element={
-                <div className='space-y-4 lg:space-y-6'>
-                  <StatsCards />
-                  <TransactionFeed />
-                </div>
-              }
-            />
-            <Route path='/analytics' element={<Analytics />} />
-          </Routes>
-        </main>
-      </div>
+            }
+          />
+          <Route path='/analytics' element={<Analytics />} />
+        </Routes>
+      </main>
 
       {/* Toast notifications */}
       <Toaster
