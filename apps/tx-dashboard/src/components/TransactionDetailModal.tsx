@@ -57,8 +57,8 @@ export function TransactionDetailModal({
   const polygonExplorerUrl = `https://polygonscan.com/tx/${transaction.hash}`;
 
   return (
-    <div className='fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4'>
-      <div className='glass rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-auto'>
+    <div className='fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4'>
+      <div className='bg-gray-900/95 backdrop-blur-md border border-white/20 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-auto shadow-2xl'>
         {/* Header */}
         <div className='flex items-center justify-between p-6 border-b border-white/10'>
           <h2 className='text-xl font-bold text-white'>Transaction Details</h2>
@@ -101,8 +101,8 @@ export function TransactionDetailModal({
             <label className='text-sm font-medium text-white/70'>
               Transaction Hash
             </label>
-            <div className='flex items-center space-x-2 glass-dark rounded-lg p-3'>
-              <code className='text-sm text-white font-mono flex-1'>
+            <div className='flex items-center space-x-2 bg-black/40 border border-white/10 rounded-lg p-3'>
+              <code className='text-sm text-white font-mono flex-1 break-all'>
                 {transaction.hash}
               </code>
               <button
@@ -128,8 +128,8 @@ export function TransactionDetailModal({
           <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
             <div className='space-y-2'>
               <label className='text-sm font-medium text-white/70'>From</label>
-              <div className='flex items-center space-x-2 glass-dark rounded-lg p-3'>
-                <code className='text-sm text-white font-mono flex-1'>
+              <div className='flex items-center space-x-2 bg-black/40 border border-white/10 rounded-lg p-3'>
+                <code className='text-sm text-white font-mono flex-1 break-all'>
                   {transaction.from}
                 </code>
                 <button
@@ -143,8 +143,8 @@ export function TransactionDetailModal({
             </div>
             <div className='space-y-2'>
               <label className='text-sm font-medium text-white/70'>To</label>
-              <div className='flex items-center space-x-2 glass-dark rounded-lg p-3'>
-                <code className='text-sm text-white font-mono flex-1'>
+              <div className='flex items-center space-x-2 bg-black/40 border border-white/10 rounded-lg p-3'>
+                <code className='text-sm text-white font-mono flex-1 break-all'>
                   {transaction.to}
                 </code>
                 <button
@@ -164,7 +164,7 @@ export function TransactionDetailModal({
               <label className='text-sm font-medium text-white/70'>
                 Amount
               </label>
-              <div className='glass-dark rounded-lg p-3'>
+              <div className='bg-black/40 border border-white/10 rounded-lg p-3'>
                 <div className='flex items-center space-x-2'>
                   <div className='w-8 h-8 bg-primary-500/20 rounded-lg flex items-center justify-center'>
                     <span className='text-primary-400 font-mono text-xs'>
@@ -183,7 +183,7 @@ export function TransactionDetailModal({
               <label className='text-sm font-medium text-white/70'>
                 Block Number
               </label>
-              <div className='glass-dark rounded-lg p-3'>
+              <div className='bg-black/40 border border-white/10 rounded-lg p-3'>
                 <p className='text-white font-mono'>
                   {transaction.blockNumber.toLocaleString()}
                 </p>
@@ -197,7 +197,7 @@ export function TransactionDetailModal({
               <label className='text-sm font-medium text-white/70'>
                 Gas Used
               </label>
-              <div className='glass-dark rounded-lg p-3'>
+              <div className='bg-black/40 border border-white/10 rounded-lg p-3'>
                 <p className='text-white font-mono'>
                   {parseInt(transaction.gasUsed).toLocaleString()}
                 </p>
@@ -207,7 +207,7 @@ export function TransactionDetailModal({
               <label className='text-sm font-medium text-white/70'>
                 Gas Price (Gwei)
               </label>
-              <div className='glass-dark rounded-lg p-3'>
+              <div className='bg-black/40 border border-white/10 rounded-lg p-3'>
                 <p className='text-white font-mono'>
                   {(parseInt(transaction.gasPrice) / 1e9).toFixed(2)}
                 </p>
@@ -220,7 +220,7 @@ export function TransactionDetailModal({
             <label className='text-sm font-medium text-white/70'>
               Timestamp
             </label>
-            <div className='glass-dark rounded-lg p-3'>
+            <div className='bg-black/40 border border-white/10 rounded-lg p-3'>
               <p className='text-white'>
                 {new Date(transaction.timestamp).toLocaleString()}
               </p>
@@ -237,7 +237,7 @@ export function TransactionDetailModal({
               <label className='text-sm font-medium text-white/70'>
                 Anomaly Analysis
               </label>
-              <div className='glass-dark rounded-lg p-3'>
+              <div className='bg-black/40 border border-white/10 rounded-lg p-3'>
                 <div className='flex items-center justify-between mb-2'>
                   <span className='text-white text-sm'>Anomaly Score</span>
                   <span
