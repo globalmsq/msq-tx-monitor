@@ -14,7 +14,6 @@ export interface Transaction {
   anomaly_score: number;
   anomaly_flags: string[];
   created_at: Date;
-  updated_at: Date;
 }
 
 export interface TransactionFilters {

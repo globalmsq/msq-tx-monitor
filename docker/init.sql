@@ -53,7 +53,6 @@ CREATE TABLE `transactions` (
     `anomalyScore` DECIMAL(5,4) NOT NULL DEFAULT 0.0000,
     `isAnomaly` BOOLEAN NOT NULL DEFAULT false,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
 
     PRIMARY KEY (`id`),
     UNIQUE KEY `transactions_hash_key` (`hash`),
