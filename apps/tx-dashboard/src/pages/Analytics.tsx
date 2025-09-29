@@ -228,6 +228,7 @@ export function Analytics() {
         `addresses/receivers?limit=5${tokenParam}${hoursParam}`,
         `addresses/senders?limit=5${tokenParam}${hoursParam}`,
         `anomalies?${tokenParam.slice(1)}${hoursParam}`,
+        `anomalies/timeseries?hours=${hours}&limit=${limit}${tokenParam}`,
         `network?${tokenParam.slice(1)}${hoursParam}`,
       ];
 
@@ -245,6 +246,7 @@ export function Analytics() {
         topReceiversRes,
         topSendersRes,
         anomalyStatsRes,
+        anomalyTimeSeriesRes,
         networkStatsRes,
       ] = await Promise.all(requests);
 
@@ -268,24 +270,26 @@ export function Analytics() {
 
       const hourlyVolumeData = processHourlyVolumeData(hourlyVolumeRes, token);
 
-      // Mock anomaly time data for demonstration (replace with real endpoint)
-      const mockAnomalyTimeData: AnomalyTimeData[] = Array.from(
-        { length: 24 },
-        (_, i) => {
-          const timestamp = new Date(
-            Date.now() - (23 - i) * 60 * 60 * 1000
-          ).toISOString();
-          return {
-            timestamp,
-            hour: timestamp,
-            anomalyCount: Math.floor(Math.random() * 10) + 1,
-            averageScore: Math.random() * 0.8 + 0.1,
-            highRiskCount: Math.floor(Math.random() * 3),
-            totalTransactions: Math.floor(Math.random() * 1000) + 100,
-            anomalyRate: Math.random() * 5 + 0.5,
-          };
+      // Process anomaly time series data from API
+      const processAnomalyTimeData = (apiResponse: any): AnomalyTimeData[] => {
+        // If API returns real data, use it directly
+        if (apiResponse && apiResponse.success && apiResponse.data && apiResponse.data.length > 0) {
+          return apiResponse.data.map((item: any) => ({
+            timestamp: item.timestamp,
+            hour: item.hour,
+            anomalyCount: item.anomalyCount,
+            averageScore: item.averageScore,
+            highRiskCount: item.highRiskCount,
+            totalTransactions: item.totalTransactions,
+            anomalyRate: item.anomalyRate,
+          }));
         }
-      );
+
+        // If no real data available, return empty array to show "No data" message
+        return [];
+      };
+
+      const anomalyTimeData = processAnomalyTimeData(anomalyTimeSeriesRes);
 
       // Use real hourly volume data (already filtered by token)
       const filteredHourlyVolume = hourlyVolumeData;
@@ -321,7 +325,7 @@ export function Analytics() {
         topReceivers: topReceiversRes.data || [],
         topSenders: topSendersRes.data || [],
         anomalyStats: anomalyStatsRes.data,
-        anomalyTimeData: mockAnomalyTimeData,
+        anomalyTimeData: anomalyTimeData,
         networkStats: networkStatsRes.data,
       });
 

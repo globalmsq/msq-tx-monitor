@@ -18,10 +18,7 @@ export function createApp(): Application {
   // CORS middleware
   app.use(
     cors({
-      origin:
-        process.env.NODE_ENV === 'production'
-          ? ['http://localhost:3000'] // tx-dashboard
-          : true,
+      origin: process.env.CORS_ORIGIN || '*',
       credentials: true,
     })
   );

@@ -375,6 +375,202 @@ export class AnalyticsController {
 
   /**
    * @swagger
+   * /analytics/addresses/receivers:
+   *   get:
+   *     summary: Get top receiver addresses
+   *     description: Get top addresses ranked by incoming transaction count
+   *     tags: [Analytics]
+   *     parameters:
+   *       - name: limit
+   *         in: query
+   *         description: Maximum number of addresses to return
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 100
+   *           default: 10
+   *       - name: token
+   *         in: query
+   *         description: Filter by specific token symbol
+   *         schema:
+   *           type: string
+   *           enum: [MSQ, SUT, KWT, P2UC]
+   *       - name: hours
+   *         in: query
+   *         description: Number of hours to look back
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 720
+   *           default: 24
+   *     responses:
+   *       200:
+   *         description: Top receiver addresses
+   */
+  getTopReceivers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const tokenSymbol = req.query.token as string;
+      const hours = parseInt(req.query.hours as string) || 24;
+
+      // Validate limit parameter
+      if (limit < 1 || limit > 100) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: 'Limit parameter must be between 1 and 100',
+          },
+        });
+        return;
+      }
+
+      // Validate hours parameter
+      if (hours < 1 || hours > 720) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: 'Hours parameter must be between 1 and 720',
+          },
+        });
+        return;
+      }
+
+      // Validate token symbol if provided
+      const validTokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
+      if (tokenSymbol && !validTokens.includes(tokenSymbol.toUpperCase())) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: `Invalid token symbol. Must be one of: ${validTokens.join(', ')}`,
+          },
+        });
+        return;
+      }
+
+      const data = await this.analyticsService.getTopReceivers(
+        limit,
+        hours,
+        tokenSymbol?.toUpperCase()
+      );
+
+      res.status(200).json({
+        success: true,
+        data,
+        metadata: {
+          metric: 'transaction_count',
+          limit,
+          tokenSymbol: tokenSymbol?.toUpperCase(),
+          count: data.length,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * @swagger
+   * /analytics/addresses/senders:
+   *   get:
+   *     summary: Get top sender addresses
+   *     description: Get top addresses ranked by outgoing transaction count
+   *     tags: [Analytics]
+   *     parameters:
+   *       - name: limit
+   *         in: query
+   *         description: Maximum number of addresses to return
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 100
+   *           default: 10
+   *       - name: token
+   *         in: query
+   *         description: Filter by specific token symbol
+   *         schema:
+   *           type: string
+   *           enum: [MSQ, SUT, KWT, P2UC]
+   *       - name: hours
+   *         in: query
+   *         description: Number of hours to look back
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 720
+   *           default: 24
+   *     responses:
+   *       200:
+   *         description: Top sender addresses
+   */
+  getTopSenders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const tokenSymbol = req.query.token as string;
+      const hours = parseInt(req.query.hours as string) || 24;
+
+      // Validate limit parameter
+      if (limit < 1 || limit > 100) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: 'Limit parameter must be between 1 and 100',
+          },
+        });
+        return;
+      }
+
+      // Validate hours parameter
+      if (hours < 1 || hours > 720) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: 'Hours parameter must be between 1 and 720',
+          },
+        });
+        return;
+      }
+
+      // Validate token symbol if provided
+      const validTokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
+      if (tokenSymbol && !validTokens.includes(tokenSymbol.toUpperCase())) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: `Invalid token symbol. Must be one of: ${validTokens.join(', ')}`,
+          },
+        });
+        return;
+      }
+
+      const data = await this.analyticsService.getTopSenders(
+        limit,
+        hours,
+        tokenSymbol?.toUpperCase()
+      );
+
+      res.status(200).json({
+        success: true,
+        data,
+        metadata: {
+          metric: 'transaction_count',
+          limit,
+          tokenSymbol: tokenSymbol?.toUpperCase(),
+          count: data.length,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * @swagger
    * /analytics/anomalies:
    *   get:
    *     summary: Get anomaly statistics
@@ -426,6 +622,104 @@ export class AnalyticsController {
       res.status(200).json({
         success: true,
         data,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * @swagger
+   * /analytics/anomalies/timeseries:
+   *   get:
+   *     summary: Get anomaly time series data
+   *     description: Get hourly anomaly trend data for time series charts
+   *     tags: [Analytics]
+   *     parameters:
+   *       - name: hours
+   *         in: query
+   *         description: Number of hours to look back
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 168
+   *           default: 24
+   *       - name: token
+   *         in: query
+   *         description: Filter by specific token symbol
+   *         schema:
+   *           type: string
+   *           enum: [MSQ, SUT, KWT, P2UC]
+   *       - name: limit
+   *         in: query
+   *         description: Maximum number of hours to return
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 168
+   *           default: 24
+   *     responses:
+   *       200:
+   *         description: Anomaly time series data
+   */
+  getAnomalyTimeSeries = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const hours = parseInt(req.query.hours as string) || 24;
+      const tokenSymbol = req.query.token as string;
+      const limit = parseInt(req.query.limit as string) || 24;
+
+      // Validate hours parameter
+      if (hours < 1 || hours > 168) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: 'Hours parameter must be between 1 and 168',
+          },
+        });
+        return;
+      }
+
+      // Validate limit parameter
+      if (limit < 1 || limit > 168) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: 'Limit parameter must be between 1 and 168',
+          },
+        });
+        return;
+      }
+
+      // Validate token symbol if provided
+      const validTokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
+      if (tokenSymbol && !validTokens.includes(tokenSymbol.toUpperCase())) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: `Invalid token symbol. Must be one of: ${validTokens.join(', ')}`,
+          },
+        });
+        return;
+      }
+
+      const data = await this.analyticsService.getAnomalyTimeSeries(
+        hours,
+        tokenSymbol?.toUpperCase(),
+        limit
+      );
+
+      res.status(200).json({
+        success: true,
+        data,
+        metadata: {
+          hours,
+          tokenSymbol: tokenSymbol?.toUpperCase(),
+          limit,
+          count: data.length,
+        },
       });
     } catch (error) {
       next(error);

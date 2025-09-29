@@ -41,12 +41,42 @@ analyticsRoutes.get('/distribution/token', analyticsController.getTokenDistribut
 analyticsRoutes.get('/addresses/top', analyticsController.getTopAddresses);
 
 /**
+ * @route GET /api/v1/analytics/addresses/receivers
+ * @description Get top addresses ranked by incoming transaction count
+ * @query {number} [limit=10] - Number of addresses to return (1-100)
+ * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
+ * @query {number} [hours=24] - Number of hours to look back (1-720)
+ * @returns {TopAddressesResponse} Top receiver addresses data
+ */
+analyticsRoutes.get('/addresses/receivers', analyticsController.getTopReceivers);
+
+/**
+ * @route GET /api/v1/analytics/addresses/senders
+ * @description Get top addresses ranked by outgoing transaction count
+ * @query {number} [limit=10] - Number of addresses to return (1-100)
+ * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
+ * @query {number} [hours=24] - Number of hours to look back (1-720)
+ * @returns {TopAddressesResponse} Top sender addresses data
+ */
+analyticsRoutes.get('/addresses/senders', analyticsController.getTopSenders);
+
+/**
  * @route GET /api/v1/analytics/anomalies
  * @description Get transaction anomaly statistics and risk scores
  * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
  * @returns {AnomalyStatsResponse} Anomaly statistics and risk metrics
  */
 analyticsRoutes.get('/anomalies', analyticsController.getAnomalyStats);
+
+/**
+ * @route GET /api/v1/analytics/anomalies/timeseries
+ * @description Get hourly anomaly trend data for time series charts
+ * @query {number} [hours=24] - Number of hours to look back (1-168)
+ * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
+ * @query {number} [limit=24] - Maximum number of hours to return (1-168)
+ * @returns {AnomalyTimeSeriesResponse} Hourly anomaly trend data
+ */
+analyticsRoutes.get('/anomalies/timeseries', analyticsController.getAnomalyTimeSeries);
 
 /**
  * @route GET /api/v1/analytics/network
