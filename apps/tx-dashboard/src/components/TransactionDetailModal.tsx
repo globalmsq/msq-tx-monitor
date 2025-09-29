@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import {
   X,
   ExternalLink,
@@ -21,6 +22,25 @@ export function TransactionDetailModal({
   onClose,
 }: TransactionDetailModalProps) {
   if (!isOpen || !transaction) return null;
+
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [isOpen, onClose]);
+
+  const modalRoot = document.getElementById('modal-root');
+  if (!modalRoot) return null;
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -56,8 +76,11 @@ export function TransactionDetailModal({
 
   const polygonExplorerUrl = `https://polygonscan.com/tx/${transaction.hash}`;
 
-  return (
-    <div className='fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4'>
+  const modalContent = (
+    <div
+      className='fixed top-0 left-0 w-full h-full bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4'
+      style={{ position: 'fixed', inset: 0 }}
+    >
       <div className='bg-gray-900/95 backdrop-blur-md border border-white/20 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-auto shadow-2xl'>
         {/* Header */}
         <div className='flex items-center justify-between p-6 border-b border-white/10'>
@@ -290,4 +313,6 @@ export function TransactionDetailModal({
       </div>
     </div>
   );
+
+  return ReactDOM.createPortal(modalContent, modalRoot);
 }
