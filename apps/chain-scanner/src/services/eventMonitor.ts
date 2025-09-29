@@ -32,6 +32,8 @@ export interface ProcessedEvent {
   tokenSymbol: string;
   tokenDecimals: number;
   timestamp: Date;
+  gasPrice?: string;
+  gasUsed?: string;
 }
 
 export class EventMonitor {
@@ -506,6 +508,40 @@ export class EventMonitor {
       const tokenSymbol = this.getTokenSymbol(tokenAddress);
       const tokenDecimals = this.getTokenDecimals(tokenAddress);
 
+      // Get gas information for WebSocket transaction fee calculation
+      let gasPrice: string | undefined;
+      let gasUsed: string | undefined;
+
+      if (this.web3Service.isConnected()) {
+        const web3 = this.web3Service.getWeb3Instance();
+        if (web3) {
+          try {
+            // Get transaction details for gas price
+            const transaction = await web3.eth.getTransaction(
+              eventData.transactionHash
+            );
+            if (transaction?.gasPrice) {
+              gasPrice = transaction.gasPrice.toString();
+            }
+
+            // Get transaction receipt for gas usage
+            const receipt = await web3.eth.getTransactionReceipt(
+              eventData.transactionHash
+            );
+            if (receipt?.gasUsed) {
+              gasUsed = receipt.gasUsed.toString();
+            }
+          } catch (gasError) {
+            if (config.logging.enableBlockchainLogs) {
+              console.warn(
+                `Failed to fetch gas info for WebSocket ${eventData.transactionHash}:`,
+                gasError
+              );
+            }
+          }
+        }
+      }
+
       const processedEvent: ProcessedEvent = {
         type: EVENT_TYPES.NEW_TRANSACTION,
         transactionHash: eventData.transactionHash,
@@ -517,6 +553,8 @@ export class EventMonitor {
         tokenSymbol,
         tokenDecimals,
         timestamp: new Date(),
+        gasPrice,
+        gasUsed,
       };
 
       return processedEvent;

@@ -57,6 +57,26 @@ export function adaptWebSocketTransactionForUI(
     txData.token ||
     'UNKNOWN') as string;
 
+  // Calculate Txn Fee (same logic as API adapter)
+  let txnFee: string | undefined = undefined;
+  if (txData.gasUsed && txData.gasPrice) {
+    try {
+      // Convert to Number for proper decimal division
+      const gasUsed = Number(txData.gasUsed);
+      const gasPrice = Number(txData.gasPrice);
+      const feeInEther = (gasUsed * gasPrice) / 1e18;
+
+      // Format with appropriate precision
+      if (feeInEther < 0.000001) {
+        txnFee = '<0.000001';
+      } else {
+        txnFee = feeInEther.toFixed(6);
+      }
+    } catch (error) {
+      console.warn('Error calculating WebSocket transaction fee:', error);
+    }
+  }
+
   return {
     id: uniqueId,
     hash: (txData.transactionHash || txData.hash || '') as string,
@@ -75,6 +95,7 @@ export function adaptWebSocketTransactionForUI(
     blockNumber: (txData.blockNumber || 0) as number,
     gasUsed: txData.gasUsed?.toString() || '0',
     gasPrice: txData.gasPrice?.toString() || '0',
+    txnFee: txnFee,
     status: 'confirmed' as const,
     anomalyScore: txData.anomalyScore as number | undefined,
   };
