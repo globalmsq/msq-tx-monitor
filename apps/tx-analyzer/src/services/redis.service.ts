@@ -78,7 +78,11 @@ export class RedisService {
     }
 
     try {
-      await this.client.setEx(key, ttlSeconds, JSON.stringify(value));
+      // Custom JSON serializer to handle BigInt values
+      const serializedValue = JSON.stringify(value, (key, val) =>
+        typeof val === 'bigint' ? val.toString() : val
+      );
+      await this.client.setEx(key, ttlSeconds, serializedValue);
       return true;
     } catch (error) {
       console.error('Redis set error:', error);

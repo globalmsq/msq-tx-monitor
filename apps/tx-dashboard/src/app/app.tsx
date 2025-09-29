@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
 import { TransactionTable } from '../components/TransactionTable';
 import { TransactionSearchInput } from '../components/filters/TransactionSearchInput';
+import { Analytics } from '../pages/Analytics';
 import {
   InitialLoadingSkeleton,
   LoadMoreButton,
@@ -473,19 +474,7 @@ function DashboardContent() {
                 </div>
               }
             />
-            <Route
-              path='/analytics'
-              element={
-                <div className='glass rounded-2xl p-4 lg:p-6'>
-                  <h2 className='text-lg lg:text-xl font-bold text-white'>
-                    Analytics Dashboard
-                  </h2>
-                  <p className='text-white/70 mt-2 text-sm lg:text-base'>
-                    Coming soon...
-                  </p>
-                </div>
-              }
-            />
+            <Route path='/analytics' element={<Analytics />} />
           </Routes>
         </main>
       </div>

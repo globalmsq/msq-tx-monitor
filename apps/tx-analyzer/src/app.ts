@@ -2,9 +2,15 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { analyzeRoutes } from './routes/analyze.routes';
+import statisticsRoutes from './routes/statistics.routes';
 
 export function createApp(): Application {
   const app = express();
+
+  // Configure Express to handle BigInt serialization
+  app.set('json replacer', (key: string, value: any) =>
+    typeof value === 'bigint' ? value.toString() : value
+  );
 
   // Security middleware
   app.use(helmet());
@@ -35,6 +41,7 @@ export function createApp(): Application {
 
   // API routes
   app.use('/api/v1/analyze', analyzeRoutes);
+  app.use('/api/v1/statistics', statisticsRoutes);
 
   // Root endpoint
   app.get('/', (req, res) => {
@@ -47,6 +54,14 @@ export function createApp(): Application {
         'GET /api/v1/analyze/trends/daily',
         'GET /api/v1/analyze/tokens',
         'GET /api/v1/analyze/volume',
+        'GET /api/v1/statistics/realtime',
+        'GET /api/v1/statistics/volume/hourly',
+        'GET /api/v1/statistics/volume/daily',
+        'GET /api/v1/statistics/tokens',
+        'GET /api/v1/statistics/addresses/top',
+        'GET /api/v1/statistics/anomalies',
+        'GET /api/v1/statistics/network',
+        'GET /api/v1/statistics/distribution/token',
       ],
     });
   });
