@@ -14,7 +14,7 @@ import {
 import { cn } from '../utils/cn';
 import { FilterState, useUrlFilterSync } from '../hooks/useUrlFilterSync';
 import { FilterPresetManager } from './filters/FilterPresetManager';
-import { AddressSearchInput } from './filters/AddressSearchInput';
+import { TransactionSearchInput } from './filters/TransactionSearchInput';
 import {
   getTimeRangePresets,
   getAmountRangePresets,
@@ -356,17 +356,17 @@ export function AdvancedFilters({
                 </div>
               </div>
 
-              {/* Address Search */}
+              {/* Transaction Search */}
               <div className='space-y-4'>
                 <h3 className='text-lg font-semibold text-white'>
-                  Address Search
+                  Transaction Search
                 </h3>
-                <AddressSearchInput
+                <TransactionSearchInput
                   value={localFilters.addressSearch}
                   onChange={value =>
                     updateLocalFilters({ addressSearch: value })
                   }
-                  placeholder='Search by address (0x...) - supports multiple addresses'
+                  placeholder='Search by address or transaction hash - supports multiple terms'
                 />
               </div>
 

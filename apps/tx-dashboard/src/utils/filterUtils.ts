@@ -54,18 +54,26 @@ export function applyFiltersToTransactions(
       }
     }
 
-    // Address search filter
+    // Address and transaction hash search filter
     if (filters.addressSearch) {
-      const searchAddresses = parseAddressSearch(filters.addressSearch);
-      const matchesAddress = searchAddresses.some(searchAddr => {
-        const lowerSearch = searchAddr.toLowerCase();
+      const searchTerms = parseAddressSearch(filters.addressSearch);
+      const matchesSearch = searchTerms.some(searchTerm => {
+        const lowerSearch = searchTerm.toLowerCase();
+        const searchType = getSearchType(searchTerm);
+
+        // For transaction hash searches, check tx.hash
+        if (searchType === 'hash' || isPartialTransactionHash(searchTerm)) {
+          return tx.hash.toLowerCase().includes(lowerSearch);
+        }
+
+        // For address searches (including partial), check from and to
         return (
           tx.from.toLowerCase().includes(lowerSearch) ||
           tx.to.toLowerCase().includes(lowerSearch)
         );
       });
 
-      if (!matchesAddress) {
+      if (!matchesSearch) {
         return false;
       }
     }
@@ -106,6 +114,36 @@ export function isValidEthereumAddress(address: string): boolean {
  */
 export function isPartialAddressSearch(address: string): boolean {
   return address.startsWith('0x') && address.length < 42;
+}
+
+/**
+ * Validate transaction hash format (0x + 64 hex characters)
+ */
+export function isValidTransactionHash(hash: string): boolean {
+  return /^0x[a-fA-F0-9]{64}$/.test(hash);
+}
+
+/**
+ * Check if search string is a partial transaction hash
+ */
+export function isPartialTransactionHash(hash: string): boolean {
+  return hash.startsWith('0x') && hash.length > 42 && hash.length < 66;
+}
+
+/**
+ * Determine search type based on input string
+ */
+export function getSearchType(
+  input: string
+): 'address' | 'hash' | 'partial' | 'unknown' {
+  if (!input.startsWith('0x')) return 'unknown';
+
+  if (input.length === 42) return 'address';
+  if (input.length === 66) return 'hash';
+  if (input.length > 42 && input.length < 66) return 'partial';
+  if (input.length < 42) return 'partial';
+
+  return 'unknown';
 }
 
 /**

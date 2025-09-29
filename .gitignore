@@ -90,3 +90,4 @@ tsconfig.tsbuildinfo
 .turbo
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
+.github/instructions/nx.instructions.md

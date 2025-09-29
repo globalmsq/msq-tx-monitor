@@ -1,0 +1,1897 @@
+{
+  "graph": {
+    "nodes": {
+      "chain-scanner": {
+        "name": "chain-scanner",
+        "type": "app",
+        "data": {
+          "root": "apps/chain-scanner",
+          "targets": {
+            "eslint:lint": {
+              "cache": true,
+              "options": {
+                "cwd": "apps/chain-scanner",
+                "command": "eslint ."
+              },
+              "inputs": [
+                "default",
+                "^default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                {
+                  "externalDependencies": [
+                    "eslint"
+                  ]
+                }
+              ],
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "metadata": {
+                "technologies": [
+                  "eslint"
+                ],
+                "description": "Runs ESLint on project",
+                "help": {
+                  "command": "pnpm exec eslint --help",
+                  "example": {
+                    "options": {
+                      "max-warnings": 0
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "dev": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "dev"
+              },
+              "metadata": {
+                "scriptContent": "tsx watch --clear-screen=false src/main.ts",
+                "runCommand": "pnpm run dev"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "start": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start"
+              },
+              "metadata": {
+                "scriptContent": "tsx src/main.ts",
+                "runCommand": "pnpm run start"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "start:prod": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start:prod"
+              },
+              "metadata": {
+                "scriptContent": "node dist/main.js",
+                "runCommand": "pnpm run start:prod"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "test:watch": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "test:watch"
+              },
+              "metadata": {
+                "scriptContent": "jest --config jest.config.ts --watch",
+                "runCommand": "pnpm run test:watch"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "test:coverage": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "test:coverage"
+              },
+              "metadata": {
+                "scriptContent": "jest --config jest.config.ts --coverage",
+                "runCommand": "pnpm run test:coverage"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint:fix": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "lint:fix"
+              },
+              "metadata": {
+                "scriptContent": "eslint \"src/**/*.ts\" --fix",
+                "runCommand": "pnpm run lint:fix"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "format": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "format"
+              },
+              "metadata": {
+                "scriptContent": "prettier --check \"src/**/*.ts\"",
+                "runCommand": "pnpm run format"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "format:fix": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "format:fix"
+              },
+              "metadata": {
+                "scriptContent": "prettier --write \"src/**/*.ts\"",
+                "runCommand": "pnpm run format:fix"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "depcheck": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "depcheck"
+              },
+              "metadata": {
+                "scriptContent": "depcheck || true",
+                "runCommand": "pnpm run depcheck"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "typecheck": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "typecheck"
+              },
+              "metadata": {
+                "scriptContent": "tsc --noEmit --project tsconfig.app.json",
+                "runCommand": "pnpm run typecheck"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json"
+              ],
+              "cache": true
+            },
+            "build": {
+              "executor": "@nx/webpack:webpack",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "target": "node",
+                "compiler": "tsc",
+                "outputPath": "dist/apps/chain-scanner",
+                "main": "apps/chain-scanner/src/main.ts",
+                "tsConfig": "apps/chain-scanner/tsconfig.app.json",
+                "webpackConfig": "apps/chain-scanner/webpack.config.js",
+                "assets": []
+              },
+              "configurations": {
+                "production": {
+                  "optimization": true,
+                  "extractLicenses": true,
+                  "inspect": false
+                }
+              },
+              "parallelism": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ],
+              "cache": true
+            },
+            "serve": {
+              "executor": "@nx/js:node",
+              "defaultConfiguration": "development",
+              "options": {
+                "buildTarget": "chain-scanner:build",
+                "port": 8001
+              },
+              "configurations": {
+                "development": {
+                  "buildTarget": "chain-scanner:build:development"
+                },
+                "production": {
+                  "buildTarget": "chain-scanner:build:production"
+                }
+              },
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "options": {
+                "lintFilePatterns": [
+                  "apps/chain-scanner/**/*.ts"
+                ]
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "cache": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/{projectRoot}"
+              ],
+              "options": {
+                "jestConfig": "apps/chain-scanner/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "^production",
+                "{workspaceRoot}/jest.preset.js"
+              ],
+              "cache": true
+            }
+          },
+          "name": "chain-scanner",
+          "tags": [
+            "npm:private",
+            "npm:blockchain",
+            "npm:scanner",
+            "npm:web3",
+            "npm:polygon",
+            "npm:ethereum",
+            "npm:transaction",
+            "npm:monitoring",
+            "npm:msq",
+            "type:app",
+            "scope:backend"
+          ],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": [
+                "dev",
+                "start",
+                "start:prod",
+                "test:watch",
+                "test:coverage",
+                "lint:fix",
+                "format",
+                "format:fix",
+                "depcheck",
+                "typecheck"
+              ]
+            },
+            "description": "Blockchain scanner service for monitoring Polygon network transactions",
+            "js": {
+              "packageName": "@msq-tx-monitor/chain-scanner",
+              "packageMain": "dist/main.js",
+              "isInPackageManagerWorkspaces": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "projectType": "application",
+          "sourceRoot": "apps/chain-scanner/src",
+          "implicitDependencies": []
+        }
+      },
+      "tx-dashboard": {
+        "name": "tx-dashboard",
+        "type": "app",
+        "data": {
+          "root": "apps/tx-dashboard",
+          "targets": {
+            "eslint:lint": {
+              "cache": true,
+              "options": {
+                "cwd": "apps/tx-dashboard",
+                "command": "eslint ."
+              },
+              "inputs": [
+                "default",
+                "^default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/apps/tx-dashboard/.eslintrc.json",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                {
+                  "externalDependencies": [
+                    "eslint"
+                  ]
+                }
+              ],
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "metadata": {
+                "technologies": [
+                  "eslint"
+                ],
+                "description": "Runs ESLint on project",
+                "help": {
+                  "command": "pnpm exec eslint --help",
+                  "example": {
+                    "options": {
+                      "max-warnings": 0
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "build"
+              },
+              "metadata": {
+                "technologies": [
+                  "vite"
+                ],
+                "description": "Run Vite build",
+                "help": {
+                  "command": "pnpm exec vite build --help",
+                  "example": {
+                    "options": {
+                      "sourcemap": true,
+                      "manifest": "manifest.json"
+                    }
+                  }
+                },
+                "scriptContent": "tsc && vite build",
+                "runCommand": "pnpm run build"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ],
+              "cache": true
+            },
+            "serve": {
+              "continuous": true,
+              "options": {
+                "cwd": "apps/tx-dashboard",
+                "command": "vite"
+              },
+              "metadata": {
+                "technologies": [
+                  "vite"
+                ],
+                "description": "Starts Vite dev server",
+                "help": {
+                  "command": "pnpm exec vite --help",
+                  "example": {
+                    "options": {
+                      "port": 3000
+                    }
+                  }
+                },
+                "deprecated": "Use devTargetName instead. This option will be removed in Nx 22."
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "dev": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "dev"
+              },
+              "metadata": {
+                "technologies": [
+                  "vite"
+                ],
+                "description": "Starts Vite dev server",
+                "help": {
+                  "command": "pnpm exec vite --help",
+                  "example": {
+                    "options": {
+                      "port": 3000
+                    }
+                  }
+                },
+                "scriptContent": "vite",
+                "runCommand": "pnpm run dev"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "preview": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "preview"
+              },
+              "metadata": {
+                "technologies": [
+                  "vite"
+                ],
+                "description": "Locally preview Vite production build",
+                "help": {
+                  "command": "pnpm exec vite preview --help",
+                  "example": {
+                    "options": {
+                      "port": 3000
+                    }
+                  }
+                },
+                "scriptContent": "vite preview",
+                "runCommand": "pnpm run preview"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "serve-static": {
+              "continuous": true,
+              "executor": "@nx/web:file-server",
+              "options": {
+                "buildTarget": "build",
+                "spa": true
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "typecheck": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "typecheck"
+              },
+              "metadata": {
+                "description": "Runs type-checking for the project.",
+                "technologies": [
+                  "typescript"
+                ],
+                "help": {
+                  "command": "pnpm exec tsc -p tsconfig.app.json --help",
+                  "example": {
+                    "options": {
+                      "noEmit": true
+                    }
+                  }
+                },
+                "scriptContent": "tsc --noEmit --project tsconfig.app.json",
+                "runCommand": "pnpm run typecheck"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json"
+              ],
+              "cache": true
+            },
+            "build-deps": {
+              "dependsOn": [
+                "^build"
+              ],
+              "configurations": {},
+              "options": {},
+              "parallelism": true,
+              "executor": "nx:noop"
+            },
+            "watch-deps": {
+              "continuous": true,
+              "dependsOn": [
+                "build-deps"
+              ],
+              "executor": "nx:run-commands",
+              "options": {
+                "command": "pnpm exec nx watch --projects tx-dashboard --includeDependentProjects -- pnpm exec nx build-deps tx-dashboard"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "start": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start"
+              },
+              "metadata": {
+                "scriptContent": "vite",
+                "runCommand": "pnpm run start"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "start:prod": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start:prod"
+              },
+              "metadata": {
+                "scriptContent": "vite preview",
+                "runCommand": "pnpm run start:prod"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "test:watch": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "test:watch"
+              },
+              "metadata": {
+                "scriptContent": "jest --config jest.config.ts --watch",
+                "runCommand": "pnpm run test:watch"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "test:coverage": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "test:coverage"
+              },
+              "metadata": {
+                "scriptContent": "jest --config jest.config.ts --coverage",
+                "runCommand": "pnpm run test:coverage"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "lint"
+              },
+              "metadata": {
+                "scriptContent": "eslint \"src/**/*.{ts,tsx}\"",
+                "runCommand": "pnpm run lint"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "cache": true
+            },
+            "lint:fix": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "lint:fix"
+              },
+              "metadata": {
+                "scriptContent": "eslint \"src/**/*.{ts,tsx}\" --fix",
+                "runCommand": "pnpm run lint:fix"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "format": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "format"
+              },
+              "metadata": {
+                "scriptContent": "prettier --check \"src/**/*.{ts,tsx}\"",
+                "runCommand": "pnpm run format"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "format:fix": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "format:fix"
+              },
+              "metadata": {
+                "scriptContent": "prettier --write \"src/**/*.{ts,tsx}\"",
+                "runCommand": "pnpm run format:fix"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "depcheck": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "depcheck"
+              },
+              "metadata": {
+                "scriptContent": "depcheck || true",
+                "runCommand": "pnpm run depcheck"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/{projectRoot}"
+              ],
+              "options": {
+                "jestConfig": "apps/tx-dashboard/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "^production",
+                "{workspaceRoot}/jest.preset.js"
+              ],
+              "cache": true
+            }
+          },
+          "projectType": "application",
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": [
+                "dev",
+                "build",
+                "preview",
+                "start",
+                "start:prod",
+                "test:watch",
+                "test:coverage",
+                "lint",
+                "lint:fix",
+                "format",
+                "format:fix",
+                "depcheck",
+                "typecheck"
+              ]
+            },
+            "description": "Modern React dashboard for MSQ transaction monitoring",
+            "js": {
+              "packageName": "@msq-tx-monitor/tx-dashboard",
+              "packageMain": "dist/index.html",
+              "isInPackageManagerWorkspaces": true
+            }
+          },
+          "name": "tx-dashboard",
+          "tags": [
+            "npm:private",
+            "npm:react",
+            "npm:dashboard",
+            "npm:blockchain",
+            "npm:transaction",
+            "npm:monitoring",
+            "npm:msq",
+            "npm:real-time",
+            "npm:websocket"
+          ],
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "sourceRoot": "apps/tx-dashboard/src",
+          "implicitDependencies": []
+        }
+      },
+      "chain-utils": {
+        "name": "chain-utils",
+        "type": "lib",
+        "data": {
+          "root": "libs/chain-utils",
+          "targets": {
+            "eslint:lint": {
+              "cache": true,
+              "options": {
+                "cwd": "libs/chain-utils",
+                "command": "eslint ."
+              },
+              "inputs": [
+                "default",
+                "^default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                {
+                  "externalDependencies": [
+                    "eslint"
+                  ]
+                }
+              ],
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "metadata": {
+                "technologies": [
+                  "eslint"
+                ],
+                "description": "Runs ESLint on project",
+                "help": {
+                  "command": "pnpm exec eslint --help",
+                  "example": {
+                    "options": {
+                      "max-warnings": 0
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "nx-release-publish": {
+              "executor": "@nx/js:release-publish",
+              "dependsOn": [
+                "^nx-release-publish"
+              ],
+              "options": {},
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "executor": "@nx/js:tsc",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "outputPath": "dist/libs/chain-utils",
+                "main": "libs/chain-utils/src/index.ts",
+                "tsConfig": "libs/chain-utils/tsconfig.lib.json",
+                "assets": []
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ]
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "options": {
+                "lintFilePatterns": [
+                  "libs/chain-utils/**/*.ts"
+                ]
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "cache": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/{projectRoot}"
+              ],
+              "options": {
+                "jestConfig": "libs/chain-utils/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "^production",
+                "{workspaceRoot}/jest.preset.js"
+              ],
+              "cache": true
+            }
+          },
+          "name": "chain-utils",
+          "tags": [
+            "npm:public",
+            "type:lib",
+            "scope:shared"
+          ],
+          "metadata": {
+            "targetGroups": {},
+            "js": {
+              "packageName": "@msq-tx-monitor/chain-utils",
+              "packageMain": "./src/index.ts",
+              "isInPackageManagerWorkspaces": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "projectType": "library",
+          "sourceRoot": "libs/chain-utils/src",
+          "implicitDependencies": []
+        }
+      },
+      "tx-analyzer": {
+        "name": "tx-analyzer",
+        "type": "app",
+        "data": {
+          "root": "apps/tx-analyzer",
+          "targets": {
+            "eslint:lint": {
+              "cache": true,
+              "options": {
+                "cwd": "apps/tx-analyzer",
+                "command": "eslint ."
+              },
+              "inputs": [
+                "default",
+                "^default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                {
+                  "externalDependencies": [
+                    "eslint"
+                  ]
+                }
+              ],
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "metadata": {
+                "technologies": [
+                  "eslint"
+                ],
+                "description": "Runs ESLint on project",
+                "help": {
+                  "command": "pnpm exec eslint --help",
+                  "example": {
+                    "options": {
+                      "max-warnings": 0
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "dev": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "dev"
+              },
+              "metadata": {
+                "scriptContent": "tsx watch --clear-screen=false src/main.ts",
+                "runCommand": "pnpm run dev"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "start": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start"
+              },
+              "metadata": {
+                "scriptContent": "tsx src/main.ts",
+                "runCommand": "pnpm run start"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "start:prod": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start:prod"
+              },
+              "metadata": {
+                "scriptContent": "node dist/main.js",
+                "runCommand": "pnpm run start:prod"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "test:watch": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "test:watch"
+              },
+              "metadata": {
+                "scriptContent": "jest --config jest.config.ts --watch",
+                "runCommand": "pnpm run test:watch"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "test:coverage": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "test:coverage"
+              },
+              "metadata": {
+                "scriptContent": "jest --config jest.config.ts --coverage",
+                "runCommand": "pnpm run test:coverage"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint:fix": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "lint:fix"
+              },
+              "metadata": {
+                "scriptContent": "eslint \"src/**/*.ts\" --fix",
+                "runCommand": "pnpm run lint:fix"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "format": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "format"
+              },
+              "metadata": {
+                "scriptContent": "prettier --check \"src/**/*.ts\"",
+                "runCommand": "pnpm run format"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "format:fix": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "format:fix"
+              },
+              "metadata": {
+                "scriptContent": "prettier --write \"src/**/*.ts\"",
+                "runCommand": "pnpm run format:fix"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "depcheck": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "depcheck"
+              },
+              "metadata": {
+                "scriptContent": "depcheck || true",
+                "runCommand": "pnpm run depcheck"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "serve": {
+              "executor": "nx:run-commands",
+              "defaultConfiguration": "development",
+              "options": {
+                "cwd": "apps/tx-analyzer",
+                "command": "tsx watch --clear-screen=false src/main.ts"
+              },
+              "configurations": {
+                "development": {
+                  "command": "tsx watch --clear-screen=false src/main.ts"
+                },
+                "production": {
+                  "command": "node dist/main.js"
+                }
+              },
+              "parallelism": true
+            },
+            "build": {
+              "executor": "nx:run-commands",
+              "options": {
+                "cwd": "apps/tx-analyzer",
+                "command": "rm -rf dist && tsc --project tsconfig.app.json"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ],
+              "cache": true
+            },
+            "test": {
+              "executor": "nx:run-commands",
+              "options": {
+                "cwd": "apps/tx-analyzer",
+                "command": "jest --config jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "^production",
+                "{workspaceRoot}/jest.preset.js"
+              ],
+              "cache": true
+            },
+            "lint": {
+              "executor": "nx:run-commands",
+              "options": {
+                "cwd": "apps/tx-analyzer",
+                "command": "eslint \"src/**/*.ts\""
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "cache": true
+            },
+            "typecheck": {
+              "executor": "nx:run-commands",
+              "options": {
+                "cwd": "apps/tx-analyzer",
+                "command": "tsc --noEmit --project tsconfig.app.json"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json"
+              ],
+              "cache": true
+            }
+          },
+          "name": "tx-analyzer",
+          "tags": [
+            "npm:private",
+            "npm:express",
+            "npm:analytics",
+            "npm:monitoring",
+            "npm:dashboard",
+            "npm:blockchain",
+            "npm:transaction",
+            "npm:msq",
+            "type:app",
+            "scope:backend",
+            "lang:typescript"
+          ],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": [
+                "dev",
+                "start",
+                "start:prod",
+                "test:watch",
+                "test:coverage",
+                "lint:fix",
+                "format",
+                "format:fix",
+                "depcheck"
+              ]
+            },
+            "description": "Transaction analytics service for dashboard monitoring",
+            "js": {
+              "packageName": "@msq-tx-monitor/tx-analyzer",
+              "packageMain": "dist/main.js",
+              "isInPackageManagerWorkspaces": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "projectType": "application",
+          "sourceRoot": "apps/tx-analyzer/src",
+          "implicitDependencies": []
+        }
+      },
+      "msq-common": {
+        "name": "msq-common",
+        "type": "lib",
+        "data": {
+          "root": "libs/msq-common",
+          "targets": {
+            "eslint:lint": {
+              "cache": true,
+              "options": {
+                "cwd": "libs/msq-common",
+                "command": "eslint ."
+              },
+              "inputs": [
+                "default",
+                "^default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                {
+                  "externalDependencies": [
+                    "eslint"
+                  ]
+                }
+              ],
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "metadata": {
+                "technologies": [
+                  "eslint"
+                ],
+                "description": "Runs ESLint on project",
+                "help": {
+                  "command": "pnpm exec eslint --help",
+                  "example": {
+                    "options": {
+                      "max-warnings": 0
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "nx-release-publish": {
+              "executor": "@nx/js:release-publish",
+              "dependsOn": [
+                "^nx-release-publish"
+              ],
+              "options": {},
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "executor": "@nx/js:tsc",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "outputPath": "dist/libs/msq-common",
+                "main": "libs/msq-common/src/index.ts",
+                "tsConfig": "libs/msq-common/tsconfig.lib.json",
+                "assets": []
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ]
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "options": {
+                "lintFilePatterns": [
+                  "libs/msq-common/**/*.ts"
+                ]
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "cache": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/{projectRoot}"
+              ],
+              "options": {
+                "jestConfig": "libs/msq-common/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "^production",
+                "{workspaceRoot}/jest.preset.js"
+              ],
+              "cache": true
+            }
+          },
+          "name": "msq-common",
+          "tags": [
+            "npm:public",
+            "type:lib",
+            "scope:shared"
+          ],
+          "metadata": {
+            "targetGroups": {},
+            "js": {
+              "packageName": "@msq-tx-monitor/msq-common",
+              "packageMain": "./src/index.ts",
+              "isInPackageManagerWorkspaces": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "projectType": "library",
+          "sourceRoot": "libs/msq-common/src",
+          "implicitDependencies": []
+        }
+      },
+      "@msq-tx-monitor/database": {
+        "name": "@msq-tx-monitor/database",
+        "type": "lib",
+        "data": {
+          "root": "libs/database",
+          "targets": {
+            "eslint:lint": {
+              "cache": true,
+              "options": {
+                "cwd": "libs/database",
+                "command": "eslint ."
+              },
+              "inputs": [
+                "default",
+                "^default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                {
+                  "externalDependencies": [
+                    "eslint"
+                  ]
+                }
+              ],
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "metadata": {
+                "technologies": [
+                  "eslint"
+                ],
+                "description": "Runs ESLint on project",
+                "help": {
+                  "command": "pnpm exec eslint --help",
+                  "example": {
+                    "options": {
+                      "max-warnings": 0
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "prisma:generate": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "prisma:generate"
+              },
+              "metadata": {
+                "scriptContent": "prisma generate --schema=./prisma/schema.prisma",
+                "runCommand": "pnpm run prisma:generate"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "prisma:migrate": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "prisma:migrate"
+              },
+              "metadata": {
+                "scriptContent": "prisma migrate dev --schema=./prisma/schema.prisma",
+                "runCommand": "pnpm run prisma:migrate"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "prisma:deploy": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "prisma:deploy"
+              },
+              "metadata": {
+                "scriptContent": "prisma migrate deploy --schema=./prisma/schema.prisma",
+                "runCommand": "pnpm run prisma:deploy"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "prisma:studio": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "prisma:studio"
+              },
+              "metadata": {
+                "scriptContent": "prisma studio --schema=./prisma/schema.prisma",
+                "runCommand": "pnpm run prisma:studio"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "prisma:reset": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "prisma:reset"
+              },
+              "metadata": {
+                "scriptContent": "prisma migrate reset --schema=./prisma/schema.prisma",
+                "runCommand": "pnpm run prisma:reset"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "prisma:seed": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "prisma:seed"
+              },
+              "metadata": {
+                "scriptContent": "tsx prisma/seed.ts",
+                "runCommand": "pnpm run prisma:seed"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "nx-release-publish": {
+              "executor": "@nx/js:release-publish",
+              "dependsOn": [
+                "^nx-release-publish"
+              ],
+              "options": {},
+              "configurations": {},
+              "parallelism": true
+            }
+          },
+          "name": "@msq-tx-monitor/database",
+          "tags": [
+            "npm:public"
+          ],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": [
+                "prisma:generate",
+                "prisma:migrate",
+                "prisma:deploy",
+                "prisma:studio",
+                "prisma:reset",
+                "prisma:seed"
+              ]
+            },
+            "js": {
+              "packageName": "@msq-tx-monitor/database",
+              "packageMain": "./src/index.js",
+              "isInPackageManagerWorkspaces": true
+            }
+          },
+          "implicitDependencies": []
+        }
+      },
+      "tx-types": {
+        "name": "tx-types",
+        "type": "lib",
+        "data": {
+          "root": "libs/tx-types",
+          "targets": {
+            "eslint:lint": {
+              "cache": true,
+              "options": {
+                "cwd": "libs/tx-types",
+                "command": "eslint ."
+              },
+              "inputs": [
+                "default",
+                "^default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                {
+                  "externalDependencies": [
+                    "eslint"
+                  ]
+                }
+              ],
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "metadata": {
+                "technologies": [
+                  "eslint"
+                ],
+                "description": "Runs ESLint on project",
+                "help": {
+                  "command": "pnpm exec eslint --help",
+                  "example": {
+                    "options": {
+                      "max-warnings": 0
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "nx-release-publish": {
+              "executor": "@nx/js:release-publish",
+              "dependsOn": [
+                "^nx-release-publish"
+              ],
+              "options": {},
+              "configurations": {},
+              "parallelism": true
+            },
+            "build": {
+              "executor": "@nx/js:tsc",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "outputPath": "dist/libs/tx-types",
+                "main": "libs/tx-types/src/index.ts",
+                "tsConfig": "libs/tx-types/tsconfig.lib.json",
+                "assets": []
+              },
+              "configurations": {},
+              "parallelism": true,
+              "cache": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ]
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "options": {
+                "lintFilePatterns": [
+                  "libs/tx-types/**/*.ts"
+                ]
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "cache": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/{projectRoot}"
+              ],
+              "options": {
+                "jestConfig": "libs/tx-types/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "^production",
+                "{workspaceRoot}/jest.preset.js"
+              ],
+              "cache": true
+            }
+          },
+          "name": "tx-types",
+          "tags": [
+            "npm:public",
+            "type:lib",
+            "scope:shared"
+          ],
+          "metadata": {
+            "targetGroups": {},
+            "js": {
+              "packageName": "@msq-tx-monitor/tx-types",
+              "packageMain": "./src/index.ts",
+              "isInPackageManagerWorkspaces": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "projectType": "library",
+          "sourceRoot": "libs/tx-types/src",
+          "implicitDependencies": []
+        }
+      },
+      "tx-api": {
+        "name": "tx-api",
+        "type": "app",
+        "data": {
+          "root": "apps/tx-api",
+          "targets": {
+            "eslint:lint": {
+              "cache": true,
+              "options": {
+                "cwd": "apps/tx-api",
+                "command": "eslint ."
+              },
+              "inputs": [
+                "default",
+                "^default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                {
+                  "externalDependencies": [
+                    "eslint"
+                  ]
+                }
+              ],
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "metadata": {
+                "technologies": [
+                  "eslint"
+                ],
+                "description": "Runs ESLint on project",
+                "help": {
+                  "command": "pnpm exec eslint --help",
+                  "example": {
+                    "options": {
+                      "max-warnings": 0
+                    }
+                  }
+                }
+              },
+              "executor": "nx:run-commands",
+              "configurations": {},
+              "parallelism": true
+            },
+            "dev": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "dev"
+              },
+              "metadata": {
+                "scriptContent": "tsx watch --clear-screen=false src/main.ts",
+                "runCommand": "pnpm run dev"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "start": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start"
+              },
+              "metadata": {
+                "scriptContent": "tsx src/main.ts",
+                "runCommand": "pnpm run start"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "start:prod": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "start:prod"
+              },
+              "metadata": {
+                "scriptContent": "node dist/main.js",
+                "runCommand": "pnpm run start:prod"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "test:watch": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "test:watch"
+              },
+              "metadata": {
+                "scriptContent": "jest --config jest.config.ts --watch",
+                "runCommand": "pnpm run test:watch"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "test:coverage": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "test:coverage"
+              },
+              "metadata": {
+                "scriptContent": "jest --config jest.config.ts --coverage",
+                "runCommand": "pnpm run test:coverage"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "lint:fix": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "lint:fix"
+              },
+              "metadata": {
+                "scriptContent": "eslint \"src/**/*.ts\" --fix",
+                "runCommand": "pnpm run lint:fix"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "format": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "format"
+              },
+              "metadata": {
+                "scriptContent": "prettier --check \"src/**/*.ts\"",
+                "runCommand": "pnpm run format"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "format:fix": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "format:fix"
+              },
+              "metadata": {
+                "scriptContent": "prettier --write \"src/**/*.ts\"",
+                "runCommand": "pnpm run format:fix"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "depcheck": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "depcheck"
+              },
+              "metadata": {
+                "scriptContent": "depcheck || true",
+                "runCommand": "pnpm run depcheck"
+              },
+              "configurations": {},
+              "parallelism": true
+            },
+            "typecheck": {
+              "executor": "nx:run-script",
+              "options": {
+                "script": "typecheck"
+              },
+              "metadata": {
+                "scriptContent": "tsc --noEmit --project tsconfig.app.json",
+                "runCommand": "pnpm run typecheck"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/tsconfig.base.json"
+              ],
+              "cache": true
+            },
+            "build": {
+              "executor": "@nx/webpack:webpack",
+              "outputs": [
+                "{options.outputPath}"
+              ],
+              "options": {
+                "target": "node",
+                "compiler": "tsc",
+                "outputPath": "dist/apps/tx-api",
+                "main": "apps/tx-api/src/main.ts",
+                "tsConfig": "apps/tx-api/tsconfig.app.json",
+                "webpackConfig": "apps/tx-api/webpack.config.js",
+                "assets": []
+              },
+              "configurations": {
+                "development": {
+                  "optimization": false,
+                  "extractLicenses": false,
+                  "inspect": false
+                },
+                "production": {
+                  "optimization": true,
+                  "extractLicenses": true,
+                  "inspect": false
+                }
+              },
+              "parallelism": true,
+              "dependsOn": [
+                "^build"
+              ],
+              "inputs": [
+                "production",
+                "^production"
+              ],
+              "cache": true
+            },
+            "serve": {
+              "executor": "@nx/js:node",
+              "defaultConfiguration": "development",
+              "options": {
+                "buildTarget": "tx-api:build",
+                "runBuildTargetDependencies": false
+              },
+              "configurations": {
+                "development": {
+                  "buildTarget": "tx-api:build:development"
+                },
+                "production": {
+                  "buildTarget": "tx-api:build:production"
+                }
+              },
+              "parallelism": true
+            },
+            "lint": {
+              "executor": "@nx/eslint:lint",
+              "outputs": [
+                "{options.outputFile}"
+              ],
+              "options": {
+                "lintFilePatterns": [
+                  "apps/tx-api/**/*.ts"
+                ]
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore"
+              ],
+              "cache": true
+            },
+            "test": {
+              "executor": "@nx/jest:jest",
+              "outputs": [
+                "{workspaceRoot}/coverage/{projectRoot}"
+              ],
+              "options": {
+                "jestConfig": "apps/tx-api/jest.config.ts"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "inputs": [
+                "default",
+                "^production",
+                "{workspaceRoot}/jest.preset.js"
+              ],
+              "cache": true
+            }
+          },
+          "name": "tx-api",
+          "tags": [
+            "npm:private",
+            "npm:express",
+            "npm:api",
+            "npm:rest",
+            "npm:blockchain",
+            "npm:transaction",
+            "npm:monitoring",
+            "npm:msq",
+            "type:app",
+            "scope:backend"
+          ],
+          "metadata": {
+            "targetGroups": {
+              "NPM Scripts": [
+                "dev",
+                "start",
+                "start:prod",
+                "test:watch",
+                "test:coverage",
+                "lint:fix",
+                "format",
+                "format:fix",
+                "depcheck",
+                "typecheck"
+              ]
+            },
+            "description": "Express.js REST API server for MSQ transaction monitoring",
+            "js": {
+              "packageName": "@msq-tx-monitor/tx-api",
+              "packageMain": "dist/main.js",
+              "isInPackageManagerWorkspaces": true
+            }
+          },
+          "$schema": "../../node_modules/nx/schemas/project-schema.json",
+          "projectType": "application",
+          "sourceRoot": "apps/tx-api/src",
+          "implicitDependencies": []
+        }
+      },
+      "msq-tx-monitor": {
+        "name": "msq-tx-monitor",
+        "type": "app",
+        "data": {
+          "root": ".",
+          "name": "msq-tx-monitor",
+          "includedScripts": [],
+          "tags": [
+            "npm:public",
+            "npm:blockchain",
+            "npm:transaction-monitoring",
+            "npm:polygon",
+            "npm:msq",
+            "npm:real-time",
+            "npm:web3",
+            "npm:nx-monorepo"
+          ],
+          "metadata": {
+            "targetGroups": {},
+            "description": "Real-time Blockchain Transaction Monitoring System for MSQ Wallet Tokens",
+            "js": {
+              "packageName": "msq-tx-monitor",
+              "isInPackageManagerWorkspaces": true
+            }
+          },
+          "targets": {
+            "nx-release-publish": {
+              "executor": "@nx/js:release-publish",
+              "dependsOn": [
+                "^nx-release-publish"
+              ],
+              "options": {},
+              "configurations": {},
+              "parallelism": true
+            },
+            "local-registry": {
+              "executor": "@nx/js:verdaccio",
+              "options": {
+                "port": 4873,
+                "config": ".verdaccio/config.yml",
+                "storage": "tmp/local-registry/storage"
+              },
+              "configurations": {},
+              "parallelism": true,
+              "continuous": true
+            }
+          },
+          "$schema": "node_modules/nx/schemas/project-schema.json",
+          "implicitDependencies": []
+        }
+      }
+    },
+    "dependencies": {
+      "chain-scanner": [
+        {
+          "source": "chain-scanner",
+          "target": "@msq-tx-monitor/database",
+          "type": "static"
+        },
+        {
+          "source": "chain-scanner",
+          "target": "@msq-tx-monitor/database",
+          "type": "dynamic"
+        }
+      ],
+      "tx-dashboard": [
+        {
+          "source": "tx-dashboard",
+          "target": "tx-types",
+          "type": "static"
+        }
+      ],
+      "chain-utils": [],
+      "tx-analyzer": [
+        {
+          "source": "tx-analyzer",
+          "target": "@msq-tx-monitor/database",
+          "type": "static"
+        }
+      ],
+      "msq-common": [],
+      "@msq-tx-monitor/database": [],
+      "tx-types": [],
+      "tx-api": [
+        {
+          "source": "tx-api",
+          "target": "@msq-tx-monitor/database",
+          "type": "static"
+        }
+      ],
+      "msq-tx-monitor": []
+    }
+  }
+}

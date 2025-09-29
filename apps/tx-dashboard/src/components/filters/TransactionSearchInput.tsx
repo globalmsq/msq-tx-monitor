@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, X, Clock, MapPin, ArrowRight } from 'lucide-react';
+import { Search, X, Clock, MapPin, ArrowRight, Hash } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import {
   isValidEthereumAddress,
   isPartialAddressSearch,
   parseAddressSearch,
+  isValidTransactionHash,
+  isPartialTransactionHash,
+  getSearchType,
 } from '../../utils/filterUtils';
 
-interface AddressSearchInputProps {
+interface TransactionSearchInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -17,17 +20,20 @@ interface AddressSearchInputProps {
 interface SearchSuggestion {
   address: string;
   type: 'recent' | 'partial';
+  searchType?: 'address' | 'hash' | 'partial' | 'unknown';
   label?: string;
   timestamp?: number;
 }
 
-const RECENT_ADDRESSES_KEY = 'msq-tx-monitor-recent-addresses';
-const MAX_RECENT_ADDRESSES = 10;
+const RECENT_SEARCHES_KEY = 'msq-tx-monitor-recent-searches';
+const MAX_RECENT_SEARCHES = 10;
 
-// Mock function to simulate getting addresses from transaction history
-// In a real app, this would query your transaction data
-function getMockAddressMatches(query: string): SearchSuggestion[] {
-  // This would normally query your transaction database
+// Mock function to simulate getting matches from transaction history
+// In a real app, this would query your transaction database
+function getMockSearchMatches(query: string): SearchSuggestion[] {
+  const queryType = getSearchType(query);
+
+  // Mock data based on search type
   const mockAddresses = [
     '0x1234567890abcdef1234567890abcdef12345678',
     '0x1234567890abcdef1234567890abcdef87654321',
@@ -36,48 +42,94 @@ function getMockAddressMatches(query: string): SearchSuggestion[] {
     '0xfedcba0987654321fedcba0987654321fedcba09',
   ];
 
+  const mockHashes = [
+    '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12',
+    '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef34',
+    '0x12345678901234567890123456789012345678901234567890123456789012ab',
+  ];
+
   if (query.length < 3) return [];
 
-  return mockAddresses
-    .filter(addr => addr.toLowerCase().includes(query.toLowerCase()))
-    .slice(0, 5)
-    .map(address => ({
-      address,
-      type: 'partial' as const,
-      label: `${address.slice(0, 8)}...${address.slice(-6)}`,
-    }));
+  let matches: SearchSuggestion[] = [];
+
+  // Search addresses
+  if (
+    queryType === 'address' ||
+    queryType === 'partial' ||
+    queryType === 'unknown'
+  ) {
+    matches = matches.concat(
+      mockAddresses
+        .filter(addr => addr.toLowerCase().includes(query.toLowerCase()))
+        .slice(0, 3)
+        .map(address => ({
+          address,
+          type: 'partial' as const,
+          searchType: 'address' as const,
+          label: `${address.slice(0, 8)}...${address.slice(-6)}`,
+        }))
+    );
+  }
+
+  // Search transaction hashes
+  if (
+    queryType === 'hash' ||
+    queryType === 'partial' ||
+    (queryType === 'unknown' && query.length > 10)
+  ) {
+    matches = matches.concat(
+      mockHashes
+        .filter(hash => hash.toLowerCase().includes(query.toLowerCase()))
+        .slice(0, 2)
+        .map(address => ({
+          address,
+          type: 'partial' as const,
+          searchType: 'hash' as const,
+          label: `${address.slice(0, 10)}...${address.slice(-8)}`,
+        }))
+    );
+  }
+
+  return matches.slice(0, 5);
 }
 
-function getRecentAddresses(): SearchSuggestion[] {
+function getRecentSearches(): SearchSuggestion[] {
   try {
-    const stored = localStorage.getItem(RECENT_ADDRESSES_KEY);
+    const stored = localStorage.getItem(RECENT_SEARCHES_KEY);
     return stored ? JSON.parse(stored) : [];
   } catch {
     return [];
   }
 }
 
-function saveRecentAddress(address: string) {
+function saveRecentSearch(searchValue: string) {
   try {
-    const recent = getRecentAddresses();
-    const filtered = recent.filter(item => item.address !== address);
-    const updated = [
-      { address, type: 'recent' as const, timestamp: Date.now() },
-      ...filtered,
-    ].slice(0, MAX_RECENT_ADDRESSES);
+    const recent = getRecentSearches();
+    const searchType = getSearchType(searchValue);
+    const filtered = recent.filter(item => item.address !== searchValue);
 
-    localStorage.setItem(RECENT_ADDRESSES_KEY, JSON.stringify(updated));
+    const updated = [
+      {
+        address: searchValue,
+        type: 'recent' as const,
+        searchType,
+        timestamp: Date.now(),
+      },
+      ...filtered,
+    ].slice(0, MAX_RECENT_SEARCHES);
+
+    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
   } catch (error) {
-    console.error('Failed to save recent address:', error);
+    console.error('Failed to save recent search:', error);
   }
 }
 
-export function AddressSearchInput({
+export function TransactionSearchInput({
   value,
   onChange,
-  placeholder = 'Search addresses...',
+  placeholder = 'Search by address or tx hash...',
   className,
-}: AddressSearchInputProps) {
+}: TransactionSearchInputProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
@@ -92,22 +144,22 @@ export function AddressSearchInput({
   // Update suggestions based on input
   useEffect(() => {
     if (inputValue.trim().length === 0) {
-      setSuggestions(getRecentAddresses());
+      setSuggestions(getRecentSearches());
       return;
     }
 
-    // Parse multiple addresses
-    const addresses = parseAddressSearch(inputValue);
-    const lastAddress = addresses[addresses.length - 1];
+    // Parse multiple search terms
+    const searchTerms = parseAddressSearch(inputValue);
+    const lastTerm = searchTerms[searchTerms.length - 1];
 
-    if (lastAddress && lastAddress.length >= 3) {
-      const matches = getMockAddressMatches(lastAddress);
-      const recent = getRecentAddresses().filter(item =>
-        item.address.toLowerCase().includes(lastAddress.toLowerCase())
+    if (lastTerm && lastTerm.length >= 3) {
+      const matches = getMockSearchMatches(lastTerm);
+      const recent = getRecentSearches().filter(item =>
+        item.address.toLowerCase().includes(lastTerm.toLowerCase())
       );
       setSuggestions([...recent.slice(0, 3), ...matches]);
     } else {
-      setSuggestions(getRecentAddresses());
+      setSuggestions(getRecentSearches());
     }
   }, [inputValue]);
 
@@ -138,12 +190,12 @@ export function AddressSearchInput({
   };
 
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
-    const addresses = parseAddressSearch(inputValue);
+    const searchTerms = parseAddressSearch(inputValue);
 
-    if (addresses.length > 1) {
-      // Replace the last address with the suggestion
-      const newAddresses = [...addresses.slice(0, -1), suggestion.address];
-      const newValue = newAddresses.join(', ');
+    if (searchTerms.length > 1) {
+      // Replace the last search term with the suggestion
+      const newTerms = [...searchTerms.slice(0, -1), suggestion.address];
+      const newValue = newTerms.join(', ');
       setInputValue(newValue);
       onChange(newValue);
     } else {
@@ -153,9 +205,10 @@ export function AddressSearchInput({
 
     if (
       suggestion.type === 'partial' &&
-      isValidEthereumAddress(suggestion.address)
+      (isValidEthereumAddress(suggestion.address) ||
+        isValidTransactionHash(suggestion.address))
     ) {
-      saveRecentAddress(suggestion.address);
+      saveRecentSearch(suggestion.address);
     }
 
     setIsOpen(false);
@@ -167,11 +220,11 @@ export function AddressSearchInput({
       onChange(inputValue);
       setIsOpen(false);
 
-      // Save valid addresses to recent
-      const addresses = parseAddressSearch(inputValue);
-      addresses.forEach(addr => {
-        if (isValidEthereumAddress(addr)) {
-          saveRecentAddress(addr);
+      // Save valid search terms to recent
+      const searchTerms = parseAddressSearch(inputValue);
+      searchTerms.forEach(term => {
+        if (isValidEthereumAddress(term) || isValidTransactionHash(term)) {
+          saveRecentSearch(term);
         }
       });
     } else if (e.key === 'Escape') {
@@ -186,19 +239,24 @@ export function AddressSearchInput({
     inputRef.current?.focus();
   };
 
-  const clearRecentAddresses = () => {
-    localStorage.removeItem(RECENT_ADDRESSES_KEY);
+  const clearRecentSearches = () => {
+    localStorage.removeItem(RECENT_SEARCHES_KEY);
     setSuggestions([]);
   };
 
-  // Parse current addresses for validation display
-  const currentAddresses = parseAddressSearch(inputValue);
-  const hasValidAddresses = currentAddresses.some(addr =>
-    isValidEthereumAddress(addr)
+  // Parse current search terms for validation display
+  const currentSearchTerms = parseAddressSearch(inputValue);
+  const hasValidTerms = currentSearchTerms.some(
+    term => isValidEthereumAddress(term) || isValidTransactionHash(term)
   );
-  const hasPartialAddresses = currentAddresses.some(addr =>
-    isPartialAddressSearch(addr)
+  const hasPartialTerms = currentSearchTerms.some(
+    term => isPartialAddressSearch(term) || isPartialTransactionHash(term)
   );
+
+  // Get search type breakdown
+  const searchTypes = currentSearchTerms.map(term => getSearchType(term));
+  const hasAddresses = searchTypes.some(type => type === 'address');
+  const hasHashes = searchTypes.some(type => type === 'hash');
 
   return (
     <div className={cn('relative', className)}>
@@ -228,17 +286,30 @@ export function AddressSearchInput({
       {inputValue && (
         <div className='flex items-center justify-between mt-1 text-xs'>
           <div className='flex items-center space-x-2'>
-            {hasValidAddresses && (
-              <span className='text-green-400'>✓ Valid addresses found</span>
+            {hasValidTerms && (
+              <div className='flex items-center space-x-1'>
+                <span className='text-green-400'>✓ Valid</span>
+                {hasAddresses && (
+                  <span className='text-green-400 flex items-center'>
+                    <MapPin className='w-3 h-3 mr-1' />
+                    addresses
+                  </span>
+                )}
+                {hasHashes && (
+                  <span className='text-green-400 flex items-center'>
+                    <Hash className='w-3 h-3 mr-1' />
+                    hashes
+                  </span>
+                )}
+                <span className='text-green-400'>found</span>
+              </div>
             )}
-            {hasPartialAddresses && !hasValidAddresses && (
-              <span className='text-yellow-400'>
-                ⚠ Partial address matching
-              </span>
+            {hasPartialTerms && !hasValidTerms && (
+              <span className='text-yellow-400'>⚠ Partial matching</span>
             )}
-            {currentAddresses.length > 1 && (
+            {currentSearchTerms.length > 1 && (
               <span className='text-blue-400'>
-                {currentAddresses.length} addresses
+                {currentSearchTerms.length} search terms
               </span>
             )}
           </div>
@@ -261,7 +332,7 @@ export function AddressSearchInput({
                     <span>Recent</span>
                   </div>
                   <button
-                    onClick={clearRecentAddresses}
+                    onClick={clearRecentSearches}
                     className='text-xs text-white/50 hover:text-white/70 transition-colors'
                   >
                     Clear
@@ -275,7 +346,15 @@ export function AddressSearchInput({
                       onClick={() => handleSuggestionClick(suggestion)}
                       className='w-full flex items-center space-x-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-left'
                     >
-                      <Clock className='w-4 h-4 text-white/40 flex-shrink-0' />
+                      <div className='flex items-center space-x-2 flex-shrink-0'>
+                        <Clock className='w-4 h-4 text-white/40' />
+                        {suggestion.searchType === 'hash' && (
+                          <Hash className='w-3 h-3 text-blue-400' />
+                        )}
+                        {suggestion.searchType === 'address' && (
+                          <MapPin className='w-3 h-3 text-green-400' />
+                        )}
+                      </div>
                       <div className='flex-1 min-w-0'>
                         <p className='text-white text-sm font-mono truncate'>
                           {suggestion.address}
@@ -309,14 +388,23 @@ export function AddressSearchInput({
                       onClick={() => handleSuggestionClick(suggestion)}
                       className='w-full flex items-center space-x-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-left'
                     >
-                      <MapPin className='w-4 h-4 text-white/40 flex-shrink-0' />
+                      <div className='flex items-center space-x-2 flex-shrink-0'>
+                        {suggestion.searchType === 'hash' ? (
+                          <Hash className='w-4 h-4 text-blue-400' />
+                        ) : (
+                          <MapPin className='w-4 h-4 text-green-400' />
+                        )}
+                      </div>
                       <div className='flex-1 min-w-0'>
                         <p className='text-white text-sm font-mono truncate'>
                           {suggestion.address}
                         </p>
                         {suggestion.label && (
                           <p className='text-white/50 text-xs'>
-                            {suggestion.label}
+                            {suggestion.searchType === 'hash'
+                              ? 'Transaction Hash'
+                              : 'Address'}{' '}
+                            - {suggestion.label}
                           </p>
                         )}
                       </div>
@@ -331,8 +419,8 @@ export function AddressSearchInput({
 
       {/* Help text */}
       <p className='text-xs text-white/50 mt-1'>
-        Enter full or partial addresses. Separate multiple addresses with
-        commas.
+        Enter addresses (42 chars) or transaction hashes (66 chars). Separate
+        multiple terms with commas.
       </p>
     </div>
   );

@@ -6,23 +6,14 @@
   "tags": ["type:app", "scope:backend"],
   "targets": {
     "build": {
-      "executor": "@nx/webpack:webpack",
-      "outputs": ["{options.outputPath}"],
+      "executor": "nx:run-commands",
+      "outputs": ["apps/chain-scanner/dist"],
       "options": {
-        "target": "node",
-        "compiler": "tsc",
-        "outputPath": "dist/apps/chain-scanner",
-        "main": "apps/chain-scanner/src/main.ts",
-        "tsConfig": "apps/chain-scanner/tsconfig.app.json",
-        "webpackConfig": "apps/chain-scanner/webpack.config.js",
-        "assets": []
-      },
-      "configurations": {
-        "production": {
-          "optimization": true,
-          "extractLicenses": true,
-          "inspect": false
-        }
+        "commands": [
+          "rm -rf apps/chain-scanner/dist",
+          "tsc --project apps/chain-scanner/tsconfig.app.json"
+        ],
+        "parallel": false
       }
     },
     "serve": {

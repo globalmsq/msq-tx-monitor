@@ -5,8 +5,8 @@
 3. Anlytics 페이지
 4. TX List에 정보 변경
 5. Dashboard에 기본 차트
-    - Transaction 갯수 Chart
-    - Transaction Volume Chart
+   - Transaction 갯수 Chart
+   - Transaction Volume Chart
 6. 24h Volume 수정
 7. 상위 송수신 Address 리스트
 8. Token Statistics 실시간 업데이트

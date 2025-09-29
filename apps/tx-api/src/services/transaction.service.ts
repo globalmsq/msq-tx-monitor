@@ -198,7 +198,9 @@ export class TransactionService {
     if (actualTransactions.length > 0) {
       if (pagination.afterId) {
         // Going forward (older records)
-        nextId = hasMore ? Number(actualTransactions[actualTransactions.length - 1].id) : undefined;
+        nextId = hasMore
+          ? Number(actualTransactions[actualTransactions.length - 1].id)
+          : undefined;
         prevId = Number(actualTransactions[0].id);
         hasPrev = true;
       } else if (pagination.beforeId) {
@@ -208,7 +210,9 @@ export class TransactionService {
         hasPrev = hasMore;
       } else {
         // Initial request (most recent records)
-        nextId = hasMore ? Number(actualTransactions[actualTransactions.length - 1].id) : undefined;
+        nextId = hasMore
+          ? Number(actualTransactions[actualTransactions.length - 1].id)
+          : undefined;
         prevId = undefined;
         hasPrev = false;
       }

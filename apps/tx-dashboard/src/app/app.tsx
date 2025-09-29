@@ -12,7 +12,7 @@ import {
 import { useState } from 'react';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
 import { TransactionTable } from '../components/TransactionTable';
-import { AddressSearchInput } from '../components/filters/AddressSearchInput';
+import { TransactionSearchInput } from '../components/filters/TransactionSearchInput';
 import {
   InitialLoadingSkeleton,
   LoadMoreButton,
@@ -239,12 +239,12 @@ function TransactionFeed() {
 
       {/* Search and Token Selection - Responsive Layout */}
       <div className='flex flex-col lg:flex-row gap-4 lg:items-center mb-6'>
-        {/* Address Search */}
+        {/* Transaction Search */}
         <div className='flex-1'>
-          <AddressSearchInput
+          <TransactionSearchInput
             value={filters.addressSearch}
             onChange={handleAddressSearch}
-            placeholder='Search by address...'
+            placeholder='Search by address or tx hash...'
           />
         </div>
 

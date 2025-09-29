@@ -36,7 +36,9 @@ export class StatisticsService {
   /**
    * Safely convert value to bigint, handling scientific notation
    */
-  private safeBigInt(value: PrismaDecimal | string | number | bigint | null | undefined): bigint {
+  private safeBigInt(
+    value: PrismaDecimal | string | number | bigint | null | undefined
+  ): bigint {
     if (!value) return 0n;
     const strValue = value.toString();
 
@@ -79,7 +81,7 @@ export class StatisticsService {
         activeAddressesResult,
         tokenStatsResult,
         transactionsChange24h,
-        addressesChange24h
+        addressesChange24h,
       ] = await Promise.all([
         this.getTotalTransactions(),
         this.getActiveAddresses(),
@@ -190,9 +192,7 @@ export class StatisticsService {
 
       // Convert average to bigint (may lose some precision but acceptable for display)
       const avgValue = result._avg.value;
-      return avgValue
-        ? BigInt(Math.floor(Number(avgValue.toString())))
-        : 0n;
+      return avgValue ? BigInt(Math.floor(Number(avgValue.toString()))) : 0n;
     } catch (error) {
       console.error('Error getting average transaction size:', error);
       return 0n;
@@ -206,7 +206,9 @@ export class StatisticsService {
     try {
       // Use TokenService to get all active tokens, fallback to transaction data if not available
       if (!this.tokenService) {
-        console.warn('TokenService not available, falling back to transaction-based token discovery');
+        console.warn(
+          'TokenService not available, falling back to transaction-based token discovery'
+        );
 
         // Fallback: Get distinct token addresses from transactions
         const tokenAddresses = await prisma.transaction.findMany({
@@ -237,7 +239,10 @@ export class StatisticsService {
 
       // Get all active tokens from TokenService (includes tokens without transactions)
       const allTokens = this.tokenService.getAllTokens();
-      console.log(`📊 Calculating stats for ${allTokens.length} tokens:`, allTokens.map(t => t.symbol));
+      console.log(
+        `📊 Calculating stats for ${allTokens.length} tokens:`,
+        allTokens.map(t => t.symbol)
+      );
 
       const tokenStatsPromises = allTokens.map(async token => {
         const stats = await this.getTokenStats(token.address);
@@ -276,9 +281,7 @@ export class StatisticsService {
       });
 
       const avgValue = result._avg.value;
-      return avgValue
-        ? BigInt(Math.floor(Number(avgValue.toString())))
-        : 0n;
+      return avgValue ? BigInt(Math.floor(Number(avgValue.toString()))) : 0n;
     } catch (error) {
       console.error(
         `Error getting average tx size for ${tokenAddress}:`,
@@ -446,9 +449,7 @@ export class StatisticsService {
 
       return {
         totalTransactions: transactionCount,
-        volume24h: this.formatCurrency(
-          this.safeBigInt(volume24h._sum.value)
-        ),
+        volume24h: this.formatCurrency(this.safeBigInt(volume24h._sum.value)),
         uniqueHolders: Number(uniqueHolders[0]?.count || 0),
       };
     } catch (error) {
