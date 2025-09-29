@@ -27,7 +27,8 @@ export const config = {
     origin: process.env.CORS_ORIGIN || '*', // Configured via environment variable
     methods: process.env.CORS_METHODS || 'GET,POST,PUT,DELETE,OPTIONS',
     allowedHeaders:
-      process.env.CORS_ALLOWED_HEADERS || 'Content-Type,X-Requested-With,Authorization',
+      process.env.CORS_ALLOWED_HEADERS ||
+      'Content-Type,X-Requested-With,Authorization',
   },
 
   rateLimit: {

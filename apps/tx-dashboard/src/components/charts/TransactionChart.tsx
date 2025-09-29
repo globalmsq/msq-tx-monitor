@@ -40,12 +40,13 @@ function CustomTooltip({ active, payload }: any) {
         <p className='text-white font-medium mb-2'>
           {isValidDate
             ? formatDistanceToNow(new Date(dateStr), { addSuffix: true })
-            : 'Time unavailable'
-          }
+            : 'Time unavailable'}
         </p>
         <div className='space-y-1'>
           <div className='flex items-center justify-between gap-4'>
-            <span className='text-sm' style={{ color: '#06b6d4' }}>Transactions:</span>
+            <span className='text-sm' style={{ color: '#06b6d4' }}>
+              Transactions:
+            </span>
             <span className='text-white'>
               {data.transactionCount.toLocaleString()}
             </span>
@@ -89,7 +90,7 @@ export function TransactionChart({
   data,
   height = 300,
   showGrid = true,
-  tokenSymbol,
+  tokenSymbol: _tokenSymbol,
 }: TransactionChartProps) {
   // Transform data for chart display
   const chartData = data.map((item, index) => {
@@ -103,10 +104,10 @@ export function TransactionChart({
 
   // Calculate appropriate interval based on data length
   const getXAxisInterval = (dataLength: number) => {
-    if (dataLength <= 24) return 'preserveStartEnd';  // 1h, 24h: show all or start/end
-    if (dataLength <= 48) return 'preserveEnd';       // 2d: show end points
-    if (dataLength <= 168) return 24;                 // 7d: show daily (every 24 hours)
-    return 168;                                        // 30d: show weekly (every 7 days = 168 hours)
+    if (dataLength <= 24) return 'preserveStartEnd'; // 1h, 24h: show all or start/end
+    if (dataLength <= 48) return 'preserveEnd'; // 2d: show end points
+    if (dataLength <= 168) return 24; // 7d: show daily (every 24 hours)
+    return 168; // 30d: show weekly (every 7 days = 168 hours)
   };
 
   const xAxisInterval = getXAxisInterval(chartData.length);
@@ -148,11 +149,7 @@ export function TransactionChart({
 
           <Tooltip content={<CustomTooltip />} />
 
-          <Bar
-            dataKey='transactionCount'
-            fill='#06b6d4'
-            name='Transactions'
-          />
+          <Bar dataKey='transactionCount' fill='#06b6d4' name='Transactions' />
         </BarChart>
       </ResponsiveContainer>
     </div>

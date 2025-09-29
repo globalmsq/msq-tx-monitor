@@ -70,7 +70,6 @@ setupSwagger(app);
 // Health check endpoint
 app.get('/health', healthCheck);
 
-
 // API routes
 app.use('/api/v1', apiRoutes);
 

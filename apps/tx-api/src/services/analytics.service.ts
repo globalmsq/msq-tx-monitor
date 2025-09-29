@@ -42,6 +42,13 @@ export class AnalyticsService {
     try {
       const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
 
+      // Determine interval based on time range
+      const intervalMinutes = hours <= 1 ? 5 : 60;
+      const dateFormat =
+        intervalMinutes === 5
+          ? '%Y-%m-%d %H:%i:00' // 5-minute intervals: YYYY-MM-DD HH:MM:00
+          : '%Y-%m-%d %H:00:00'; // Hourly intervals: YYYY-MM-DD HH:00:00
+
       // Use Prisma raw query for complex aggregation
       const whereClause = tokenSymbol
         ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
@@ -49,27 +56,37 @@ export class AnalyticsService {
 
       const query = `
         SELECT
-          DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00') as hour,
+          CONCAT(DATE_FORMAT(timestamp, '${dateFormat}'), 'Z') as hour,
           tokenSymbol,
           SUM(value) as totalVolume,
           COUNT(*) as transactionCount,
           CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
         FROM transactions
         ${whereClause}
-        GROUP BY DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00'), tokenSymbol
+        GROUP BY DATE_FORMAT(timestamp, '${dateFormat}'), tokenSymbol
         ORDER BY hour DESC, tokenSymbol
-        LIMIT ${limit}
+        LIMIT ${limit * 2}
       `;
 
-      const rows = await prisma.$queryRawUnsafe(query) as any[];
+      const rows = (await prisma.$queryRawUnsafe(query)) as any[];
 
-      return rows.map(row => ({
+      const rawData = rows.map(row => ({
         hour: row.hour,
         tokenSymbol: row.tokenSymbol,
         totalVolume: row.totalVolume.toString(),
         transactionCount: parseInt(row.transactionCount.toString()),
         averageVolume: row.averageVolume.toString(),
       }));
+
+      // Fill missing data points with zeros to ensure consistent chart intervals
+      const filledData = this.fillMissingHourlyData(
+        rawData,
+        hours,
+        tokenSymbol,
+        limit
+      );
+
+      return filledData;
     } catch (error) {
       console.error('Error fetching hourly volume data:', error);
       throw new Error('Failed to fetch hourly volume data');
@@ -79,7 +96,10 @@ export class AnalyticsService {
   /**
    * Get realtime statistics
    */
-  async getRealtimeStats(tokenSymbol?: string, hours: number = 24): Promise<RealtimeStats> {
+  async getRealtimeStats(
+    tokenSymbol?: string,
+    hours: number = 24
+  ): Promise<RealtimeStats> {
     try {
       const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
       const whereClause = tokenSymbol
@@ -138,15 +158,27 @@ export class AnalyticsService {
         ${whereTimeRangeClause}
       `;
 
-      const [totalStatsRows, timeRangeStatsRows, tokenStatsRows, activeTokensRows] = await Promise.all([
+      const [
+        totalStatsRows,
+        timeRangeStatsRows,
+        tokenStatsRows,
+        activeTokensRows,
+      ] = await Promise.all([
         prisma.$queryRawUnsafe(totalStatsQuery) as Promise<any[]>,
         prisma.$queryRawUnsafe(timeRangeStatsQuery) as Promise<any[]>,
         prisma.$queryRawUnsafe(tokenStatsQuery) as Promise<any[]>,
         prisma.$queryRawUnsafe(activeTokensQuery) as Promise<any[]>,
       ]);
 
-      const totalStats = totalStatsRows[0] || { totalTransactions: 0, totalVolume: '0', activeAddresses: 0 };
-      const timeRangeStats = timeRangeStatsRows[0] || { transactionsLast24h: 0, volumeLast24h: '0' };
+      const totalStats = totalStatsRows[0] || {
+        totalTransactions: 0,
+        totalVolume: '0',
+        activeAddresses: 0,
+      };
+      const timeRangeStats = timeRangeStatsRows[0] || {
+        transactionsLast24h: 0,
+        volumeLast24h: '0',
+      };
       const activeTokens = activeTokensRows[0]?.activeTokens || 0;
 
       const tokenStats: TokenStats[] = tokenStatsRows.map(row => ({
@@ -161,7 +193,9 @@ export class AnalyticsService {
         totalTransactions: parseInt(totalStats.totalTransactions.toString()),
         totalVolume: totalStats.totalVolume.toString(),
         activeAddresses: parseInt(totalStats.activeAddresses.toString()),
-        transactionsLast24h: parseInt(timeRangeStats.transactionsLast24h.toString()),
+        transactionsLast24h: parseInt(
+          timeRangeStats.transactionsLast24h.toString()
+        ),
         volumeLast24h: timeRangeStats.volumeLast24h.toString(),
         activeTokens: parseInt(activeTokens.toString()),
         tokenStats,
@@ -175,7 +209,10 @@ export class AnalyticsService {
   /**
    * Get token distribution data
    */
-  async getTokenDistribution(tokenSymbol?: string, hours?: number): Promise<any[]> {
+  async getTokenDistribution(
+    tokenSymbol?: string,
+    hours?: number
+  ): Promise<any[]> {
     try {
       let whereClause = '';
       if (hours) {
@@ -184,9 +221,7 @@ export class AnalyticsService {
           ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
           : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
       } else {
-        whereClause = tokenSymbol
-          ? `WHERE tokenSymbol = '${tokenSymbol}'`
-          : '';
+        whereClause = tokenSymbol ? `WHERE tokenSymbol = '${tokenSymbol}'` : '';
       }
 
       const query = `
@@ -200,14 +235,17 @@ export class AnalyticsService {
         ORDER BY volume DESC
       `;
 
-      const rows = await prisma.$queryRawUnsafe(query) as any[];
+      const rows = (await prisma.$queryRawUnsafe(query)) as any[];
 
       // Calculate total volume for percentage calculation
-      const totalVolume = rows.reduce((sum, row) => sum + parseFloat(row.volume.toString()), 0);
+      const totalVolume = rows.reduce(
+        (sum, row) => sum + parseFloat(row.volume.toString()),
+        0
+      );
 
       return rows.map(row => {
         const volume = parseFloat(row.volume.toString());
-        const percentage = totalVolume > 0 ? (volume / totalVolume * 100) : 0;
+        const percentage = totalVolume > 0 ? (volume / totalVolume) * 100 : 0;
 
         return {
           tokenSymbol: row.tokenSymbol,
@@ -240,14 +278,13 @@ export class AnalyticsService {
           ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
           : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
       } else {
-        whereClause = tokenSymbol
-          ? `WHERE tokenSymbol = '${tokenSymbol}'`
-          : '';
+        whereClause = tokenSymbol ? `WHERE tokenSymbol = '${tokenSymbol}'` : '';
       }
 
       // Create a union query to get both from and to addresses
-      const query = metric === 'volume'
-        ? `
+      const query =
+        metric === 'volume'
+          ? `
           SELECT
             address,
             SUM(volume) as totalVolume,
@@ -267,7 +304,7 @@ export class AnalyticsService {
           ORDER BY totalVolume DESC
           LIMIT ${limit}
         `
-        : `
+          : `
           SELECT
             address,
             COUNT(*) as transactionCount,
@@ -286,14 +323,17 @@ export class AnalyticsService {
           LIMIT ${limit}
         `;
 
-      const rows = await prisma.$queryRawUnsafe(query) as any[];
+      const rows = (await prisma.$queryRawUnsafe(query)) as any[];
 
       return rows.map((row, index) => ({
         rank: index + 1,
         address: row.address,
         totalVolume: row.totalVolume?.toString() || '0',
         transactionCount: parseInt(row.transactionCount?.toString() || '0'),
-        metric: metric === 'volume' ? row.totalVolume?.toString() || '0' : row.transactionCount?.toString() || '0',
+        metric:
+          metric === 'volume'
+            ? row.totalVolume?.toString() || '0'
+            : row.transactionCount?.toString() || '0',
       }));
     } catch (error) {
       console.error('Error fetching top addresses:', error);
@@ -304,7 +344,7 @@ export class AnalyticsService {
   /**
    * Get anomaly statistics
    */
-  async getAnomalyStats(tokenSymbol?: string, hours?: number): Promise<any> {
+  async getAnomalyStats(_tokenSymbol?: string, _hours?: number): Promise<any> {
     try {
       // Temporary simple implementation to debug
       return {
@@ -322,7 +362,9 @@ export class AnalyticsService {
       };
     } catch (error) {
       console.error('Error fetching anomaly stats:', error);
-      console.error('Error details:', error.message, error.stack);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message, error.stack);
+      }
       throw new Error('Failed to fetch anomaly stats');
     }
   }
@@ -339,9 +381,7 @@ export class AnalyticsService {
           ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
           : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
       } else {
-        whereClause = tokenSymbol
-          ? `WHERE tokenSymbol = '${tokenSymbol}'`
-          : '';
+        whereClause = tokenSymbol ? `WHERE tokenSymbol = '${tokenSymbol}'` : '';
       }
 
       const query = `
@@ -355,7 +395,7 @@ export class AnalyticsService {
         ${whereClause}
       `;
 
-      const rows = await prisma.$queryRawUnsafe(query) as any[];
+      const rows = (await prisma.$queryRawUnsafe(query)) as any[];
       const result = rows[0];
 
       return {
@@ -388,9 +428,7 @@ export class AnalyticsService {
           ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
           : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
       } else {
-        whereClause = tokenSymbol
-          ? `WHERE tokenSymbol = '${tokenSymbol}'`
-          : '';
+        whereClause = tokenSymbol ? `WHERE tokenSymbol = '${tokenSymbol}'` : '';
       }
 
       const query = `
@@ -405,14 +443,14 @@ export class AnalyticsService {
         LIMIT ${limit}
       `;
 
-      const rows = await prisma.$queryRawUnsafe(query) as any[];
+      const rows = (await prisma.$queryRawUnsafe(query)) as any[];
 
       return rows.map((row, index) => ({
         rank: index + 1,
         address: row.address,
         totalVolume: row.totalVolume?.toString() || '0',
         transactionCount: parseInt(row.transactionCount.toString()),
-        metric: parseInt(row.transactionCount.toString())
+        metric: parseInt(row.transactionCount.toString()),
       }));
     } catch (error) {
       console.error('Error fetching top receivers:', error);
@@ -436,9 +474,7 @@ export class AnalyticsService {
           ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
           : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
       } else {
-        whereClause = tokenSymbol
-          ? `WHERE tokenSymbol = '${tokenSymbol}'`
-          : '';
+        whereClause = tokenSymbol ? `WHERE tokenSymbol = '${tokenSymbol}'` : '';
       }
 
       const query = `
@@ -453,14 +489,14 @@ export class AnalyticsService {
         LIMIT ${limit}
       `;
 
-      const rows = await prisma.$queryRawUnsafe(query) as any[];
+      const rows = (await prisma.$queryRawUnsafe(query)) as any[];
 
       return rows.map((row, index) => ({
         rank: index + 1,
         address: row.address,
         totalVolume: row.totalVolume?.toString() || '0',
         transactionCount: parseInt(row.transactionCount.toString()),
-        metric: parseInt(row.transactionCount.toString())
+        metric: parseInt(row.transactionCount.toString()),
       }));
     } catch (error) {
       console.error('Error fetching top senders:', error);
@@ -487,9 +523,16 @@ export class AnalyticsService {
         ? `${whereClause} AND timestamp >= '${cutoffDate.toISOString()}'`
         : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
 
+      // Determine interval based on time range
+      const intervalMinutes = hours <= 1 ? 5 : 60;
+      const dateFormat =
+        intervalMinutes === 5
+          ? '%Y-%m-%d %H:%i:00' // 5-minute intervals: YYYY-MM-DD HH:MM:00
+          : '%Y-%m-%d %H:00:00'; // Hourly intervals: YYYY-MM-DD HH:00:00
+
       const query = `
         SELECT
-          DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00') as hour,
+          CONCAT(DATE_FORMAT(timestamp, '${dateFormat}'), 'Z') as hour,
           COUNT(*) as totalTransactions,
           SUM(CASE WHEN isAnomaly = true THEN 1 ELSE 0 END) as anomalyCount,
           AVG(anomalyScore) as averageScore,
@@ -497,26 +540,194 @@ export class AnalyticsService {
           (SUM(CASE WHEN isAnomaly = true THEN 1 ELSE 0 END) / COUNT(*) * 100) as anomalyRate
         FROM transactions
         ${timeWhere}
-        GROUP BY DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00')
+        GROUP BY DATE_FORMAT(timestamp, '${dateFormat}')
         ORDER BY hour DESC
-        LIMIT ${limit}
+        LIMIT ${limit * 2}
       `;
 
-      const rows = await prisma.$queryRawUnsafe(query) as any[];
+      const rows = (await prisma.$queryRawUnsafe(query)) as any[];
 
-      // Reverse to get chronological order (oldest to newest)
-      return rows.reverse().map(row => ({
+      const rawData = rows.map(row => ({
         timestamp: row.hour,
         hour: row.hour,
         anomalyCount: parseInt(row.anomalyCount.toString()),
         averageScore: parseFloat(row.averageScore?.toString() || '0'),
         highRiskCount: parseInt(row.highRiskCount.toString()),
         totalTransactions: parseInt(row.totalTransactions.toString()),
-        anomalyRate: parseFloat(row.anomalyRate?.toString() || '0')
+        anomalyRate: parseFloat(row.anomalyRate?.toString() || '0'),
       }));
+
+      // Fill missing data points with zeros to ensure consistent chart intervals
+      const filledData = this.fillMissingAnomalyData(rawData, hours, limit);
+
+      return filledData;
     } catch (error) {
       console.error('Error fetching anomaly time series:', error);
       throw new Error('Failed to fetch anomaly time series');
+    }
+  }
+
+  /**
+   * Generate complete time intervals for consistent chart data
+   */
+  private generateTimeIntervals(
+    hours: number,
+    intervalMinutes: number = 60
+  ): Date[] {
+    const intervals: Date[] = [];
+    const endTime = new Date();
+    // Round down to the nearest interval
+    endTime.setMinutes(
+      Math.floor(endTime.getMinutes() / intervalMinutes) * intervalMinutes
+    );
+    endTime.setSeconds(0);
+    endTime.setMilliseconds(0);
+
+    const startTime = new Date(endTime.getTime() - hours * 60 * 60 * 1000);
+
+    const currentTime = new Date(startTime);
+    while (currentTime <= endTime) {
+      intervals.push(new Date(currentTime));
+      currentTime.setMinutes(currentTime.getMinutes() + intervalMinutes);
+    }
+
+    return intervals;
+  }
+
+  /**
+   * Fill missing hourly volume data points with zeros
+   */
+  private fillMissingHourlyData(
+    data: HourlyVolumeData[],
+    hours: number,
+    tokenSymbol?: string,
+    limit: number = 24
+  ): HourlyVolumeData[] {
+    // Determine interval based on time range
+    const intervalMinutes = hours <= 1 ? 5 : 60; // 5 minutes for 1h, 60 minutes for others
+    const expectedPoints = this.getExpectedDataPoints(hours, limit);
+
+    // Generate all expected time intervals
+    const timeIntervals = this.generateTimeIntervals(hours, intervalMinutes);
+
+    // Take only the required number of points (latest ones)
+    const requiredIntervals = timeIntervals.slice(-expectedPoints);
+
+    // Create a map of existing data for quick lookup
+    const dataMap = new Map<string, HourlyVolumeData>();
+    data.forEach(item => {
+      const hourKey = this.formatHourKey(item.hour, intervalMinutes);
+      dataMap.set(hourKey, item);
+    });
+
+    // Fill missing data points
+    const filledData: HourlyVolumeData[] = requiredIntervals.map(interval => {
+      const hourKey = this.formatHourKey(
+        interval.toISOString(),
+        intervalMinutes
+      );
+      const existingData = dataMap.get(hourKey);
+
+      if (existingData) {
+        return existingData;
+      } else {
+        // Create zero data point for missing interval
+        return {
+          hour: interval.toISOString().replace('T', ' ').substring(0, 19) + 'Z',
+          tokenSymbol: tokenSymbol || 'UNKNOWN',
+          totalVolume: '0',
+          transactionCount: 0,
+          averageVolume: '0',
+        };
+      }
+    });
+
+    return filledData; // Return in chronological order (oldest to newest)
+  }
+
+  /**
+   * Fill missing anomaly time series data points with zeros
+   */
+  private fillMissingAnomalyData(
+    data: any[],
+    hours: number,
+    limit: number = 24
+  ): any[] {
+    // Determine interval based on time range
+    const intervalMinutes = hours <= 1 ? 5 : 60; // 5 minutes for 1h, 60 minutes for others
+    const expectedPoints = this.getExpectedDataPoints(hours, limit);
+
+    // Generate all expected time intervals
+    const timeIntervals = this.generateTimeIntervals(hours, intervalMinutes);
+
+    // Take only the required number of points (latest ones)
+    const requiredIntervals = timeIntervals.slice(-expectedPoints);
+
+    // Create a map of existing data for quick lookup
+    const dataMap = new Map<string, any>();
+    data.forEach(item => {
+      const hourKey = this.formatHourKey(item.hour, intervalMinutes);
+      dataMap.set(hourKey, item);
+    });
+
+    // Fill missing data points
+    const filledData = requiredIntervals.map(interval => {
+      const hourKey = this.formatHourKey(
+        interval.toISOString(),
+        intervalMinutes
+      );
+      const existingData = dataMap.get(hourKey);
+
+      if (existingData) {
+        return existingData;
+      } else {
+        // Create zero data point for missing interval
+        const hourString =
+          interval.toISOString().replace('T', ' ').substring(0, 19) + 'Z';
+        return {
+          timestamp: hourString,
+          hour: hourString,
+          anomalyCount: 0,
+          averageScore: 0,
+          highRiskCount: 0,
+          totalTransactions: 0,
+          anomalyRate: 0,
+        };
+      }
+    });
+
+    return filledData; // Return in chronological order (oldest to newest)
+  }
+
+  /**
+   * Get expected number of data points based on time range and limit
+   */
+  private getExpectedDataPoints(hours: number, limit: number): number {
+    if (hours <= 1) return 12; // 5-minute intervals for 1 hour
+    if (hours <= 24) return 24; // Hourly intervals for 24 hours
+    if (hours <= 168) return Math.min(168, limit); // Hourly for 7 days (max 168)
+    return Math.min(720, limit); // Hourly for 30 days (max 720)
+  }
+
+  /**
+   * Format hour key for consistent lookup
+   */
+  private formatHourKey(hourString: string, intervalMinutes: number): string {
+    const date = new Date(hourString);
+
+    if (intervalMinutes === 5) {
+      // For 5-minute intervals, round to nearest 5 minutes
+      const minutes = Math.floor(date.getMinutes() / 5) * 5;
+      date.setMinutes(minutes);
+      date.setSeconds(0);
+      date.setMilliseconds(0);
+      return date.toISOString().replace('T', ' ').substring(0, 16) + ':00';
+    } else {
+      // For hourly intervals, round to hour
+      date.setMinutes(0);
+      date.setSeconds(0);
+      date.setMilliseconds(0);
+      return date.toISOString().replace('T', ' ').substring(0, 13) + ':00:00';
     }
   }
 

@@ -1,14 +1,6 @@
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import {
-  Activity,
-  BarChart3,
-  Wallet,
-  Wifi,
-  WifiOff,
-  X,
-  Menu,
-} from 'lucide-react';
+import { Activity, BarChart3, Wallet, Wifi, WifiOff, Menu } from 'lucide-react';
 import { useState } from 'react';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
 import { TransactionTable } from '../components/TransactionTable';
@@ -378,7 +370,7 @@ function DashboardContent() {
 
             {/* Center - Desktop Navigation */}
             <nav className='hidden lg:flex items-center space-x-1'>
-              {navigationItems.map((item) => (
+              {navigationItems.map(item => (
                 <a
                   key={item.name}
                   href={item.href}
@@ -418,7 +410,7 @@ function DashboardContent() {
                 <ConnectionStatus />
               </div>
               <nav className='space-y-2'>
-                {navigationItems.map((item) => (
+                {navigationItems.map(item => (
                   <a
                     key={item.name}
                     href={item.href}

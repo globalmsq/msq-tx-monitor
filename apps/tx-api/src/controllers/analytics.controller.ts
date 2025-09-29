@@ -65,7 +65,11 @@ export class AnalyticsController {
    *                       averageVolume:
    *                         type: string
    */
-  getHourlyVolume = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getHourlyVolume = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const hours = parseInt(req.query.hours as string) || 24;
       const tokenSymbol = req.query.token as string;
@@ -155,7 +159,11 @@ export class AnalyticsController {
    *       200:
    *         description: Realtime statistics
    */
-  getRealtimeStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getRealtimeStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
       const hours = parseInt(req.query.hours as string) || 24;
@@ -185,7 +193,10 @@ export class AnalyticsController {
         return;
       }
 
-      const data = await this.analyticsService.getRealtimeStats(tokenSymbol?.toUpperCase(), hours);
+      const data = await this.analyticsService.getRealtimeStats(
+        tokenSymbol?.toUpperCase(),
+        hours
+      );
 
       res.status(200).json({
         success: true,
@@ -221,10 +232,16 @@ export class AnalyticsController {
    *       200:
    *         description: Token distribution data
    */
-  getTokenDistribution = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getTokenDistribution = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
-      const hours = req.query.hours ? parseInt(req.query.hours as string) : undefined;
+      const hours = req.query.hours
+        ? parseInt(req.query.hours as string)
+        : undefined;
 
       // Validate hours parameter if provided
       if (hours !== undefined && (hours < 1 || hours > 720)) {
@@ -251,7 +268,10 @@ export class AnalyticsController {
         return;
       }
 
-      const data = await this.analyticsService.getTokenDistribution(tokenSymbol?.toUpperCase(), hours);
+      const data = await this.analyticsService.getTokenDistribution(
+        tokenSymbol?.toUpperCase(),
+        hours
+      );
 
       res.status(200).json({
         success: true,
@@ -295,12 +315,18 @@ export class AnalyticsController {
    *       200:
    *         description: Top addresses data
    */
-  getTopAddresses = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getTopAddresses = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const metric = (req.query.metric as string) || 'volume';
       const limit = parseInt(req.query.limit as string) || 10;
       const tokenSymbol = req.query.token as string;
-      const hours = req.query.hours ? parseInt(req.query.hours as string) : undefined;
+      const hours = req.query.hours
+        ? parseInt(req.query.hours as string)
+        : undefined;
 
       // Validate hours parameter if provided
       if (hours !== undefined && (hours < 1 || hours > 720)) {
@@ -407,7 +433,11 @@ export class AnalyticsController {
    *       200:
    *         description: Top receiver addresses
    */
-  getTopReceivers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getTopReceivers = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const tokenSymbol = req.query.token as string;
@@ -505,7 +535,11 @@ export class AnalyticsController {
    *       200:
    *         description: Top sender addresses
    */
-  getTopSenders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getTopSenders = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const tokenSymbol = req.query.token as string;
@@ -587,10 +621,16 @@ export class AnalyticsController {
    *       200:
    *         description: Anomaly statistics
    */
-  getAnomalyStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getAnomalyStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
-      const hours = req.query.hours ? parseInt(req.query.hours as string) : undefined;
+      const hours = req.query.hours
+        ? parseInt(req.query.hours as string)
+        : undefined;
 
       // Validate hours parameter if provided
       if (hours !== undefined && (hours < 1 || hours > 720)) {
@@ -617,7 +657,10 @@ export class AnalyticsController {
         return;
       }
 
-      const data = await this.analyticsService.getAnomalyStats(tokenSymbol?.toUpperCase(), hours);
+      const data = await this.analyticsService.getAnomalyStats(
+        tokenSymbol?.toUpperCase(),
+        hours
+      );
 
       res.status(200).json({
         success: true,
@@ -662,7 +705,11 @@ export class AnalyticsController {
    *       200:
    *         description: Anomaly time series data
    */
-  getAnomalyTimeSeries = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getAnomalyTimeSeries = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const hours = parseInt(req.query.hours as string) || 24;
       const tokenSymbol = req.query.token as string;
@@ -744,10 +791,16 @@ export class AnalyticsController {
    *       200:
    *         description: Network statistics
    */
-  getNetworkStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getNetworkStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
-      const hours = req.query.hours ? parseInt(req.query.hours as string) : undefined;
+      const hours = req.query.hours
+        ? parseInt(req.query.hours as string)
+        : undefined;
 
       // Validate hours parameter if provided
       if (hours !== undefined && (hours < 1 || hours > 720)) {
@@ -774,7 +827,10 @@ export class AnalyticsController {
         return;
       }
 
-      const data = await this.analyticsService.getNetworkStats(tokenSymbol?.toUpperCase(), hours);
+      const data = await this.analyticsService.getNetworkStats(
+        tokenSymbol?.toUpperCase(),
+        hours
+      );
 
       res.status(200).json({
         success: true,

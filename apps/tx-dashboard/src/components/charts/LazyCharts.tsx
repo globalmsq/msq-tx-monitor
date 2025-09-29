@@ -23,7 +23,9 @@ const AnomalyChart = React.lazy(() =>
 );
 
 const TransactionChart = React.lazy(() =>
-  import('./TransactionChart').then(module => ({ default: module.TransactionChart }))
+  import('./TransactionChart').then(module => ({
+    default: module.TransactionChart,
+  }))
 );
 
 // Loading fallback component

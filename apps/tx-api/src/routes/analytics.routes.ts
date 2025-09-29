@@ -28,7 +28,10 @@ analyticsRoutes.get('/realtime', analyticsController.getRealtimeStats);
  * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
  * @returns {TokenDistributionResponse} Token distribution data
  */
-analyticsRoutes.get('/distribution/token', analyticsController.getTokenDistribution);
+analyticsRoutes.get(
+  '/distribution/token',
+  analyticsController.getTokenDistribution
+);
 
 /**
  * @route GET /api/v1/analytics/addresses/top
@@ -48,7 +51,10 @@ analyticsRoutes.get('/addresses/top', analyticsController.getTopAddresses);
  * @query {number} [hours=24] - Number of hours to look back (1-720)
  * @returns {TopAddressesResponse} Top receiver addresses data
  */
-analyticsRoutes.get('/addresses/receivers', analyticsController.getTopReceivers);
+analyticsRoutes.get(
+  '/addresses/receivers',
+  analyticsController.getTopReceivers
+);
 
 /**
  * @route GET /api/v1/analytics/addresses/senders
@@ -76,7 +82,10 @@ analyticsRoutes.get('/anomalies', analyticsController.getAnomalyStats);
  * @query {number} [limit=24] - Maximum number of hours to return (1-168)
  * @returns {AnomalyTimeSeriesResponse} Hourly anomaly trend data
  */
-analyticsRoutes.get('/anomalies/timeseries', analyticsController.getAnomalyTimeSeries);
+analyticsRoutes.get(
+  '/anomalies/timeseries',
+  analyticsController.getAnomalyTimeSeries
+);
 
 /**
  * @route GET /api/v1/analytics/network

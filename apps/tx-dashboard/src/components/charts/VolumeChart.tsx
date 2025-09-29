@@ -42,12 +42,13 @@ function CustomTooltip({ active, payload }: any) {
         <p className='text-white font-medium mb-2'>
           {isValidDate
             ? formatDistanceToNow(new Date(dateStr), { addSuffix: true })
-            : 'Time unavailable'
-          }
+            : 'Time unavailable'}
         </p>
         <div className='space-y-1'>
           <div className='flex items-center justify-between gap-4'>
-            <span className='text-sm' style={{ color: '#8b5cf6' }}>Volume:</span>
+            <span className='text-sm' style={{ color: '#8b5cf6' }}>
+              Volume:
+            </span>
             <span className='text-white font-mono'>
               {formatVolume(data.totalVolume, data.tokenSymbol)}
             </span>
@@ -118,10 +119,10 @@ export function VolumeChart({
 
   // Calculate appropriate interval based on data length
   const getXAxisInterval = (dataLength: number) => {
-    if (dataLength <= 24) return 'preserveStartEnd';  // 1h, 24h: show all or start/end
-    if (dataLength <= 48) return 'preserveEnd';       // 2d: show end points
-    if (dataLength <= 168) return 24;                 // 7d: show daily (every 24 hours)
-    return 168;                                        // 30d: show weekly (every 7 days = 168 hours)
+    if (dataLength <= 24) return 'preserveStartEnd'; // 1h, 24h: show all or start/end
+    if (dataLength <= 48) return 'preserveEnd'; // 2d: show end points
+    if (dataLength <= 168) return 24; // 7d: show daily (every 24 hours)
+    return 168; // 30d: show weekly (every 7 days = 168 hours)
   };
 
   const xAxisInterval = getXAxisInterval(chartData.length);
@@ -168,7 +169,10 @@ export function VolumeChart({
             tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }}
             tickFormatter={value => {
               const decimals = getTokenDecimals(tokenSymbol || 'MSQ');
-              return formatVolume((value * Math.pow(10, decimals)).toString(), tokenSymbol);
+              return formatVolume(
+                (value * Math.pow(10, decimals)).toString(),
+                tokenSymbol
+              );
             }}
           />
 
@@ -183,7 +187,6 @@ export function VolumeChart({
             fillOpacity={gradient ? 1 : 0.3}
             name='Total Volume'
           />
-
         </AreaChart>
       </ResponsiveContainer>
     </div>
