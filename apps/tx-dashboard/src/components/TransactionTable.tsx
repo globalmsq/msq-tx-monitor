@@ -40,7 +40,7 @@ function TableRow({ transaction, onClick, isEven }: TableRowProps) {
       onClick={() => onClick(transaction)}
     >
       {/* Transaction Hash */}
-      <td className='px-4 py-3'>
+      <td className='px-4 py-3 whitespace-nowrap'>
         <div className='flex items-center space-x-2'>
           <span
             className='text-primary-400 font-mono text-sm hover:text-primary-300 cursor-pointer'
@@ -59,7 +59,7 @@ function TableRow({ transaction, onClick, isEven }: TableRowProps) {
       </td>
 
       {/* Token/Method */}
-      <td className='px-4 py-3'>
+      <td className='px-4 py-3 whitespace-nowrap'>
         <div className='flex items-center space-x-2'>
           <div className='w-6 h-6 bg-primary-500/20 rounded-md flex items-center justify-center'>
             <span className='text-primary-400 font-mono text-xs'>
@@ -71,7 +71,7 @@ function TableRow({ transaction, onClick, isEven }: TableRowProps) {
       </td>
 
       {/* Block */}
-      <td className='px-4 py-3 hidden sm:table-cell'>
+      <td className='px-4 py-3 hidden sm:table-cell whitespace-nowrap'>
         <span
           className='text-primary-400 text-sm hover:text-primary-300 cursor-pointer'
           title={`Block #${transaction.blockNumber.toLocaleString()}`}
@@ -81,7 +81,7 @@ function TableRow({ transaction, onClick, isEven }: TableRowProps) {
       </td>
 
       {/* Age */}
-      <td className='px-4 py-3'>
+      <td className='px-4 py-3 whitespace-nowrap'>
         <span
           className='text-white/70 text-sm'
           title={new Date(transaction.timestamp).toLocaleString()}
@@ -91,7 +91,7 @@ function TableRow({ transaction, onClick, isEven }: TableRowProps) {
       </td>
 
       {/* From */}
-      <td className='px-4 py-3'>
+      <td className='px-4 py-3 whitespace-nowrap'>
         <div className='flex items-center space-x-2'>
           {/* Desktop: From only */}
           <div className='hidden lg:flex items-center space-x-2'>
@@ -130,7 +130,7 @@ function TableRow({ transaction, onClick, isEven }: TableRowProps) {
       </td>
 
       {/* To */}
-      <td className='px-4 py-3 hidden lg:table-cell'>
+      <td className='px-4 py-3 hidden lg:table-cell whitespace-nowrap'>
         <div className='flex items-center space-x-2'>
           <span
             className='text-white/80 font-mono text-sm hover:text-white cursor-pointer'
@@ -149,7 +149,7 @@ function TableRow({ transaction, onClick, isEven }: TableRowProps) {
       </td>
 
       {/* Value */}
-      <td className='px-4 py-3 text-right'>
+      <td className='px-4 py-3 text-right whitespace-nowrap'>
         <div className='flex flex-col items-end'>
           <span className='text-white font-semibold text-sm'>
             {transaction.value} {transaction.token}
@@ -164,7 +164,7 @@ function TableRow({ transaction, onClick, isEven }: TableRowProps) {
       </td>
 
       {/* Txn Fee */}
-      <td className='px-4 py-3 text-right hidden lg:table-cell'>
+      <td className='px-4 py-3 text-right hidden lg:table-cell whitespace-nowrap'>
         <span className='text-white/70 text-sm'>
           {transaction.txnFee || '-'}
         </span>
@@ -200,29 +200,29 @@ export function TransactionTable({
         <table className='w-full min-w-[600px]'>
           <thead>
             <tr className='border-b border-white/10'>
-              <th className='px-4 py-3 text-left text-sm font-medium text-white/70'>
+              <th className='px-4 py-3 text-left text-sm font-medium text-white/70 whitespace-nowrap'>
                 Txn Hash
               </th>
-              <th className='px-4 py-3 text-left text-sm font-medium text-white/70'>
+              <th className='px-4 py-3 text-left text-sm font-medium text-white/70 whitespace-nowrap'>
                 Method
               </th>
-              <th className='px-4 py-3 text-left text-sm font-medium text-white/70 hidden sm:table-cell'>
+              <th className='px-4 py-3 text-left text-sm font-medium text-white/70 hidden sm:table-cell whitespace-nowrap'>
                 Block
               </th>
-              <th className='px-4 py-3 text-left text-sm font-medium text-white/70'>
+              <th className='px-4 py-3 text-left text-sm font-medium text-white/70 whitespace-nowrap'>
                 Age
               </th>
-              <th className='px-4 py-3 text-left text-sm font-medium text-white/70'>
+              <th className='px-4 py-3 text-left text-sm font-medium text-white/70 whitespace-nowrap'>
                 <span className='hidden lg:inline'>From</span>
                 <span className='lg:hidden'>From / To</span>
               </th>
-              <th className='px-4 py-3 text-left text-sm font-medium text-white/70 hidden lg:table-cell'>
+              <th className='px-4 py-3 text-left text-sm font-medium text-white/70 hidden lg:table-cell whitespace-nowrap'>
                 To
               </th>
-              <th className='px-4 py-3 text-right text-sm font-medium text-white/70'>
+              <th className='px-4 py-3 text-right text-sm font-medium text-white/70 whitespace-nowrap'>
                 Value
               </th>
-              <th className='px-4 py-3 text-right text-sm font-medium text-white/70 hidden lg:table-cell'>
+              <th className='px-4 py-3 text-right text-sm font-medium text-white/70 hidden lg:table-cell whitespace-nowrap'>
                 Txn Fee
               </th>
             </tr>
