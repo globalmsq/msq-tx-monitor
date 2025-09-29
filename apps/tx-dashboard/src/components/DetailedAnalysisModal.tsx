@@ -397,7 +397,7 @@ export function DetailedAnalysisModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {getPaginatedTransactions().map((tx, index) => (
+                      {getPaginatedTransactions().map((tx, _index) => (
                         <tr
                           key={tx.hash}
                           className='border-b border-white/10 hover:bg-white/5'

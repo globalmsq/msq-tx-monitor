@@ -9,6 +9,7 @@ import {
   Tooltip,
 } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
+import { getTokenDecimals } from '../../config/tokens';
 
 interface VolumeDataPoint {
   timestamp: string;
@@ -24,6 +25,7 @@ interface VolumeChartProps {
   height?: number;
   showGrid?: boolean;
   gradient?: boolean;
+  tokenSymbol?: string; // Add tokenSymbol prop for proper decimal formatting
 }
 
 // Custom tooltip component
@@ -31,16 +33,23 @@ function CustomTooltip({ active, payload }: any) {
   if (active && payload && payload.length) {
     const data = payload[0].payload as VolumeDataPoint;
 
+    // Use hour field instead of timestamp, with error handling
+    const dateStr = data.timestamp || data.hour;
+    const isValidDate = dateStr && !isNaN(new Date(dateStr).getTime());
+
     return (
       <div className='bg-gray-900/95 backdrop-blur border border-white/20 rounded-lg p-3 shadow-xl'>
         <p className='text-white font-medium mb-2'>
-          {formatDistanceToNow(new Date(data.timestamp), { addSuffix: true })}
+          {isValidDate
+            ? formatDistanceToNow(new Date(dateStr), { addSuffix: true })
+            : 'Time unavailable'
+          }
         </p>
         <div className='space-y-1'>
           <div className='flex items-center justify-between gap-4'>
             <span className='text-primary-400 text-sm'>Volume:</span>
             <span className='text-white font-mono'>
-              {formatVolume(data.totalVolume)}
+              {formatVolume(data.totalVolume, data.tokenSymbol)}
             </span>
           </div>
           <div className='flex items-center justify-between gap-4'>
@@ -52,7 +61,7 @@ function CustomTooltip({ active, payload }: any) {
           <div className='flex items-center justify-between gap-4'>
             <span className='text-green-400 text-sm'>Avg Volume:</span>
             <span className='text-white font-mono'>
-              {formatVolume(data.averageVolume)}
+              {formatVolume(data.averageVolume, data.tokenSymbol)}
             </span>
           </div>
         </div>
@@ -63,8 +72,9 @@ function CustomTooltip({ active, payload }: any) {
 }
 
 // Volume formatting helper
-function formatVolume(volume: string): string {
-  const num = parseFloat(volume) / 1e18; // Convert from wei
+function formatVolume(volume: string, tokenSymbol?: string): string {
+  const decimals = tokenSymbol ? getTokenDecimals(tokenSymbol) : 18;
+  const num = parseFloat(volume) / Math.pow(10, decimals);
   if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
   if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
   if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
@@ -86,14 +96,19 @@ export function VolumeChart({
   height = 300,
   showGrid = true,
   gradient = true,
+  tokenSymbol,
 }: VolumeChartProps) {
   // Transform data for chart display
-  const chartData = data.map(item => ({
-    ...item,
-    volumeDisplay: parseFloat(item.totalVolume) / 1e18,
-    avgVolumeDisplay: parseFloat(item.averageVolume) / 1e18,
-    hourLabel: formatHour(item.hour),
-  }));
+  const chartData = data.map(item => {
+    const decimals = getTokenDecimals(item.tokenSymbol || 'MSQ');
+    return {
+      ...item,
+      timestamp: item.timestamp || item.hour, // Ensure timestamp field exists
+      volumeDisplay: parseFloat(item.totalVolume) / Math.pow(10, decimals),
+      avgVolumeDisplay: parseFloat(item.averageVolume) / Math.pow(10, decimals),
+      hourLabel: formatHour(item.hour),
+    };
+  });
 
   return (
     <div className='w-full' style={{ height }}>
@@ -145,7 +160,10 @@ export function VolumeChart({
             axisLine={false}
             tickLine={false}
             tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }}
-            tickFormatter={value => formatVolume((value * 1e18).toString())}
+            tickFormatter={value => {
+              const decimals = getTokenDecimals(tokenSymbol || 'MSQ');
+              return formatVolume((value * Math.pow(10, decimals)).toString(), tokenSymbol);
+            }}
           />
 
           <Tooltip content={<CustomTooltip />} />

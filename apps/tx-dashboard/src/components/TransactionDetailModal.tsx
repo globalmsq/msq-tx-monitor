@@ -21,8 +21,6 @@ export function TransactionDetailModal({
   isOpen,
   onClose,
 }: TransactionDetailModalProps) {
-  if (!isOpen || !transaction) return null;
-
   useEffect(() => {
     const handleEscKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && isOpen) {
@@ -38,6 +36,8 @@ export function TransactionDetailModal({
       document.removeEventListener('keydown', handleEscKey);
     };
   }, [isOpen, onClose]);
+
+  if (!isOpen || !transaction) return null;
 
   const modalRoot = document.getElementById('modal-root');
   if (!modalRoot) return null;

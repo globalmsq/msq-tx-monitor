@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { transactionRoutes } from './transaction.routes';
 import { addressRoutes } from './address.routes';
+import { analyticsRoutes } from './analytics.routes';
 
 export const apiRoutes = Router();
 
@@ -9,6 +10,9 @@ apiRoutes.use('/transactions', transactionRoutes);
 
 // Mount address routes
 apiRoutes.use('/addresses', addressRoutes);
+
+// Mount analytics routes
+apiRoutes.use('/analytics', analyticsRoutes);
 
 /**
  * @swagger
