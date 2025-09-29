@@ -1,5 +1,10 @@
 import React, { Suspense } from 'react';
 import { RefreshCw } from 'lucide-react';
+import type { VolumeChartProps } from './VolumeChart';
+import type { TokenDistributionChartProps } from './TokenDistributionChart';
+import type { AddressActivityChartProps } from './AddressActivityChart';
+import type { AnomalyChartProps } from './AnomalyChart';
+import type { TransactionChartProps } from './TransactionChart';
 
 // Lazy load chart components for better performance
 const VolumeChart = React.lazy(() =>
@@ -39,31 +44,31 @@ const ChartLoader = ({ height = 300 }: { height?: number }) => (
 );
 
 // Wrapper components with Suspense
-export const LazyVolumeChart = React.memo((props: any) => (
+export const LazyVolumeChart = React.memo((props: VolumeChartProps) => (
   <Suspense fallback={<ChartLoader height={props.height} />}>
     <VolumeChart {...props} />
   </Suspense>
 ));
 
-export const LazyTokenDistributionChart = React.memo((props: any) => (
+export const LazyTokenDistributionChart = React.memo((props: TokenDistributionChartProps) => (
   <Suspense fallback={<ChartLoader height={props.height} />}>
     <TokenDistributionChart {...props} />
   </Suspense>
 ));
 
-export const LazyAddressActivityChart = React.memo((props: any) => (
+export const LazyAddressActivityChart = React.memo((props: AddressActivityChartProps) => (
   <Suspense fallback={<ChartLoader height={props.height} />}>
     <AddressActivityChart {...props} />
   </Suspense>
 ));
 
-export const LazyAnomalyChart = React.memo((props: any) => (
+export const LazyAnomalyChart = React.memo((props: AnomalyChartProps) => (
   <Suspense fallback={<ChartLoader height={props.height} />}>
     <AnomalyChart {...props} />
   </Suspense>
 ));
 
-export const LazyTransactionChart = React.memo((props: any) => (
+export const LazyTransactionChart = React.memo((props: TransactionChartProps) => (
   <Suspense fallback={<ChartLoader height={props.height} />}>
     <TransactionChart {...props} />
   </Suspense>

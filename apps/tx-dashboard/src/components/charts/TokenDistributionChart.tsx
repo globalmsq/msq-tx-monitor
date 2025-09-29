@@ -16,7 +16,7 @@ interface TokenDistribution {
   color: string;
 }
 
-interface TokenDistributionChartProps {
+export interface TokenDistributionChartProps {
   data: TokenDistribution[];
   height?: number;
   showLegend?: boolean;
@@ -24,7 +24,14 @@ interface TokenDistributionChartProps {
 }
 
 // Custom tooltip component
-function CustomTooltip({ active, payload }: any) {
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: TokenDistribution;
+  }>;
+}
+
+function CustomTooltip({ active, payload }: TooltipProps) {
   if (active && payload && payload.length) {
     const data = payload[0].payload as TokenDistribution;
 
@@ -60,10 +67,21 @@ function CustomTooltip({ active, payload }: any) {
 }
 
 // Custom legend component
-function CustomLegend({ payload }: any) {
+interface LegendProps {
+  payload?: Array<{
+    value: string;
+    type: string;
+    color: string;
+    payload: TokenDistribution;
+  }>;
+}
+
+function CustomLegend({ payload }: LegendProps) {
+  if (!payload) return null;
+
   return (
     <div className='flex flex-wrap justify-center gap-4 mt-4'>
-      {payload.map((entry: any, index: number) => (
+      {payload.map((entry, index: number) => (
         <div key={index} className='flex items-center gap-2'>
           <div
             className='w-3 h-3 rounded-full'
@@ -120,8 +138,9 @@ export function TokenDistributionChart({
   }));
 
   // Custom label function
-  const renderLabel = (entry: any) => {
-    return entry.percentage > 5 ? `${entry.percentage.toFixed(1)}%` : '';
+  const renderLabel = (entry: Record<string, unknown>) => {
+    const percentage = entry.percentage as number;
+    return percentage > 5 ? `${percentage.toFixed(1)}%` : '';
   };
 
   return (

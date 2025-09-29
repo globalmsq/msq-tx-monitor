@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
-interface DetailedData {
+export interface DetailedData {
   type: 'address' | 'token' | 'timeperiod' | 'anomaly';
   title: string;
   identifier: string;
@@ -248,7 +248,7 @@ export function DetailedAnalysisModal({
           ].map(tab => (
             <button
               key={tab.key}
-              onClick={() => setActiveView(tab.key as any)}
+              onClick={() => setActiveView(tab.key as 'summary' | 'transactions' | 'trends')}
               className={cn(
                 'flex items-center gap-2 px-6 py-3 transition-colors',
                 activeView === tab.key
@@ -350,7 +350,7 @@ export function DetailedAnalysisModal({
                   <select
                     value={transactionFilter}
                     onChange={e => {
-                      setTransactionFilter(e.target.value as any);
+                      setTransactionFilter(e.target.value as 'all' | 'success' | 'failed' | 'high-risk');
                       setCurrentPage(1);
                     }}
                     className='bg-white/10 text-white text-sm rounded px-3 py-1 border border-white/20'

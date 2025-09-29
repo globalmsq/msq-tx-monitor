@@ -17,7 +17,7 @@ interface TopAddress {
   rank?: number;
 }
 
-interface AddressActivityChartProps {
+export interface AddressActivityChartProps {
   data: TopAddress[];
   height?: number;
   showGrid?: boolean;
@@ -25,7 +25,14 @@ interface AddressActivityChartProps {
 }
 
 // Custom tooltip component
-function CustomTooltip({ active, payload }: any) {
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: TopAddress & { displayValue: number };
+  }>;
+}
+
+function CustomTooltip({ active, payload }: TooltipProps) {
   if (active && payload && payload.length) {
     const data = payload[0].payload as TopAddress & { displayValue: number };
 

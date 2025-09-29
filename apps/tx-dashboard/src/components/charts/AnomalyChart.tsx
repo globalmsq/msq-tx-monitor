@@ -23,7 +23,7 @@ interface AnomalyDataPoint {
   anomalyRate: number; // percentage
 }
 
-interface AnomalyChartProps {
+export interface AnomalyChartProps {
   data: AnomalyDataPoint[];
   height?: number;
   showGrid?: boolean;
@@ -31,7 +31,14 @@ interface AnomalyChartProps {
 }
 
 // Custom tooltip component
-function CustomTooltip({ active, payload }: any) {
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: AnomalyDataPoint;
+  }>;
+}
+
+function CustomTooltip({ active, payload }: TooltipProps) {
   if (active && payload && payload.length) {
     const data = payload[0].payload as AnomalyDataPoint;
 
@@ -73,16 +80,26 @@ function CustomTooltip({ active, payload }: any) {
 }
 
 // Custom legend component
-function CustomLegend({ payload }: any) {
+interface LegendProps {
+  payload?: Array<{
+    value: string;
+    type: string;
+    color: string;
+  }>;
+}
+
+function CustomLegend({ payload }: LegendProps) {
   const iconMap: Record<string, React.ReactNode> = {
     'Anomaly Count': <AlertTriangle className='w-4 h-4' />,
     'Risk Score': <Shield className='w-4 h-4' />,
     'Anomaly Rate': <TrendingUp className='w-4 h-4' />,
   };
 
+  if (!payload) return null;
+
   return (
     <div className='flex flex-wrap justify-center gap-6 mt-4'>
-      {payload.map((entry: any, index: number) => (
+      {payload.map((entry, index) => (
         <div key={index} className='flex items-center gap-2'>
           <div style={{ color: entry.color }}>
             {iconMap[entry.value] || (

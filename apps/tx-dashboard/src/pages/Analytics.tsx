@@ -21,7 +21,7 @@ import {
   ConnectionState,
   TransactionMessage,
 } from '../services/websocket';
-import { DetailedAnalysisModal } from '../components/DetailedAnalysisModal';
+import { DetailedAnalysisModal, DetailedData } from '../components/DetailedAnalysisModal';
 import { TOKEN_CONFIG } from '../config/tokens';
 
 // Analytics API service
@@ -87,6 +87,8 @@ interface AnalyticsData {
   anomalyStats?: AnomalyStats;
   anomalyTimeData?: AnomalyTimeData[];
   networkStats?: unknown;
+  timestamp?: string;
+  timeRange?: string;
 }
 
 interface MetricCardProps {
@@ -96,6 +98,37 @@ interface MetricCardProps {
   icon: React.ReactNode;
   subtitle?: string;
   color?: 'default' | 'green' | 'red' | 'yellow';
+}
+
+// API Response types
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+}
+
+interface HourlyVolumeApiItem {
+  hour: string;
+  totalVolume: string;
+  transactionCount: number;
+  averageVolume: string;
+  tokenSymbol: string;
+}
+
+interface AnomalyTimeApiItem {
+  timestamp: string;
+  hour: string;
+  anomalyCount: number;
+  averageScore: number;
+  highRiskCount: number;
+  totalTransactions: number;
+  anomalyRate: number;
+}
+
+interface TokenStatApiItem {
+  tokenSymbol: string;
+  transactionCount: number;
+  volume: string;
+  percentage: number;
 }
 
 function MetricCard({
@@ -176,7 +209,7 @@ export function Analytics() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [timeRange, setTimeRange] = useState<TimeRange>('24h');
   const [autoRefresh] = useState(false);
-  const [modalData, setModalData] = useState<any>(null);
+  const [modalData, setModalData] = useState<DetailedData | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
 
   // Convert timeRange to hours
@@ -259,7 +292,7 @@ export function Analytics() {
 
         // Process hourly volume data from API
         const processHourlyVolumeData = (
-          apiResponse: any,
+          apiResponse: ApiResponse<HourlyVolumeApiItem[]>,
           _token: string
         ): HourlyVolumeData[] => {
           // If API returns real data, use it directly
@@ -269,7 +302,7 @@ export function Analytics() {
             apiResponse.data &&
             apiResponse.data.length > 0
           ) {
-            return apiResponse.data.map((item: any) => ({
+            return apiResponse.data.map((item: HourlyVolumeApiItem) => ({
               timestamp: item.hour,
               hour: item.hour,
               totalVolume: item.totalVolume,
@@ -290,7 +323,7 @@ export function Analytics() {
 
         // Process anomaly time series data from API
         const processAnomalyTimeData = (
-          apiResponse: any
+          apiResponse: ApiResponse<AnomalyTimeApiItem[]>
         ): AnomalyTimeData[] => {
           // If API returns real data, use it directly
           if (
@@ -299,7 +332,7 @@ export function Analytics() {
             apiResponse.data &&
             apiResponse.data.length > 0
           ) {
-            return apiResponse.data.map((item: any) => ({
+            return apiResponse.data.map((item: AnomalyTimeApiItem) => ({
               timestamp: item.timestamp,
               hour: item.hour,
               anomalyCount: item.anomalyCount,
@@ -321,7 +354,7 @@ export function Analytics() {
 
         // Extract token-specific stats from realtime data
         const tokenStats = realtimeRes.data?.tokenStats?.find(
-          (stat: any) => stat.tokenSymbol === token
+          (stat: TokenStatApiItem) => stat.tokenSymbol === token
         );
 
         // Create token-specific realtime stats
@@ -375,14 +408,14 @@ export function Analytics() {
       if (message.type === 'stats_update' && autoRefresh) {
         // Update specific metrics based on the received data
         if (message.data && typeof message.data === 'object') {
-          const statsData = message.data as any;
+          const statsData = message.data as Partial<AnalyticsData>;
 
           setData(prevData => ({
             ...prevData,
             realtime: {
               ...prevData.realtime,
               ...statsData.realtime,
-            },
+            } as RealtimeStats,
           }));
 
           setLastUpdated(new Date());
@@ -485,7 +518,7 @@ export function Analytics() {
   const handleChartClick = async (
     type: 'address' | 'token' | 'timeperiod' | 'anomaly',
     identifier: string,
-    additionalData?: any
+    additionalData?: Record<string, unknown>
   ) => {
     setModalLoading(true);
 
@@ -501,7 +534,11 @@ export function Analytics() {
           title = `Token Analysis: ${identifier}`;
           break;
         case 'timeperiod':
-          title = `Time Period Analysis: ${new Date(additionalData?.start).toLocaleDateString()}`;
+          title = `Time Period Analysis: ${
+            additionalData && typeof additionalData === 'object' && 'start' in additionalData
+              ? new Date(additionalData.start as string).toLocaleDateString()
+              : 'Unknown Period'
+          }`;
           break;
         case 'anomaly':
           title = `Anomaly Analysis: ${identifier}`;
@@ -525,7 +562,7 @@ export function Analytics() {
         summary: { totalVolume: '0', transactionCount: 0 },
         transactions: [],
         trends: [],
-      });
+      } as DetailedData);
     } finally {
       setModalLoading(false);
     }
@@ -533,10 +570,10 @@ export function Analytics() {
 
   // Generate mock detailed data for demonstration
   const generateMockDetailedData = (
-    type: string,
+    type: 'address' | 'token' | 'timeperiod' | 'anomaly',
     identifier: string,
     title: string
-  ) => {
+  ): DetailedData => {
     const now = Date.now();
     const transactions = Array.from({ length: 25 }, (_, i) => ({
       hash: `0x${Math.random().toString(16).substr(2, 64)}`,
@@ -547,7 +584,7 @@ export function Analytics() {
       tokenSymbol: ['MSQ', 'SUT', 'KWT', 'P2UC'][Math.floor(Math.random() * 4)],
       gasUsed: (Math.random() * 100000).toFixed(0),
       gasPrice: (Math.random() * 50).toFixed(0),
-      status: Math.random() > 0.1 ? 'success' : 'failed',
+      status: (Math.random() > 0.1 ? 'success' : 'failed') as 'success' | 'failed',
       riskScore: Math.random(),
     }));
 
@@ -615,7 +652,7 @@ export function Analytics() {
   };
 
   // CSV generation helper
-  const generateCSV = (exportData: any): string => {
+  const generateCSV = (exportData: AnalyticsData): string => {
     const lines: string[] = [];
 
     // Add metadata
@@ -635,10 +672,10 @@ export function Analytics() {
     }
 
     // Token distribution
-    if (exportData.tokenDistribution?.length > 0) {
+    if (exportData.tokenDistribution && exportData.tokenDistribution.length > 0) {
       lines.push('Token Distribution');
       lines.push('Token,Transaction Count,Volume,Percentage');
-      exportData.tokenDistribution.forEach((token: any) => {
+      exportData.tokenDistribution?.forEach((token: TokenDistribution) => {
         lines.push(
           `${token.tokenSymbol},${token.transactionCount},${token.volume},${token.percentage}%`
         );
@@ -647,10 +684,10 @@ export function Analytics() {
     }
 
     // Top addresses
-    if (exportData.topAddresses?.length > 0) {
+    if (exportData.topAddresses && exportData.topAddresses.length > 0) {
       lines.push('Top Addresses');
       lines.push('Address,Total Volume,Transaction Count,Unique Interactions');
-      exportData.topAddresses.forEach((address: any) => {
+      exportData.topAddresses?.forEach((address: TopAddress) => {
         lines.push(
           `${address.address},${address.totalVolume},${address.transactionCount},${address.uniqueInteractions}`
         );

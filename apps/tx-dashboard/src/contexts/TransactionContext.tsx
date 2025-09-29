@@ -358,7 +358,7 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
   useEffect(() => {
     const urlFilters = parseFiltersFromUrl();
     dispatch({ type: 'SET_FILTERS', payload: urlFilters });
-  }, []); // Empty dependency array to run only on mount
+  }, [parseFiltersFromUrl]);
 
   // Load initial transaction data on mount
   useEffect(() => {

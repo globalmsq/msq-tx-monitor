@@ -11,3 +11,4 @@
 7. 상위 송수신 Address 리스트
 8. Token Statistics 실시간 업데이트
 9. Tx 세부 페이지 또는 Polygon 스캔으로 연결
+10. Analytics 의 주소 클릭시 세부 페이지

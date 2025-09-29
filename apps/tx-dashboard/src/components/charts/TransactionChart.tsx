@@ -19,7 +19,7 @@ interface TransactionDataPoint {
   tokenSymbol?: string;
 }
 
-interface TransactionChartProps {
+export interface TransactionChartProps {
   data: TransactionDataPoint[];
   height?: number;
   showGrid?: boolean;
@@ -27,7 +27,14 @@ interface TransactionChartProps {
 }
 
 // Custom tooltip component for transactions
-function CustomTooltip({ active, payload }: any) {
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: TransactionDataPoint;
+  }>;
+}
+
+function CustomTooltip({ active, payload }: TooltipProps) {
   if (active && payload && payload.length) {
     const data = payload[0].payload as TransactionDataPoint;
 

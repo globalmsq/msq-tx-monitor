@@ -20,7 +20,7 @@ interface VolumeDataPoint {
   tokenSymbol?: string;
 }
 
-interface VolumeChartProps {
+export interface VolumeChartProps {
   data: VolumeDataPoint[];
   height?: number;
   showGrid?: boolean;
@@ -29,7 +29,14 @@ interface VolumeChartProps {
 }
 
 // Custom tooltip component
-function CustomTooltip({ active, payload }: any) {
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: VolumeDataPoint;
+  }>;
+}
+
+function CustomTooltip({ active, payload }: TooltipProps) {
   if (active && payload && payload.length) {
     const data = payload[0].payload as VolumeDataPoint;
 
