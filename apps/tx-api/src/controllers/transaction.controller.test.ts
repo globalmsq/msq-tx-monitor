@@ -128,6 +128,7 @@ describe('Transaction Controller', () => {
         anomaly_score: 0,
         anomaly_flags: '[]',
         created_at: '2023-01-01T00:00:00.000Z',
+        updated_at: '2023-01-01T00:00:00.000Z',
       };
 
       (mockPrisma.transaction.findUnique as jest.Mock).mockResolvedValueOnce({
@@ -142,6 +143,7 @@ describe('Transaction Controller', () => {
         anomalyScore: mockTransaction.anomaly_score,
         isAnomaly: false,
         createdAt: new Date(mockTransaction.created_at),
+        updatedAt: new Date(mockTransaction.updated_at),
         token: { symbol: 'MSQ', name: 'MSQ Token', decimals: 18 },
         anomalies: [],
       });

@@ -74,6 +74,7 @@ interface TransactionResponse {
   anomaly_score: number;
   anomaly_flags: string[];
   created_at: Date;
+  updated_at: Date;
 }
 
 export class TransactionService {
@@ -493,6 +494,7 @@ export class TransactionService {
       anomaly_score: Number(transaction.anomalyScore),
       anomaly_flags: transaction.isAnomaly ? ['suspicious_pattern'] : [],
       created_at: transaction.createdAt,
+      updated_at: transaction.updatedAt,
     };
   }
 }

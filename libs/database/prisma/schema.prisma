@@ -54,6 +54,7 @@ model Transaction {
   anomalyScore     Decimal  @default(0.0000) @db.Decimal(5, 4)
   isAnomaly        Boolean  @default(false)
   createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relations (no foreign key constraints)
   // token     Token      @relation(fields: [tokenAddress], references: [address])
