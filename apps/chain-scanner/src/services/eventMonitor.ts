@@ -508,14 +508,23 @@ export class EventMonitor {
       const tokenSymbol = this.getTokenSymbol(tokenAddress);
       const tokenDecimals = this.getTokenDecimals(tokenAddress);
 
-      // Get gas information for WebSocket transaction fee calculation
+      // Get gas information and block timestamp from blockchain
       let gasPrice: string | undefined;
       let gasUsed: string | undefined;
+      let blockTimestamp = new Date(); // Fallback to current time if block fetch fails
 
       if (this.web3Service.isConnected()) {
         const web3 = this.web3Service.getWeb3Instance();
         if (web3) {
           try {
+            // Get block information for accurate timestamp
+            const blockNumber = parseInt(eventData.blockNumber, 16);
+            const block = await web3.eth.getBlock(blockNumber);
+            if (block?.timestamp) {
+              // Convert Unix timestamp (seconds) to JavaScript Date
+              blockTimestamp = new Date(Number(block.timestamp) * 1000);
+            }
+
             // Get transaction details for gas price
             const transaction = await web3.eth.getTransaction(
               eventData.transactionHash
@@ -531,11 +540,11 @@ export class EventMonitor {
             if (receipt?.gasUsed) {
               gasUsed = receipt.gasUsed.toString();
             }
-          } catch (gasError) {
+          } catch (blockchainError) {
             if (config.logging.enableBlockchainLogs) {
               console.warn(
-                `Failed to fetch gas info for WebSocket ${eventData.transactionHash}:`,
-                gasError
+                `Failed to fetch blockchain info for ${eventData.transactionHash}:`,
+                blockchainError
               );
             }
           }
@@ -552,7 +561,7 @@ export class EventMonitor {
         tokenAddress,
         tokenSymbol,
         tokenDecimals,
-        timestamp: new Date(),
+        timestamp: blockTimestamp,
         gasPrice,
         gasUsed,
       };
