@@ -182,21 +182,48 @@ export function Analytics() {
   const [modalData, setModalData] = useState<any>(null);
   const [modalLoading, setModalLoading] = useState(false);
 
+  // Convert timeRange to hours
+  const getHoursFromTimeRange = (range: TimeRange): number => {
+    switch(range) {
+      case '1h': return 1;
+      case '24h': return 24;
+      case '7d': return 168; // 7 * 24
+      case '30d': return 720; // 30 * 24
+      case 'custom': return 24; // Default fallback
+      default: return 24;
+    }
+  };
+
+  // Calculate appropriate limit based on time range
+  const getLimitFromTimeRange = (range: TimeRange): number => {
+    switch(range) {
+      case '1h': return 1;
+      case '24h': return 24;
+      case '7d': return 168; // Show all 7 days worth of hourly data
+      case '30d': return 720; // Show all 30 days worth of hourly data
+      case 'custom': return 24;
+      default: return 24;
+    }
+  };
+
   // Fetch analytics data with time range support and token filter
   const fetchAnalyticsData = useCallback(async (token: string = activeTab) => {
     try {
       setLoading(true);
       setError(null);
 
+      const hours = getHoursFromTimeRange(timeRange);
+      const limit = getLimitFromTimeRange(timeRange);
       const tokenParam = `&token=${token}`;
+      const hoursParam = `&hours=${hours}`;
 
       const endpoints = [
-        `realtime?${tokenParam.slice(1)}`,
-        `volume/hourly?hours=24&limit=24${tokenParam}`,
-        `distribution/token?${tokenParam.slice(1)}`,
-        `addresses/top?metric=volume&limit=10${tokenParam}`,
-        `anomalies?${tokenParam.slice(1)}`,
-        `network?${tokenParam.slice(1)}`,
+        `realtime?${tokenParam.slice(1)}${hoursParam}`,
+        `volume/hourly?hours=${hours}&limit=${limit}${tokenParam}`,
+        `distribution/token?${tokenParam.slice(1)}${hoursParam}`,
+        `addresses/top?metric=volume&limit=10${tokenParam}${hoursParam}`,
+        `anomalies?${tokenParam.slice(1)}${hoursParam}`,
+        `network?${tokenParam.slice(1)}${hoursParam}`,
       ];
 
       const requests = endpoints.map(endpoint =>
@@ -298,7 +325,7 @@ export function Analytics() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, timeRange]);
 
   // WebSocket message handler for real-time updates
   const handleWebSocketMessage = useCallback(
@@ -330,7 +357,7 @@ export function Analytics() {
         }
       }
     },
-    [autoRefresh, lastUpdated, activeTab, fetchAnalyticsData]
+    [autoRefresh, lastUpdated, activeTab, timeRange, fetchAnalyticsData]
   );
 
   // WebSocket connection management
@@ -396,7 +423,7 @@ export function Analytics() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [autoRefresh, activeTab, fetchAnalyticsData]);
+  }, [autoRefresh, activeTab, timeRange, fetchAnalyticsData]);
 
   const handleRefresh = useCallback(() => {
     fetchAnalyticsData(activeTab);

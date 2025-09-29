@@ -79,15 +79,15 @@ export class AnalyticsService {
   /**
    * Get realtime statistics
    */
-  async getRealtimeStats(tokenSymbol?: string): Promise<RealtimeStats> {
+  async getRealtimeStats(tokenSymbol?: string, hours: number = 24): Promise<RealtimeStats> {
     try {
-      const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
       const whereClause = tokenSymbol
         ? `WHERE tokenSymbol = '${tokenSymbol}'`
         : '';
-      const where24hClause = tokenSymbol
-        ? `WHERE timestamp >= '${last24Hours.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
-        : `WHERE timestamp >= '${last24Hours.toISOString()}'`;
+      const whereTimeRangeClause = tokenSymbol
+        ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
+        : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
 
       // Get overall stats
       const totalStatsQuery = `
@@ -99,13 +99,13 @@ export class AnalyticsService {
         ${whereClause}
       `;
 
-      // Get 24h stats
-      const last24hStatsQuery = `
+      // Get time range stats
+      const timeRangeStatsQuery = `
         SELECT
           COUNT(*) as transactionsLast24h,
           SUM(value) as volumeLast24h
         FROM transactions
-        ${where24hClause}
+        ${whereTimeRangeClause}
       `;
 
       // Get token stats
@@ -116,7 +116,7 @@ export class AnalyticsService {
             SUM(value) as totalVolume,
             COUNT(*) as transactionCount,
             COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as uniqueAddresses24h,
-            SUM(CASE WHEN timestamp >= '${last24Hours.toISOString()}' THEN value ELSE 0 END) as volume24h
+            SUM(CASE WHEN timestamp >= '${cutoffDate.toISOString()}' THEN value ELSE 0 END) as volume24h
           FROM transactions
           WHERE tokenSymbol = '${tokenSymbol}'
           GROUP BY tokenSymbol
@@ -127,7 +127,7 @@ export class AnalyticsService {
             SUM(value) as totalVolume,
             COUNT(*) as transactionCount,
             COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as uniqueAddresses24h,
-            SUM(CASE WHEN timestamp >= '${last24Hours.toISOString()}' THEN value ELSE 0 END) as volume24h
+            SUM(CASE WHEN timestamp >= '${cutoffDate.toISOString()}' THEN value ELSE 0 END) as volume24h
           FROM transactions
           GROUP BY tokenSymbol
         `;
@@ -135,18 +135,18 @@ export class AnalyticsService {
       const activeTokensQuery = `
         SELECT COUNT(DISTINCT tokenSymbol) as activeTokens
         FROM transactions
-        ${where24hClause}
+        ${whereTimeRangeClause}
       `;
 
-      const [totalStatsRows, last24hStatsRows, tokenStatsRows, activeTokensRows] = await Promise.all([
+      const [totalStatsRows, timeRangeStatsRows, tokenStatsRows, activeTokensRows] = await Promise.all([
         prisma.$queryRawUnsafe(totalStatsQuery) as Promise<any[]>,
-        prisma.$queryRawUnsafe(last24hStatsQuery) as Promise<any[]>,
+        prisma.$queryRawUnsafe(timeRangeStatsQuery) as Promise<any[]>,
         prisma.$queryRawUnsafe(tokenStatsQuery) as Promise<any[]>,
         prisma.$queryRawUnsafe(activeTokensQuery) as Promise<any[]>,
       ]);
 
       const totalStats = totalStatsRows[0] || { totalTransactions: 0, totalVolume: '0', activeAddresses: 0 };
-      const last24hStats = last24hStatsRows[0] || { transactionsLast24h: 0, volumeLast24h: '0' };
+      const timeRangeStats = timeRangeStatsRows[0] || { transactionsLast24h: 0, volumeLast24h: '0' };
       const activeTokens = activeTokensRows[0]?.activeTokens || 0;
 
       const tokenStats: TokenStats[] = tokenStatsRows.map(row => ({
@@ -161,8 +161,8 @@ export class AnalyticsService {
         totalTransactions: parseInt(totalStats.totalTransactions.toString()),
         totalVolume: totalStats.totalVolume.toString(),
         activeAddresses: parseInt(totalStats.activeAddresses.toString()),
-        transactionsLast24h: parseInt(last24hStats.transactionsLast24h.toString()),
-        volumeLast24h: last24hStats.volumeLast24h.toString(),
+        transactionsLast24h: parseInt(timeRangeStats.transactionsLast24h.toString()),
+        volumeLast24h: timeRangeStats.volumeLast24h.toString(),
         activeTokens: parseInt(activeTokens.toString()),
         tokenStats,
       };
@@ -175,11 +175,19 @@ export class AnalyticsService {
   /**
    * Get token distribution data
    */
-  async getTokenDistribution(tokenSymbol?: string): Promise<any[]> {
+  async getTokenDistribution(tokenSymbol?: string, hours?: number): Promise<any[]> {
     try {
-      const whereClause = tokenSymbol
-        ? `WHERE tokenSymbol = '${tokenSymbol}'`
-        : '';
+      let whereClause = '';
+      if (hours) {
+        const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+        whereClause = tokenSymbol
+          ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
+          : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
+      } else {
+        whereClause = tokenSymbol
+          ? `WHERE tokenSymbol = '${tokenSymbol}'`
+          : '';
+      }
 
       const query = `
         SELECT
@@ -221,12 +229,21 @@ export class AnalyticsService {
   async getTopAddresses(
     metric: 'volume' | 'transactions' = 'volume',
     limit: number = 10,
-    tokenSymbol?: string
+    tokenSymbol?: string,
+    hours?: number
   ): Promise<any[]> {
     try {
-      const whereClause = tokenSymbol
-        ? `WHERE tokenSymbol = '${tokenSymbol}'`
-        : '';
+      let whereClause = '';
+      if (hours) {
+        const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+        whereClause = tokenSymbol
+          ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
+          : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
+      } else {
+        whereClause = tokenSymbol
+          ? `WHERE tokenSymbol = '${tokenSymbol}'`
+          : '';
+      }
 
       // Create a union query to get both from and to addresses
       const query = metric === 'volume'
@@ -287,11 +304,19 @@ export class AnalyticsService {
   /**
    * Get anomaly statistics
    */
-  async getAnomalyStats(tokenSymbol?: string): Promise<any> {
+  async getAnomalyStats(tokenSymbol?: string, hours?: number): Promise<any> {
     try {
-      const whereClause = tokenSymbol
-        ? `WHERE tokenSymbol = '${tokenSymbol}'`
-        : '';
+      let whereClause = '';
+      if (hours) {
+        const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+        whereClause = tokenSymbol
+          ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
+          : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
+      } else {
+        whereClause = tokenSymbol
+          ? `WHERE tokenSymbol = '${tokenSymbol}'`
+          : '';
+      }
 
       const query = `
         SELECT
@@ -330,11 +355,19 @@ export class AnalyticsService {
   /**
    * Get network statistics
    */
-  async getNetworkStats(tokenSymbol?: string): Promise<any> {
+  async getNetworkStats(tokenSymbol?: string, hours?: number): Promise<any> {
     try {
-      const whereClause = tokenSymbol
-        ? `WHERE tokenSymbol = '${tokenSymbol}'`
-        : '';
+      let whereClause = '';
+      if (hours) {
+        const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+        whereClause = tokenSymbol
+          ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
+          : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
+      } else {
+        whereClause = tokenSymbol
+          ? `WHERE tokenSymbol = '${tokenSymbol}'`
+          : '';
+      }
 
       const query = `
         SELECT
