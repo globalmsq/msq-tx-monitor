@@ -197,7 +197,7 @@ export function Analytics() {
   // Calculate appropriate limit based on time range
   const getLimitFromTimeRange = (range: TimeRange): number => {
     switch(range) {
-      case '1h': return 1;
+      case '1h': return 12; // 5-minute intervals for 1 hour
       case '24h': return 24;
       case '7d': return 168; // Show all 7 days worth of hourly data
       case '30d': return 720; // Show all 30 days worth of hourly data
@@ -826,10 +826,10 @@ export function Analytics() {
                 />
               </div>
 
-              {/* 24-Hour Volume Trends */}
+              {/* Volume Trends */}
               <div className='glass rounded-2xl p-6'>
                 <h3 className='text-lg font-bold text-white mb-4'>
-                  {activeTab} 24-Hour Volume Trends
+                  {activeTab} Volume Trends
                 </h3>
                 {data.hourlyVolume && data.hourlyVolume.length > 0 ? (
                   <LazyVolumeChart
