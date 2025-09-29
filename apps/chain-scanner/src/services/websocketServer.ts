@@ -163,6 +163,7 @@ export class WebSocketServer {
 
     switch (message.type) {
       case 'ping':
+      case 'heartbeat':
         this.sendToClient(clientId, {
           type: 'pong',
           data: { serverTime: new Date() },

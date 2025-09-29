@@ -613,20 +613,12 @@ export class EventMonitor {
       }
 
       try {
-        // Get transaction details for gas price
-        const transaction = await web3.eth.getTransaction(
-          processedEvent.transactionHash
-        );
-        if (transaction?.gasPrice) {
-          basicTransactionData.gasPrice = transaction.gasPrice.toString();
+        // Use gas data from processedEvent if available (to avoid duplicate RPC calls)
+        if (processedEvent.gasPrice) {
+          basicTransactionData.gasPrice = processedEvent.gasPrice;
         }
-
-        // Get transaction receipt for gas usage
-        const receipt = await web3.eth.getTransactionReceipt(
-          processedEvent.transactionHash
-        );
-        if (receipt?.gasUsed) {
-          basicTransactionData.gasUsed = receipt.gasUsed.toString();
+        if (processedEvent.gasUsed) {
+          basicTransactionData.gasUsed = processedEvent.gasUsed;
         }
 
         // Only fetch confirmations if enableTxDetails is true (for performance)
