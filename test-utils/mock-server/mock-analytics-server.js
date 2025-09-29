@@ -165,13 +165,57 @@ function generateMockData(hours, token) {
     }));
   }
 
-  // Generate top addresses
-  data.topAddresses = Array.from({ length: 10 }, (_, i) => ({
-    rank: i + 1,
-    address: `0x${Math.random().toString(16).substr(2, 40)}`,
-    totalVolume: (Math.random() * 50000 + 10000).toFixed(0),
-    transactionCount: Math.floor(Math.random() * 100) + 20,
-    metric: (Math.random() * 50000 + 10000).toFixed(0)
+  // Generate top addresses with proper token decimals
+  data.topAddresses = Array.from({ length: 10 }, (_, i) => {
+    const decimals = TOKEN_DECIMALS[token] || 18;
+    const baseTokenAmount = Math.random() * 500 + 100; // 100-600 tokens
+    const volumeInWei = (baseTokenAmount * Math.pow(10, decimals)).toString();
+
+    return {
+      rank: i + 1,
+      address: `0x${Math.random().toString(16).substr(2, 40)}`,
+      totalVolume: volumeInWei,
+      transactionCount: Math.floor(Math.random() * 100) + 20,
+      metric: volumeInWei
+    };
+  });
+
+  // Generate top receivers (addresses receiving tokens)
+  data.topReceivers = Array.from({ length: 10 }, (_, i) => {
+    const decimals = TOKEN_DECIMALS[token] || 18;
+    const baseTokenAmount = Math.random() * 300 + 50; // 50-350 tokens
+    const volumeInWei = (baseTokenAmount * Math.pow(10, decimals)).toString();
+    const transactionCount = Math.floor(Math.random() * 80) + 10;
+
+    return {
+      rank: i + 1,
+      address: `0x${Math.random().toString(16).substr(2, 40)}`,
+      totalVolume: volumeInWei,
+      transactionCount: transactionCount,
+      metric: transactionCount
+    };
+  }).sort((a, b) => b.transactionCount - a.transactionCount).map((item, index) => ({
+    ...item,
+    rank: index + 1
+  }));
+
+  // Generate top senders (addresses sending tokens)
+  data.topSenders = Array.from({ length: 10 }, (_, i) => {
+    const decimals = TOKEN_DECIMALS[token] || 18;
+    const baseTokenAmount = Math.random() * 400 + 75; // 75-475 tokens
+    const volumeInWei = (baseTokenAmount * Math.pow(10, decimals)).toString();
+    const transactionCount = Math.floor(Math.random() * 90) + 15;
+
+    return {
+      rank: i + 1,
+      address: `0x${Math.random().toString(16).substr(2, 40)}`,
+      totalVolume: volumeInWei,
+      transactionCount: transactionCount,
+      metric: transactionCount
+    };
+  }).sort((a, b) => b.transactionCount - a.transactionCount).map((item, index) => ({
+    ...item,
+    rank: index + 1
   }));
 
   // Generate anomaly stats
@@ -273,6 +317,40 @@ const server = http.createServer((req, res) => {
         limit: limitNum,
         tokenSymbol: token?.toUpperCase(),
         count: Math.min(mockData.topAddresses.length, limitNum)
+      }
+    });
+  }
+  else if (pathname === '/api/v1/analytics/addresses/receivers') {
+    const { token, hours = 24, limit = 10 } = query;
+    const hoursNum = parseInt(hours);
+    const limitNum = parseInt(limit);
+    console.log(`📥 Top receivers - Token: ${token || 'ALL'}, Hours: ${hoursNum}, Limit: ${limitNum}`);
+    const mockData = generateMockData(hoursNum, token?.toUpperCase());
+    sendJSON(res, 200, {
+      success: true,
+      data: mockData.topReceivers.slice(0, limitNum),
+      metadata: {
+        metric: 'transaction_count',
+        limit: limitNum,
+        tokenSymbol: token?.toUpperCase(),
+        count: Math.min(mockData.topReceivers.length, limitNum)
+      }
+    });
+  }
+  else if (pathname === '/api/v1/analytics/addresses/senders') {
+    const { token, hours = 24, limit = 10 } = query;
+    const hoursNum = parseInt(hours);
+    const limitNum = parseInt(limit);
+    console.log(`📤 Top senders - Token: ${token || 'ALL'}, Hours: ${hoursNum}, Limit: ${limitNum}`);
+    const mockData = generateMockData(hoursNum, token?.toUpperCase());
+    sendJSON(res, 200, {
+      success: true,
+      data: mockData.topSenders.slice(0, limitNum),
+      metadata: {
+        metric: 'transaction_count',
+        limit: limitNum,
+        tokenSymbol: token?.toUpperCase(),
+        count: Math.min(mockData.topSenders.length, limitNum)
       }
     });
   }

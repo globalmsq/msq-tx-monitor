@@ -85,6 +85,8 @@ interface AnalyticsData {
   hourlyVolume?: HourlyVolumeData[];
   tokenDistribution?: TokenDistribution[];
   topAddresses?: TopAddress[];
+  topReceivers?: TopAddress[];
+  topSenders?: TopAddress[];
   anomalyStats?: AnomalyStats;
   anomalyTimeData?: AnomalyTimeData[];
   networkStats?: unknown;
@@ -222,7 +224,9 @@ export function Analytics() {
         `realtime?${tokenParam.slice(1)}${hoursParam}`,
         `volume/hourly?hours=${hours}&limit=${limit}${tokenParam}`,
         `distribution/token?${tokenParam.slice(1)}${hoursParam}`,
-        `addresses/top?metric=volume&limit=10${tokenParam}${hoursParam}`,
+        `addresses/top?metric=volume&limit=5${tokenParam}${hoursParam}`,
+        `addresses/receivers?limit=5${tokenParam}${hoursParam}`,
+        `addresses/senders?limit=5${tokenParam}${hoursParam}`,
         `anomalies?${tokenParam.slice(1)}${hoursParam}`,
         `network?${tokenParam.slice(1)}${hoursParam}`,
       ];
@@ -238,6 +242,8 @@ export function Analytics() {
         hourlyVolumeRes,
         tokenDistributionRes,
         topAddressesRes,
+        topReceiversRes,
+        topSendersRes,
         anomalyStatsRes,
         networkStatsRes,
       ] = await Promise.all(requests);
@@ -312,6 +318,8 @@ export function Analytics() {
         hourlyVolume: filteredHourlyVolume,
         tokenDistribution: tokenDistributionRes.data || [],
         topAddresses: topAddressesRes.data || [],
+        topReceivers: topReceiversRes.data || [],
+        topSenders: topSendersRes.data || [],
         anomalyStats: anomalyStatsRes.data,
         anomalyTimeData: mockAnomalyTimeData,
         networkStats: networkStatsRes.data,
@@ -636,6 +644,15 @@ export function Analytics() {
     return n.toLocaleString();
   };
 
+  // Helper function for transaction counts (no decimals)
+  const formatTransactionCount = (num: number | string) => {
+    const n = typeof num === 'string' ? parseFloat(num) : num;
+    if (n >= 1e9) return Math.round(n / 1e9) + 'B';
+    if (n >= 1e6) return Math.round(n / 1e6) + 'M';
+    if (n >= 1e3) return Math.round(n / 1e3) + 'K';
+    return Math.round(n).toLocaleString();
+  };
+
   const formatVolume = (volume: string, token: string = activeTab) => {
     const decimals = TOKEN_CONFIG[token]?.decimals || 18;
     const num = parseFloat(volume) / Math.pow(10, decimals);
@@ -849,98 +866,178 @@ export function Analytics() {
                 )}
               </div>
 
-              {/* Transaction Trends */}
-              <div className='glass rounded-2xl p-6'>
-                <h3 className='text-lg font-bold text-white mb-4'>
-                  {activeTab} Transaction Trends
-                </h3>
-                {data.hourlyVolume && data.hourlyVolume.length > 0 ? (
-                  <LazyTransactionChart
-                    data={data.hourlyVolume}
-                    height={400}
-                    showGrid={true}
-                    tokenSymbol={activeTab}
-                  />
-                ) : (
-                  <div className='flex items-center justify-center py-12'>
-                    <span className='text-white/60'>
-                      No transaction data available for {activeTab}
-                    </span>
+              {/* Transaction Trends and Addresses by Volume - Responsive Grid */}
+              <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+                {/* Transaction Trends */}
+                <div className='glass rounded-2xl p-6'>
+                  <h3 className='text-lg font-bold text-white mb-4'>
+                    {activeTab} Transaction Trends
+                  </h3>
+                  {data.hourlyVolume && data.hourlyVolume.length > 0 ? (
+                    <LazyTransactionChart
+                      data={data.hourlyVolume}
+                      height={400}
+                      showGrid={true}
+                      tokenSymbol={activeTab}
+                    />
+                  ) : (
+                    <div className='flex items-center justify-center py-12'>
+                      <span className='text-white/60'>
+                        No transaction data available for {activeTab}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Top Addresses by Volume */}
+                {data.topAddresses && data.topAddresses.length > 0 && (
+                  <div className='glass rounded-2xl p-6'>
+                    <h3 className='text-lg font-bold text-white mb-4'>
+                      Top {activeTab} Addresses by Volume
+                    </h3>
+                    <div className='space-y-3'>
+                      {data.topAddresses.slice(0, 5).map((address, index) => (
+                        <div
+                          key={address.address}
+                          className='flex items-center justify-between py-2 border-b border-white/10 last:border-b-0'
+                        >
+                          <div className='flex items-center gap-3'>
+                            <div className='w-8 h-8 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400 font-bold text-sm'>
+                              {index + 1}
+                            </div>
+                            <div
+                              className='cursor-pointer'
+                              onClick={() =>
+                                handleChartClick('address', address.address)
+                              }
+                            >
+                              <div className='text-white font-mono text-sm hover:text-primary-400 transition-colors'>
+                                {address.address}
+                              </div>
+                              <div className='text-white/60 text-xs'>
+                                {formatTransactionCount(address.transactionCount)}{' '}
+                                transactions
+                              </div>
+                            </div>
+                          </div>
+                          <div className='text-right'>
+                            <div className='text-white font-medium'>
+                              {formatVolume(address.totalVolume, activeTab)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Top Addresses */}
-              {data.topAddresses && data.topAddresses.length > 0 && (
+              {/* Top Address Activity - Receivers and Senders */}
+              <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+                {/* Top Receivers */}
                 <div className='glass rounded-2xl p-6'>
-                  <h3 className='text-lg font-bold text-white mb-4'>
-                    Top {activeTab} Addresses by Volume
+                  <h3 className='text-lg font-bold text-white mb-4 flex items-center gap-2'>
+                    <span className='w-3 h-3 rounded-full bg-green-500'></span>
+                    Top {activeTab} Transaction Receivers
                   </h3>
-                  <div className='space-y-3'>
-                    {data.topAddresses.slice(0, 5).map((address, index) => (
-                      <div
-                        key={address.address}
-                        className='flex items-center justify-between py-2 border-b border-white/10 last:border-b-0'
-                      >
-                        <div className='flex items-center gap-3'>
-                          <div className='w-8 h-8 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400 font-bold text-sm'>
-                            {index + 1}
-                          </div>
-                          <div
-                            className='cursor-pointer'
-                            onClick={() =>
-                              handleChartClick('address', address.address)
-                            }
-                          >
-                            <div className='text-white font-mono text-sm hover:text-primary-400 transition-colors'>
-                              {address.address.slice(0, 6)}...
-                              {address.address.slice(-4)}
+                  {data.topReceivers && data.topReceivers.length > 0 ? (
+                    <div className='space-y-3'>
+                      {data.topReceivers.slice(0, 5).map((address, index) => (
+                        <div
+                          key={address.address}
+                          className='flex items-center justify-between py-2 border-b border-white/10 last:border-b-0'
+                        >
+                          <div className='flex items-center gap-3'>
+                            <div className='w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 font-bold text-sm'>
+                              {index + 1}
                             </div>
-                            <div className='text-white/60 text-xs'>
-                              {formatNumber(address.transactionCount)}{' '}
-                              transactions
+                            <div
+                              className='cursor-pointer'
+                              onClick={() =>
+                                handleChartClick('address', address.address)
+                              }
+                            >
+                              <div className='text-white font-mono text-sm hover:text-green-400 transition-colors'>
+                                {address.address}
+                              </div>
+                              <div className='text-white/60 text-xs'>
+                                {formatTransactionCount(address.transactionCount)}{' '}
+                                transactions
+                              </div>
+                            </div>
+                          </div>
+                          <div className='text-right'>
+                            <div className='text-white font-medium'>
+                              {formatTransactionCount(address.transactionCount)}
                             </div>
                           </div>
                         </div>
-                        <div className='text-right'>
-                          <div className='text-white font-medium'>
-                            {formatVolume(address.totalVolume, activeTab)}
-                          </div>
-                          <div className='text-white/60 text-xs'>
-                            {address.uniqueInteractions} tokens
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className='flex items-center justify-center py-12'>
+                      <span className='text-white/60'>
+                        No receiver data available
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              {/* Top Address Activity Chart */}
-              <div className='glass rounded-2xl p-6'>
-                <h3 className='text-lg font-bold text-white mb-4'>
-                  Top {activeTab} Address Activity
-                </h3>
-                {data.topAddresses && data.topAddresses.length > 0 ? (
-                  <LazyAddressActivityChart
-                    data={data.topAddresses}
-                    height={450}
-                    showGrid={true}
-                    metric='volume'
-                  />
-                ) : (
-                  <div className='flex items-center justify-center py-12'>
-                    <span className='text-white/60'>
-                      No address activity data available
-                    </span>
-                  </div>
-                )}
+                {/* Top Senders */}
+                <div className='glass rounded-2xl p-6'>
+                  <h3 className='text-lg font-bold text-white mb-4 flex items-center gap-2'>
+                    <span className='w-3 h-3 rounded-full bg-orange-500'></span>
+                    Top {activeTab} Transaction Senders
+                  </h3>
+                  {data.topSenders && data.topSenders.length > 0 ? (
+                    <div className='space-y-3'>
+                      {data.topSenders.slice(0, 5).map((address, index) => (
+                        <div
+                          key={address.address}
+                          className='flex items-center justify-between py-2 border-b border-white/10 last:border-b-0'
+                        >
+                          <div className='flex items-center gap-3'>
+                            <div className='w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 font-bold text-sm'>
+                              {index + 1}
+                            </div>
+                            <div
+                              className='cursor-pointer'
+                              onClick={() =>
+                                handleChartClick('address', address.address)
+                              }
+                            >
+                              <div className='text-white font-mono text-sm hover:text-orange-400 transition-colors'>
+                                {address.address}
+                              </div>
+                              <div className='text-white/60 text-xs'>
+                                {formatTransactionCount(address.transactionCount)}{' '}
+                                transactions
+                              </div>
+                            </div>
+                          </div>
+                          <div className='text-right'>
+                            <div className='text-white font-medium'>
+                              {formatTransactionCount(address.transactionCount)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className='flex items-center justify-center py-12'>
+                      <span className='text-white/60'>
+                        No sender data available
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Anomaly Detection Overview */}
               <div className='glass rounded-2xl p-6'>
                 <h3 className='text-lg font-bold text-white mb-4'>
-                  {activeTab} Anomaly Detection Overview
+                  {activeTab} Anomaly Detection Overview{' '}
+                  <span className='text-red-400'>(Not Working)</span>
                 </h3>
                 {data.anomalyStats ? (
                   <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
@@ -982,7 +1079,8 @@ export function Analytics() {
               {/* Anomaly Trends & Risk Analysis */}
               <div className='glass rounded-2xl p-6'>
                 <h3 className='text-lg font-bold text-white mb-4'>
-                  {activeTab} Anomaly Trends & Risk Analysis
+                  {activeTab} Anomaly Trends & Risk Analysis{' '}
+                  <span className='text-red-400'>(Not Working)</span>
                 </h3>
                 {data.anomalyTimeData && data.anomalyTimeData.length > 0 ? (
                   <LazyAnomalyChart
