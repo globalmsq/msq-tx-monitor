@@ -197,31 +197,13 @@ export class WebSocketServer {
     // This could be extended to support selective subscriptions
     console.log(`Client ${clientId} subscribed to:`, subscriptionData);
 
-    try {
-      // Get fresh statistics for subscription confirmation
-      const stats = await this.statisticsService.getDashboardStats();
-
-      this.sendToClient(clientId, {
-        type: 'subscription_confirmed',
-        data: {
-          subscription: subscriptionData,
-          stats: stats,
-        },
-        timestamp: new Date(),
-      });
-    } catch (error) {
-      console.error(
-        `Error sending stats with subscription confirmation to ${clientId}:`,
-        error
-      );
-
-      // Send confirmation without stats as fallback
-      this.sendToClient(clientId, {
-        type: 'subscription_confirmed',
-        data: { subscription: subscriptionData },
-        timestamp: new Date(),
-      });
-    }
+    // Send subscription confirmation without stats to avoid duplication
+    // (stats were already sent in welcome message)
+    this.sendToClient(clientId, {
+      type: 'subscription_confirmed',
+      data: { subscription: subscriptionData },
+      timestamp: new Date(),
+    });
   }
 
   private handleUnsubscription(
