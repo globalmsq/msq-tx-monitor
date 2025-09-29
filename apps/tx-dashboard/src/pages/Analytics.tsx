@@ -15,6 +15,7 @@ import {
 import { cn } from '../utils/cn';
 import {
   LazyVolumeChart,
+  LazyTransactionChart,
   LazyAddressActivityChart,
   LazyAnomalyChart,
 } from '../components/charts/LazyCharts';
@@ -843,6 +844,27 @@ export function Analytics() {
                   <div className='flex items-center justify-center py-12'>
                     <span className='text-white/60'>
                       No volume data available for {activeTab}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Transaction Trends */}
+              <div className='glass rounded-2xl p-6'>
+                <h3 className='text-lg font-bold text-white mb-4'>
+                  {activeTab} Transaction Trends
+                </h3>
+                {data.hourlyVolume && data.hourlyVolume.length > 0 ? (
+                  <LazyTransactionChart
+                    data={data.hourlyVolume}
+                    height={400}
+                    showGrid={true}
+                    tokenSymbol={activeTab}
+                  />
+                ) : (
+                  <div className='flex items-center justify-center py-12'>
+                    <span className='text-white/60'>
+                      No transaction data available for {activeTab}
                     </span>
                   </div>
                 )}

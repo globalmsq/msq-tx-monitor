@@ -64,8 +64,8 @@ function generateMockData(hours, token) {
     intervalMinutes = 60;
     timeFormat = (ts) => ts.toISOString().slice(0, 13) + ':00:00';
   } else {
-    // For longer periods: hourly intervals, max 168 (7 days)
-    dataPoints = Math.min(hours, 168);
+    // For longer periods: hourly intervals for the full requested period
+    dataPoints = hours;
     intervalMinutes = 60;
     timeFormat = (ts) => ts.toISOString().slice(0, 13) + ':00:00';
   }

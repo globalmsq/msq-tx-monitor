@@ -22,6 +22,10 @@ const AnomalyChart = React.lazy(() =>
   import('./AnomalyChart').then(module => ({ default: module.AnomalyChart }))
 );
 
+const TransactionChart = React.lazy(() =>
+  import('./TransactionChart').then(module => ({ default: module.TransactionChart }))
+);
+
 // Loading fallback component
 const ChartLoader = ({ height = 300 }: { height?: number }) => (
   <div className='w-full flex items-center justify-center' style={{ height }}>
@@ -57,7 +61,14 @@ export const LazyAnomalyChart = React.memo((props: any) => (
   </Suspense>
 ));
 
+export const LazyTransactionChart = React.memo((props: any) => (
+  <Suspense fallback={<ChartLoader height={props.height} />}>
+    <TransactionChart {...props} />
+  </Suspense>
+));
+
 LazyVolumeChart.displayName = 'LazyVolumeChart';
 LazyTokenDistributionChart.displayName = 'LazyTokenDistributionChart';
 LazyAddressActivityChart.displayName = 'LazyAddressActivityChart';
 LazyAnomalyChart.displayName = 'LazyAnomalyChart';
+LazyTransactionChart.displayName = 'LazyTransactionChart';
