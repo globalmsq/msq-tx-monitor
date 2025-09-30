@@ -1,4 +1,5 @@
 import { prisma } from '@msq-tx-monitor/database';
+import { apiLogger } from '@msq-tx-monitor/msq-common';
 
 export interface HourlyVolumeData {
   hour: string;
@@ -88,7 +89,7 @@ export class AnalyticsService {
 
       return filledData;
     } catch (error) {
-      console.error('Error fetching hourly volume data:', error);
+      apiLogger.error('Error fetching hourly volume data', error);
       throw new Error('Failed to fetch hourly volume data');
     }
   }
@@ -201,7 +202,7 @@ export class AnalyticsService {
         tokenStats,
       };
     } catch (error) {
-      console.error('Error fetching realtime stats:', error);
+      apiLogger.error('Error fetching realtime stats', error);
       throw new Error('Failed to fetch realtime stats');
     }
   }
@@ -256,7 +257,7 @@ export class AnalyticsService {
         };
       });
     } catch (error) {
-      console.error('Error fetching token distribution:', error);
+      apiLogger.error('Error fetching token distribution', error);
       throw new Error('Failed to fetch token distribution');
     }
   }
@@ -340,9 +341,9 @@ export class AnalyticsService {
           LIMIT ${limit}
         `;
 
-      console.log('Executing getTopAddresses query...');
+      apiLogger.debug('Executing getTopAddresses query...');
       const rows = (await prisma.$queryRawUnsafe(query)) as any[];
-      console.log('Query executed successfully, rows:', rows.length);
+      apiLogger.debug('Query executed successfully, rows:', rows.length);
 
       return rows.map((row, index) => ({
         rank: index + 1,
@@ -356,8 +357,8 @@ export class AnalyticsService {
             : row.transactionCount?.toString() || '0',
       }));
     } catch (error) {
-      console.error('Error fetching top addresses:', error);
-      console.error('Query was:', query);
+      apiLogger.error('Error fetching top addresses', error);
+      apiLogger.error('Query was:', query);
       throw new Error('Failed to fetch top addresses');
     }
   }
@@ -382,9 +383,9 @@ export class AnalyticsService {
         lowRiskCount: 96,
       };
     } catch (error) {
-      console.error('Error fetching anomaly stats:', error);
+      apiLogger.error('Error fetching anomaly stats', error);
       if (error instanceof Error) {
-        console.error('Error details:', error.message, error.stack);
+        apiLogger.error('Error details:', error.message, error.stack);
       }
       throw new Error('Failed to fetch anomaly stats');
     }
@@ -428,7 +429,7 @@ export class AnalyticsService {
         networkUtilization: Math.random() * 100, // Placeholder - would need real network data
       };
     } catch (error) {
-      console.error('Error fetching network stats:', error);
+      apiLogger.error('Error fetching network stats', error);
       throw new Error('Failed to fetch network stats');
     }
   }
@@ -474,7 +475,7 @@ export class AnalyticsService {
         metric: parseInt(row.transactionCount.toString()),
       }));
     } catch (error) {
-      console.error('Error fetching top receivers:', error);
+      apiLogger.error('Error fetching top receivers', error);
       throw new Error('Failed to fetch top receivers');
     }
   }
@@ -520,7 +521,7 @@ export class AnalyticsService {
         metric: parseInt(row.transactionCount.toString()),
       }));
     } catch (error) {
-      console.error('Error fetching top senders:', error);
+      apiLogger.error('Error fetching top senders', error);
       throw new Error('Failed to fetch top senders');
     }
   }
@@ -583,7 +584,7 @@ export class AnalyticsService {
 
       return filledData;
     } catch (error) {
-      console.error('Error fetching anomaly time series:', error);
+      apiLogger.error('Error fetching anomaly time series', error);
       throw new Error('Failed to fetch anomaly time series');
     }
   }

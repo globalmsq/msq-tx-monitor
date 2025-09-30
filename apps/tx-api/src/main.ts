@@ -3,6 +3,7 @@ import {
   initializeConnections,
   closeConnections,
 } from './middleware/database.middleware';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 const port = process.env.PORT || 8000;
 
@@ -13,12 +14,12 @@ async function startServer() {
 
     // Start the server
     const server = app.listen(port, () => {
-      console.log(`🚀 TX API Server is running on port ${port}`);
+      logger.info(`🚀 TX API Server is running on port ${port}`);
     });
 
     // Graceful shutdown
     process.on('SIGTERM', async () => {
-      console.log('📴 SIGTERM received, shutting down gracefully...');
+      logger.info('📴 SIGTERM received, shutting down gracefully...');
       server.close(async () => {
         await closeConnections();
         process.exit(0);
@@ -26,14 +27,14 @@ async function startServer() {
     });
 
     process.on('SIGINT', async () => {
-      console.log('📴 SIGINT received, shutting down gracefully...');
+      logger.info('📴 SIGINT received, shutting down gracefully...');
       server.close(async () => {
         await closeConnections();
         process.exit(0);
       });
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    logger.fatal('❌ Failed to start server', error);
     process.exit(1);
   }
 }

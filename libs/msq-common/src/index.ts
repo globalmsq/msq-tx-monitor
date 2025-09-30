@@ -224,3 +224,14 @@ export {
   getTokenDecimals,
   type FormatOptions,
 } from './formatters';
+
+// Export logger utilities
+export {
+  Logger,
+  LogLevel,
+  type LoggerOptions,
+  logger,
+  apiLogger,
+  cacheLogger,
+  wsLogger,
+} from './logger';

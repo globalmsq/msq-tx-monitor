@@ -12,6 +12,7 @@ import {
 } from '../types/address.types';
 
 import { RedisConnection } from '../cache/redis';
+import { apiLogger } from '@msq-tx-monitor/msq-common';
 
 // Database query result interfaces
 interface AddressRankingQueryResult {
@@ -66,7 +67,7 @@ export class AddressService {
         return JSON.parse(cached);
       }
     } catch (error) {
-      console.warn('Cache miss for top addresses:', error);
+      apiLogger.warn('Cache miss for top addresses', error);
     }
 
     // Build time period filter
@@ -140,7 +141,7 @@ export class AddressService {
     try {
       await RedisConnection.set(cacheKey, JSON.stringify(response), 300);
     } catch (error) {
-      console.warn('Failed to cache top addresses:', error);
+      apiLogger.warn('Failed to cache top addresses', error);
     }
 
     return response;
@@ -162,7 +163,7 @@ export class AddressService {
         return JSON.parse(cached);
       }
     } catch (error) {
-      console.warn('Cache miss for address search:', error);
+      apiLogger.warn('Cache miss for address search', error);
     }
 
     // Use raw query for address search across both from and to addresses
@@ -215,7 +216,7 @@ export class AddressService {
         120
       );
     } catch (error) {
-      console.warn('Failed to cache address search:', error);
+      apiLogger.warn('Failed to cache address search', error);
     }
 
     return formattedResults;
@@ -237,7 +238,7 @@ export class AddressService {
         return JSON.parse(cached);
       }
     } catch (error) {
-      console.warn('Cache miss for top addresses by frequency:', error);
+      apiLogger.warn('Cache miss for top addresses by frequency', error);
     }
 
     // Build time period filter
@@ -310,7 +311,7 @@ export class AddressService {
     try {
       await RedisConnection.set(cacheKey, JSON.stringify(response), 300);
     } catch (error) {
-      console.warn('Failed to cache top addresses by frequency:', error);
+      apiLogger.warn('Failed to cache top addresses by frequency', error);
     }
 
     return response;
@@ -359,7 +360,7 @@ export class AddressService {
         return JSON.parse(cached);
       }
     } catch (error) {
-      console.warn('Cache miss for address statistics:', error);
+      apiLogger.warn('Cache miss for address statistics', error);
     }
 
     // Check if we have address statistics in the address_statistics table first
@@ -516,7 +517,7 @@ export class AddressService {
       try {
         await RedisConnection.set(cacheKey, JSON.stringify(result), 300);
       } catch (error) {
-        console.warn('Failed to cache address statistics:', error);
+        apiLogger.warn('Failed to cache address statistics', error);
       }
 
       return result;
@@ -670,7 +671,7 @@ export class AddressService {
     try {
       await RedisConnection.set(cacheKey, JSON.stringify(result), 300);
     } catch (error) {
-      console.warn('Failed to cache address statistics:', error);
+      apiLogger.warn('Failed to cache address statistics', error);
     }
 
     return result;
@@ -771,7 +772,7 @@ export class AddressService {
         return JSON.parse(cached);
       }
     } catch (error) {
-      console.warn('Cache miss for address profile:', error);
+      apiLogger.warn('Cache miss for address profile', error);
     }
 
     // Get address statistics from the AddressStatistics table
@@ -880,7 +881,7 @@ export class AddressService {
     try {
       await RedisConnection.set(cacheKey, JSON.stringify(profile), 300);
     } catch (error) {
-      console.warn('Failed to cache address profile:', error);
+      apiLogger.warn('Failed to cache address profile', error);
     }
 
     return profile;
@@ -902,7 +903,7 @@ export class AddressService {
         return JSON.parse(cached);
       }
     } catch (error) {
-      console.warn('Cache miss for whale addresses:', error);
+      apiLogger.warn('Cache miss for whale addresses', error);
     }
 
     const whereClause = tokenAddress
@@ -980,7 +981,7 @@ export class AddressService {
     try {
       await RedisConnection.set(cacheKey, JSON.stringify(response), 600);
     } catch (error) {
-      console.warn('Failed to cache whale addresses:', error);
+      apiLogger.warn('Failed to cache whale addresses', error);
     }
 
     return response;
@@ -1003,7 +1004,7 @@ export class AddressService {
         return JSON.parse(cached);
       }
     } catch (error) {
-      console.warn('Cache miss for active traders:', error);
+      apiLogger.warn('Cache miss for active traders', error);
     }
 
     const activeTraders = await prisma.addressStatistics.findMany({
@@ -1089,7 +1090,7 @@ export class AddressService {
     try {
       await RedisConnection.set(cacheKey, JSON.stringify(response), 600);
     } catch (error) {
-      console.warn('Failed to cache active traders:', error);
+      apiLogger.warn('Failed to cache active traders', error);
     }
 
     return response;
@@ -1112,7 +1113,7 @@ export class AddressService {
         return JSON.parse(cached);
       }
     } catch (error) {
-      console.warn('Cache miss for suspicious addresses:', error);
+      apiLogger.warn('Cache miss for suspicious addresses', error);
     }
 
     const suspiciousAddresses = await prisma.addressStatistics.findMany({
@@ -1198,7 +1199,7 @@ export class AddressService {
     try {
       await RedisConnection.set(cacheKey, JSON.stringify(response), 300);
     } catch (error) {
-      console.warn('Failed to cache suspicious addresses:', error);
+      apiLogger.warn('Failed to cache suspicious addresses', error);
     }
 
     return response;
@@ -1220,7 +1221,7 @@ export class AddressService {
         return JSON.parse(cached);
       }
     } catch (error) {
-      console.warn('Cache miss for address statistics detail:', error);
+      apiLogger.warn('Cache miss for address statistics detail', error);
     }
 
     const whereClause = tokenAddress ? { address, tokenAddress } : { address };
@@ -1261,7 +1262,7 @@ export class AddressService {
     try {
       await RedisConnection.set(cacheKey, JSON.stringify(detailedStats), 300);
     } catch (error) {
-      console.warn('Failed to cache address statistics detail:', error);
+      apiLogger.warn('Failed to cache address statistics detail', error);
     }
 
     return detailedStats;
@@ -1277,7 +1278,7 @@ export class AddressService {
       `;
       return Math.min(100, Math.max(0, result[0]?.percentile || 0));
     } catch (error) {
-      console.warn('Failed to calculate volume percentile:', error);
+      apiLogger.warn('Failed to calculate volume percentile', error);
       return 50; // Default to median
     }
   }
@@ -1293,7 +1294,7 @@ export class AddressService {
       `;
       return Math.min(100, Math.max(0, result[0]?.percentile || 0));
     } catch (error) {
-      console.warn('Failed to calculate frequency percentile:', error);
+      apiLogger.warn('Failed to calculate frequency percentile', error);
       return 50; // Default to median
     }
   }
@@ -1330,7 +1331,7 @@ export class AddressService {
         return result[0]?.rank || 1;
       }
     } catch (error) {
-      console.warn('Failed to calculate address rank:', error);
+      apiLogger.warn('Failed to calculate address rank', error);
       return 1; // Default to top rank
     }
   }

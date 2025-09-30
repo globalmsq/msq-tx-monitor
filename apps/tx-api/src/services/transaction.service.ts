@@ -8,6 +8,7 @@ import {
   CursorTransactionListResponse,
   AddressTransactionSummary,
 } from '../types/transaction.types';
+import { apiLogger } from '@msq-tx-monitor/msq-common';
 import { RedisConnection } from '../cache/redis';
 
 // Database query result interfaces
@@ -94,7 +95,7 @@ export class TransactionService {
         return JSON.parse(cached);
       }
     } catch (error) {
-      console.warn('Cache miss for transactions:', error);
+      apiLogger.warn('Cache miss for transactions', error);
     }
 
     // Build Prisma where clause
@@ -133,7 +134,7 @@ export class TransactionService {
     try {
       await RedisConnection.set(cacheKey, JSON.stringify(response), 60);
     } catch (error) {
-      console.warn('Failed to cache transactions:', error);
+      apiLogger.warn('Failed to cache transactions', error);
     }
 
     return response;
@@ -155,7 +156,7 @@ export class TransactionService {
         return JSON.parse(cached);
       }
     } catch (error) {
-      console.warn('Cache miss for cursor transactions:', error);
+      apiLogger.warn('Cache miss for cursor transactions', error);
     }
 
     // Build Prisma where clause
@@ -235,7 +236,7 @@ export class TransactionService {
     try {
       await RedisConnection.set(cacheKey, JSON.stringify(response), 30);
     } catch (error) {
-      console.warn('Failed to cache cursor transactions:', error);
+      apiLogger.warn('Failed to cache cursor transactions', error);
     }
 
     return response;
@@ -256,7 +257,7 @@ export class TransactionService {
         return JSON.parse(cached);
       }
     } catch (error) {
-      console.warn('Cache miss for transaction:', error);
+      apiLogger.warn('Cache miss for transaction', error);
     }
 
     const transaction = await prisma.transaction.findUnique({
@@ -279,7 +280,7 @@ export class TransactionService {
     try {
       await RedisConnection.set(cacheKey, JSON.stringify(result), 300);
     } catch (error) {
-      console.warn('Failed to cache transaction:', error);
+      apiLogger.warn('Failed to cache transaction', error);
     }
 
     return result;
@@ -316,7 +317,7 @@ export class TransactionService {
         return JSON.parse(cached);
       }
     } catch (error) {
-      console.warn('Cache miss for address summary:', error);
+      apiLogger.warn('Cache miss for address summary', error);
     }
 
     // Get basic transaction stats
@@ -380,7 +381,7 @@ export class TransactionService {
     try {
       await RedisConnection.set(cacheKey, JSON.stringify(summary), 120);
     } catch (error) {
-      console.warn('Failed to cache address summary:', error);
+      apiLogger.warn('Failed to cache address summary', error);
     }
 
     return summary;
