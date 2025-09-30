@@ -11,6 +11,7 @@ import {
   TransactionMessage,
 } from '../services/websocket';
 import { FilterState, useUrlFilterSync } from '../hooks/useUrlFilterSync';
+import { FILTER_TOKENS } from '@msq-tx-monitor/msq-common';
 import { applyFiltersToTransactions } from '../utils/filterUtils';
 import {
   Transaction,
@@ -360,6 +361,24 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
     dispatch({ type: 'SET_FILTERS', payload: urlFilters });
   }, [parseFiltersFromUrl]);
 
+  // Auto-conversion check: If all tokens are selected, convert to ALL state
+  useEffect(() => {
+    const currentTokens = state.filters.tokens;
+    const allTokens = FILTER_TOKENS;
+
+    if (currentTokens.length > 0) {
+      const hasAllTokens = allTokens.every(t => currentTokens.includes(t));
+      const hasExactLength = currentTokens.length === allTokens.length;
+      const currentTokensSorted = [...currentTokens].sort();
+      const allTokensSorted = [...allTokens].sort();
+      const isExactMatch = JSON.stringify(currentTokensSorted) === JSON.stringify(allTokensSorted);
+
+      if (hasAllTokens && hasExactLength && isExactMatch) {
+        dispatch({ type: 'SET_TOKEN_FILTER', payload: [] });
+      }
+    }
+  }, [state.filters.tokens]);
+
   // Load initial transaction data on mount
   useEffect(() => {
     const loadInitialData = async () => {
@@ -509,11 +528,34 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
   const actions = {
     toggleTokenFilter: (token: string) => {
       const currentTokens = state.filters.tokens;
-      const newTokens = currentTokens.includes(token)
-        ? currentTokens.filter(t => t !== token)
-        : [...currentTokens, token];
+      const allTokens = FILTER_TOKENS;
 
-      dispatch({ type: 'SET_TOKEN_FILTER', payload: newTokens });
+
+      if (token === 'ALL') {
+        // ALL 선택 시 모든 토큰 해제 (빈 배열 = ALL 상태)
+        dispatch({ type: 'SET_TOKEN_FILTER', payload: [] });
+      } else {
+        // 개별 토큰 선택/해제
+        const newTokens = currentTokens.includes(token)
+          ? currentTokens.filter(t => t !== token)
+          : [...currentTokens, token];
+
+
+        // 모든 토큰이 선택되었는지 정확히 확인 (순서 무관)
+        const hasAllTokens = allTokens.every(t => newTokens.includes(t));
+        const hasExactLength = newTokens.length === allTokens.length;
+        const newTokensSorted = [...newTokens].sort();
+        const allTokensSorted = [...allTokens].sort();
+        const isExactMatch = JSON.stringify(newTokensSorted) === JSON.stringify(allTokensSorted);
+
+
+        if (hasAllTokens && hasExactLength && isExactMatch) {
+          // 모든 토큰 선택 시 ALL 상태로 변환 (빈 배열)
+          dispatch({ type: 'SET_TOKEN_FILTER', payload: [] });
+        } else {
+          dispatch({ type: 'SET_TOKEN_FILTER', payload: newTokens });
+        }
+      }
     },
 
     toggleAnomalies: () => {

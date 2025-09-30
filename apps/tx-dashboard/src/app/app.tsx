@@ -2,7 +2,6 @@ import { Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { Activity, BarChart3, Wallet, Wifi, WifiOff, Menu } from 'lucide-react';
 import { VolumeWithTooltip } from '../components/VolumeWithTooltip';
-import { getTokenDecimals } from '@msq-tx-monitor/msq-common';
 import { useState, useCallback } from 'react';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
 import { TransactionTable } from '../components/TransactionTable';
@@ -17,9 +16,10 @@ import {
   DetailedAnalysisModal,
   DetailedData,
 } from '../components/DetailedAnalysisModal';
-import { fetchAddressDetails, fetchTransactionsPage, TimeRange } from '../utils/addressAnalytics';
+import { fetchAddressDetails, fetchTransactionsPage } from '../utils/addressAnalytics';
 import { getFilterSummary, hasActiveFilters } from '../utils/filterUtils';
 import { cn } from '../utils/cn';
+import { FILTER_TOKENS } from '@msq-tx-monitor/msq-common';
 import {
   TransactionProvider,
   useConnectionState,
@@ -221,7 +221,8 @@ function TransactionFeed() {
   const [addressModalData, setAddressModalData] = useState<DetailedData | null>(null);
   const [addressModalLoading, setAddressModalLoading] = useState(false);
 
-  const tokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
+  const tokens = FILTER_TOKENS;
+
 
   const handleTransactionClick = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
@@ -272,6 +273,10 @@ function TransactionFeed() {
     riskLevel: 'all',
   });
 
+  // 항상 전체 트랜잭션 개수 표시
+  const displayCount = totalCount || stats.totalTransactions;
+  const countLabel = 'transactions found';
+
   return (
     <div className='glass rounded-2xl p-6'>
       <h2 className='text-xl font-bold text-white mb-6'>
@@ -291,6 +296,21 @@ function TransactionFeed() {
 
         {/* Token Selection */}
         <div className='flex flex-wrap gap-2 lg:flex-shrink-0'>
+          {/* ALL 버튼 */}
+          <button
+            onClick={() => toggleTokenFilter('ALL')}
+            className={cn(
+              'px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
+              'border border-white/10 hover:border-white/20',
+filters.tokens.length === 0
+                ? 'bg-primary-500/20 text-primary-400 border-primary-500/30'
+                : 'bg-white/5 text-white/60 hover:text-white/80'
+            )}
+          >
+            ALL
+          </button>
+
+          {/* 개별 토큰 버튼들 */}
           {tokens.map(token => (
             <button
               key={token}
@@ -298,7 +318,7 @@ function TransactionFeed() {
               className={cn(
                 'px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
                 'border border-white/10 hover:border-white/20',
-                filters.tokens.length === 0 || filters.tokens.includes(token)
+filters.tokens.length > 0 && filters.tokens.includes(token)
                   ? 'bg-primary-500/20 text-primary-400 border-primary-500/30'
                   : 'bg-white/5 text-white/60 hover:text-white/80'
               )}
@@ -306,10 +326,12 @@ function TransactionFeed() {
               {token}
             </button>
           ))}
+
+          {/* 선택 상태 표시 */}
           <div className='text-xs text-white/40 flex items-center ml-2'>
             {filters.tokens.length === 0
               ? 'All tokens'
-              : `${filters.tokens.length} selected`}
+              : `${filters.tokens.length} token${filters.tokens.length > 1 ? 's' : ''} selected`}
           </div>
         </div>
       </div>
@@ -336,7 +358,7 @@ function TransactionFeed() {
         <span className='text-sm text-white/70 whitespace-nowrap'>
           {isInitialLoad
             ? 'Loading...'
-            : `${(totalCount || stats.totalTransactions).toLocaleString()} transactions found`}
+            : `${displayCount.toLocaleString()} ${countLabel}`}
         </span>
       </div>
 

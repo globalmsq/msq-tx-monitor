@@ -214,6 +214,9 @@ export const MSQ_CONSTANTS = {
   CRITICAL_RISK_THRESHOLD: 0.95,
 } as const;
 
+// Filter constants for UI
+export const FILTER_TOKENS = Object.values(MSQ_TOKENS).map(token => token.symbol);
+
 // Export formatters
 export {
   formatNumber,

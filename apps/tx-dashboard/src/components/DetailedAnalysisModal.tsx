@@ -14,7 +14,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
-import { formatVolume, formatAddress, formatExactNumber, getTokenDecimals } from '@msq-tx-monitor/msq-common';
+import { formatVolume, formatAddress } from '@msq-tx-monitor/msq-common';
 import { VolumeWithTooltip } from './VolumeWithTooltip';
 
 export interface DetailedData {
