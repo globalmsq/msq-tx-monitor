@@ -3,7 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { Activity, BarChart3, Wallet, Wifi, WifiOff, Menu } from 'lucide-react';
 import { VolumeWithTooltip } from '../components/VolumeWithTooltip';
 import { getTokenDecimals } from '@msq-tx-monitor/msq-common';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
 import { TransactionTable } from '../components/TransactionTable';
 import { TransactionSearchInput } from '../components/filters/TransactionSearchInput';
@@ -13,6 +13,11 @@ import {
   LoadMoreButton,
   InitialStatsLoadingSkeleton,
 } from '../components/LoadingSkeleton';
+import {
+  DetailedAnalysisModal,
+  DetailedData,
+} from '../components/DetailedAnalysisModal';
+import { fetchAddressDetails, fetchTransactionsPage, TimeRange } from '../utils/addressAnalytics';
 import { getFilterSummary, hasActiveFilters } from '../utils/filterUtils';
 import { cn } from '../utils/cn';
 import {
@@ -212,6 +217,10 @@ function TransactionFeed() {
     useState<Transaction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Address detail modal state
+  const [addressModalData, setAddressModalData] = useState<DetailedData | null>(null);
+  const [addressModalLoading, setAddressModalLoading] = useState(false);
+
   const tokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
 
   const handleTransactionClick = (transaction: Transaction) => {
@@ -227,6 +236,31 @@ function TransactionFeed() {
   const handleAddressSearch = (value: string) => {
     updateFilters({ addressSearch: value });
   };
+
+  const handleAddressClick = useCallback(async (type: 'address', address: string) => {
+    if (!selectedTransaction) return;
+
+    setAddressModalLoading(true);
+
+    try {
+      const detailedData = await fetchAddressDetails(
+        address,
+        selectedTransaction.token,
+        '24h'
+      );
+      setAddressModalData(detailedData);
+    } catch (error) {
+      console.error('Failed to fetch address details:', error);
+      // Optionally show a toast notification here
+    } finally {
+      console.log('🏁 DEBUG: Setting loading to false');
+      setAddressModalLoading(false);
+    }
+  }, [selectedTransaction]);
+
+  const closeAddressModal = useCallback(() => {
+    setAddressModalData(null);
+  }, []);
 
   const filterSummary = getFilterSummary(filters);
   const hasFilters = hasActiveFilters(filters, {
@@ -333,6 +367,28 @@ function TransactionFeed() {
         transaction={selectedTransaction}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
+        onAddressClick={handleAddressClick}
+      />
+
+      {/* Address Detail Modal */}
+      <DetailedAnalysisModal
+        isOpen={!!addressModalData || addressModalLoading}
+        onClose={closeAddressModal}
+        data={addressModalData}
+        loading={addressModalLoading}
+        onFetchTransactions={useCallback(async (page: number, filter?: string) => {
+          if (addressModalData?.identifier && selectedTransaction) {
+            const result = await fetchTransactionsPage(
+              addressModalData.identifier,
+              page,
+              selectedTransaction.token,
+              '24h',
+              filter
+            );
+            return result;
+          }
+          return { transactions: [], pagination: { total: 0, totalPages: 0, page: 1, limit: 10 } };
+        }, [addressModalData?.identifier, selectedTransaction])}
       />
     </div>
   );

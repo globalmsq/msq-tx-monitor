@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import {
   X,
   TrendingUp,
@@ -68,7 +69,7 @@ interface DetailedAnalysisModalProps {
   onFetchTransactions?: (page: number, filter?: string) => Promise<{ transactions: DetailedTransaction[], pagination: any }>;
 }
 
-export function DetailedAnalysisModal({
+export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
   isOpen,
   onClose,
   data,
@@ -96,7 +97,7 @@ export function DetailedAnalysisModal({
       // Initialize with provided transactions or empty array
       setAllTransactions(data?.transactions || []);
     }
-  }, [isOpen, data]);
+  }, [isOpen, data?.identifier]);
 
   // Refetch transactions when filter changes
   useEffect(() => {
@@ -162,7 +163,7 @@ export function DetailedAnalysisModal({
           return true;
       }
     });
-  }, [allTransactions, transactionFilter, data?.identifier, onFetchTransactions, data?.paginationMeta?.apiEndpoint]);
+  }, [allTransactions, transactionFilter, data?.identifier, !!onFetchTransactions, !!data?.paginationMeta?.apiEndpoint]);
 
   // Calculate total pages dynamically based on filter state
   // Must be defined before early return to follow React's Rules of Hooks
@@ -181,25 +182,43 @@ export function DetailedAnalysisModal({
       return 1;
     }
 
-    // For client-side filtering (legacy)
-    const filteredCount = getFilteredTransactions().length;
-    return Math.max(1, Math.ceil(filteredCount / itemsPerPage));
-  }, [paginationData, transactionFilter, data?.paginationMeta, allTransactions, getFilteredTransactions, onFetchTransactions]);
+    // For client-side filtering (legacy) - calculate directly without calling getFilteredTransactions
+    let filteredCount = allTransactions.length;
 
-  if (!isOpen) return null;
+    if (transactionFilter !== 'all') {
+      filteredCount = allTransactions.filter(tx => {
+        switch (transactionFilter) {
+          case 'success':
+            return tx.status === 'success';
+          case 'failed':
+            return tx.status === 'failed';
+          case 'high-risk':
+            return (tx.riskScore || 0) > 0.7;
+          case 'received':
+            return data?.identifier && tx.to.toLowerCase() === data.identifier.toLowerCase();
+          case 'sent':
+            return data?.identifier && tx.from.toLowerCase() === data.identifier.toLowerCase();
+          default:
+            return true;
+        }
+      }).length;
+    }
+
+    return Math.max(1, Math.ceil(filteredCount / itemsPerPage));
+  }, [paginationData, transactionFilter, data?.paginationMeta, data?.identifier, allTransactions, onFetchTransactions, itemsPerPage]);
 
   // Helper function for consistent volume formatting (no decimals)
-  const formatVolumeHelper = (volume: string, tokenSymbol?: string) => {
+  const formatVolumeHelper = useCallback((volume: string, tokenSymbol?: string) => {
     return formatVolume(volume, tokenSymbol, {
       precision: 0,
       showSymbol: false,
     });
-  };
+  }, []);
 
   // Helper function for consistent address formatting
-  const formatAddressHelper = (address: string) => {
+  const formatAddressHelper = useCallback((address: string) => {
     return formatAddress(address);
-  };
+  }, []);
 
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleString('en-US', {
@@ -390,9 +409,11 @@ export function DetailedAnalysisModal({
     }
   };
 
+  if (!isOpen) return null;
+
   if (loading) {
     return (
-      <div className='fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center'>
+      <div className='fixed inset-0 bg-black/50 backdrop-blur-sm z-[10000] flex items-center justify-center'>
         <div className='bg-gray-700 rounded-2xl p-6 max-w-md w-full mx-4'>
           <div className='flex items-center justify-center'>
             <div className='w-8 h-8 border-2 border-primary-400 border-t-transparent rounded-full animate-spin' />
@@ -407,8 +428,11 @@ export function DetailedAnalysisModal({
 
   if (!data) return null;
 
-  return (
-    <div className='fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4'>
+  const modalRoot = document.getElementById('modal-root');
+  if (!modalRoot) return null;
+
+  const modalContent = (
+    <div className='fixed inset-0 bg-black/50 backdrop-blur-sm z-[10000] flex items-center justify-center p-4'>
       <div className='bg-gray-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden'>
         {/* Header */}
         <div className='flex items-center justify-between p-6 border-b border-white/10'>
@@ -873,4 +897,6 @@ export function DetailedAnalysisModal({
       </div>
     </div>
   );
-}
+
+  return ReactDOM.createPortal(modalContent, modalRoot);
+});

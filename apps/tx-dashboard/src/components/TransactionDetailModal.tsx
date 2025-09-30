@@ -14,12 +14,14 @@ interface TransactionDetailModalProps {
   transaction: Transaction | null;
   isOpen: boolean;
   onClose: () => void;
+  onAddressClick?: (type: 'address', address: string) => void;
 }
 
 export function TransactionDetailModal({
   transaction,
   isOpen,
   onClose,
+  onAddressClick,
 }: TransactionDetailModalProps) {
   useEffect(() => {
     const handleEscKey = (event: KeyboardEvent) => {
@@ -81,7 +83,7 @@ export function TransactionDetailModal({
       className='fixed top-0 left-0 w-full h-full bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4'
       style={{ position: 'fixed', inset: 0 }}
     >
-      <div className='bg-gray-900/95 backdrop-blur-md border border-white/20 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-auto shadow-2xl'>
+      <div className='bg-gray-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-auto shadow-2xl'>
         {/* Header */}
         <div className='flex items-center justify-between p-6 border-b border-white/10'>
           <h2 className='text-xl font-bold text-white'>Transaction Details</h2>
@@ -152,7 +154,14 @@ export function TransactionDetailModal({
             <div className='space-y-2'>
               <label className='text-sm font-medium text-white/70'>From</label>
               <div className='flex items-center space-x-2 bg-black/40 border border-white/10 rounded-lg p-3'>
-                <code className='text-sm text-white font-mono flex-1 break-all'>
+                <code
+                  className={cn(
+                    'text-sm text-white font-mono flex-1 break-all',
+                    onAddressClick && 'cursor-pointer hover:text-primary-400 transition-colors'
+                  )}
+                  onClick={onAddressClick ? () => onAddressClick('address', transaction.from) : undefined}
+                  title={onAddressClick ? 'Click to view address details' : undefined}
+                >
                   {transaction.from}
                 </code>
                 <button
@@ -167,7 +176,14 @@ export function TransactionDetailModal({
             <div className='space-y-2'>
               <label className='text-sm font-medium text-white/70'>To</label>
               <div className='flex items-center space-x-2 bg-black/40 border border-white/10 rounded-lg p-3'>
-                <code className='text-sm text-white font-mono flex-1 break-all'>
+                <code
+                  className={cn(
+                    'text-sm text-white font-mono flex-1 break-all',
+                    onAddressClick && 'cursor-pointer hover:text-primary-400 transition-colors'
+                  )}
+                  onClick={onAddressClick ? () => onAddressClick('address', transaction.to) : undefined}
+                  title={onAddressClick ? 'Click to view address details' : undefined}
+                >
                   {transaction.to}
                 </code>
                 <button
@@ -246,10 +262,6 @@ export function TransactionDetailModal({
             <div className='bg-black/40 border border-white/10 rounded-lg p-3'>
               <p className='text-white'>
                 {new Date(transaction.timestamp).toLocaleString()}
-              </p>
-              <p className='text-white/60 text-sm'>
-                {Math.floor((Date.now() - transaction.timestamp) / 1000)}{' '}
-                seconds ago
               </p>
             </div>
           </div>
