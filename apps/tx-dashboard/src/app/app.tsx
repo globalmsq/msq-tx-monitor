@@ -1,6 +1,8 @@
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { Activity, BarChart3, Wallet, Wifi, WifiOff, Menu } from 'lucide-react';
+import { VolumeWithTooltip } from '../components/VolumeWithTooltip';
+import { getTokenDecimals } from '@msq-tx-monitor/msq-common';
 import { useState } from 'react';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
 import { TransactionTable } from '../components/TransactionTable';
@@ -44,6 +46,20 @@ function ConnectionStatus() {
 function StatsCards() {
   const { stats, isInitialLoad } = useTransactionData();
 
+  // Helper to extract raw numeric value from formatted string
+  const extractRawValue = (value: string): string => {
+    if (!value) return '0';
+    const match = value.match(/[\d,]+\.?\d*/);
+    if (!match) return '0';
+    // Remove commas but keep the raw numeric value
+    const rawValue = match[0].replace(/,/g, '');
+    const numValue = parseFloat(rawValue);
+    if (isNaN(numValue)) return '0';
+    // Convert to smallest unit (multiply by decimals)
+    // This is already the displayed value, so we need to convert it back to raw
+    return rawValue;
+  };
+
   // Show all token stats regardless of filter selection
   const filteredTokenStats = stats.tokenStats;
 
@@ -60,28 +76,16 @@ function StatsCards() {
     const numericValue = parseFloat(match[0].replace(/,/g, ''));
     if (isNaN(numericValue) || numericValue === 0) return '0';
 
-    // Format with K/M/B suffixes with improved precision
+    // Format with M/B suffixes - show 1 decimal place, remove trailing zeros
     if (numericValue >= 1e9) {
       const billions = numericValue / 1e9;
-      return (
-        billions.toFixed(billions >= 10 ? 1 : 2).replace(/\.0+$/, '') + 'B'
-      );
+      return billions.toFixed(1).replace(/\.0+$/, '') + 'B';
     } else if (numericValue >= 1e6) {
       const millions = numericValue / 1e6;
-      return (
-        millions.toFixed(millions >= 10 ? 1 : 2).replace(/\.0+$/, '') + 'M'
-      );
-    } else if (numericValue >= 1e3) {
-      const thousands = numericValue / 1e3;
-      return (
-        thousands.toFixed(thousands >= 10 ? 1 : 2).replace(/\.0+$/, '') + 'K'
-      );
-    } else if (numericValue >= 100) {
-      // Numbers 100 and above as integers
-      return Math.round(numericValue).toString();
+      return millions.toFixed(1).replace(/\.0+$/, '') + 'M';
     } else {
-      // Numbers below 100 with decimals
-      return numericValue.toFixed(2).replace(/\.0+$/, '');
+      // For values below 1M, show full number with thousand separators (no decimals)
+      return Math.round(numericValue).toLocaleString('en-US');
     }
   };
 
@@ -158,13 +162,23 @@ function StatsCards() {
                   <div className='flex justify-between'>
                     <span className='text-white/60'>24h Volume:</span>
                     <span className='text-white'>
-                      {parseVolumeValue(tokenStat.volume24h)}
+                      <VolumeWithTooltip
+                        formattedValue={parseVolumeValue(tokenStat.volume24h)}
+                        rawValue={extractRawValue(tokenStat.volume24h)}
+                        tokenSymbol={tokenStat.tokenSymbol}
+                        className='inline-block'
+                      />
                     </span>
                   </div>
                   <div className='flex justify-between'>
                     <span className='text-white/60'>Total Volume:</span>
                     <span className='text-white'>
-                      {parseVolumeValue(tokenStat.totalVolume)}
+                      <VolumeWithTooltip
+                        formattedValue={parseVolumeValue(tokenStat.totalVolume)}
+                        rawValue={extractRawValue(tokenStat.totalVolume)}
+                        tokenSymbol={tokenStat.tokenSymbol}
+                        className='inline-block'
+                      />
                     </span>
                   </div>
                   <div className='flex justify-between'>

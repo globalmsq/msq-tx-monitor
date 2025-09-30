@@ -16,9 +16,24 @@ export interface FormatOptions {
  * Remove trailing zeros and unnecessary decimal point
  */
 function removeTrailingZeros(str: string): string {
-  // First remove trailing zeros after decimal point
+  // Check if string ends with K, M, or B suffix
+  const suffixMatch = str.match(/^([\d.]+)([KMB])$/);
+
+  if (suffixMatch) {
+    // Extract number part and suffix
+    let numberPart = suffixMatch[1];
+    const suffix = suffixMatch[2];
+
+    // Remove trailing zeros after decimal point
+    numberPart = numberPart.replace(/(\.\d*?)0+$/, '$1');
+    // Remove decimal point if no decimals remain
+    numberPart = numberPart.replace(/\.$/, '');
+
+    return numberPart + suffix;
+  }
+
+  // No suffix, use original logic
   let result = str.replace(/(\.\d*?)0+$/, '$1');
-  // Then remove decimal point if no decimals remain
   result = result.replace(/\.$/, '');
   return result;
 }
@@ -46,7 +61,16 @@ export function formatNumber(
   if (isNaN(num)) return '0';
 
   if (!compact) {
-    return removeTrailingZeros(num.toFixed(precision));
+    // Use toLocaleString to add thousand separators
+    if (precision === 0) {
+      return Math.round(num).toLocaleString('en-US');
+    }
+    // For non-zero precision, format with fixed decimal places then add separators
+    const parts = num.toFixed(precision).split('.');
+    parts[0] = parseInt(parts[0]).toLocaleString('en-US');
+    const result = parts.join('.');
+    // Remove trailing zeros after decimal point
+    return removeTrailingZeros(result);
   }
 
   // Use consistent precision (default: 1 decimal place)
@@ -80,7 +104,7 @@ export function formatVolume(
   options: FormatOptions = {}
 ): string {
   const {
-    precision = 1,
+    precision = 0, // Changed default to 0 for no decimals
     showSymbol = false,
     compact = true,
     decimals: customDecimals,
@@ -94,8 +118,22 @@ export function formatVolume(
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
   const actualValue = numValue / Math.pow(10, decimals);
 
-  // Format the number
-  const formatted = formatNumber(actualValue, { precision, compact });
+  // Custom formatting for volume - no K, only M and B
+  let formatted: string;
+  if (compact) {
+    if (actualValue >= 1e9) {
+      // For B unit, show 1 decimal place and remove trailing zeros
+      formatted = removeTrailingZeros(`${(actualValue / 1e9).toFixed(1)}B`);
+    } else if (actualValue >= 1e6) {
+      // For M unit, show 1 decimal place and remove trailing zeros
+      formatted = removeTrailingZeros(`${(actualValue / 1e6).toFixed(1)}M`);
+    } else {
+      // For values below 1M, show full number with thousand separators (no decimals)
+      formatted = formatNumber(actualValue, { precision: 0, compact: false });
+    }
+  } else {
+    formatted = formatNumber(actualValue, { precision, compact: false });
+  }
 
   // Append symbol if requested
   return showSymbol && tokenSymbol ? `${formatted} ${tokenSymbol}` : formatted;
@@ -135,4 +173,29 @@ export function formatPercentage(value: number, precision: number = 1): string {
 export function formatAddress(address: string, chars: number = 6): string {
   if (!address || address.length < chars * 2) return address;
   return `${address.slice(0, chars)}...${address.slice(-chars + 2)}`;
+}
+
+/**
+ * Format exact number with thousand separators for tooltips
+ * @param value - Raw value (string or number)
+ * @param decimals - Token decimals for conversion
+ * @returns Formatted string with thousand separators
+ */
+export function formatExactNumber(
+  value: string | number,
+  decimals: number = 18
+): string {
+  // Convert to number
+  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+
+  if (isNaN(numValue)) return '0';
+
+  // Convert from smallest unit to actual value
+  const actualValue = numValue / Math.pow(10, decimals);
+
+  // Round to remove floating point errors
+  const rounded = Math.round(actualValue);
+
+  // Format with thousand separators
+  return rounded.toLocaleString('en-US');
 }

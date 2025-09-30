@@ -27,6 +27,7 @@ import {
 } from '../components/DetailedAnalysisModal';
 import { TOKEN_CONFIG } from '../config/tokens';
 import { formatNumber, formatVolume } from '@msq-tx-monitor/msq-common';
+import { VolumeWithTooltip } from '../components/VolumeWithTooltip';
 
 // Analytics API service
 const ANALYTICS_BASE_URL = 'http://localhost:8000/api/v1/analytics';
@@ -98,10 +99,13 @@ interface AnalyticsData {
 interface MetricCardProps {
   title: string;
   value: string | number;
+  rawValue?: string | number; // Raw value for tooltip
+  tokenSymbol?: string; // Token symbol for volume tooltip
   change?: string;
   icon: React.ReactNode;
   subtitle?: string;
   color?: 'default' | 'green' | 'red' | 'yellow';
+  isVolume?: boolean; // Whether this is a volume metric that needs tooltip
 }
 
 // API Response types
@@ -138,10 +142,13 @@ interface TokenStatApiItem {
 function MetricCard({
   title,
   value,
+  rawValue,
+  tokenSymbol,
   change,
   icon,
   subtitle,
   color = 'default',
+  isVolume = false,
 }: MetricCardProps) {
   const colorClasses = {
     default: 'text-white',
@@ -175,7 +182,17 @@ function MetricCard({
       <h3 className='text-white/70 text-xs lg:text-sm font-medium truncate'>
         {title}
       </h3>
-      <p className='text-lg lg:text-2xl font-bold text-white mt-1'>{value}</p>
+      <p className='text-lg lg:text-2xl font-bold text-white mt-1'>
+        {isVolume && rawValue ? (
+          <VolumeWithTooltip
+            formattedValue={value.toString()}
+            rawValue={rawValue}
+            tokenSymbol={tokenSymbol}
+          />
+        ) : (
+          value
+        )}
+      </p>
       {subtitle && <p className='text-white/60 text-xs mt-1'>{subtitle}</p>}
     </div>
   );
@@ -944,9 +961,9 @@ export function Analytics() {
     return lines.join('\n');
   };
 
-  // Helper function for transaction counts (no decimals)
+  // Helper function for transaction counts (no decimals, full numbers with commas)
   const formatTransactionCount = (num: number | string) => {
-    return formatNumber(num, { precision: 0 });
+    return formatNumber(num, { precision: 0, compact: false });
   };
 
   if (error) {
@@ -1074,24 +1091,28 @@ export function Analytics() {
               title={`${activeTab} Transactions`}
               value={formatNumber(data.realtime?.totalTransactions || 0, {
                 precision: 0,
+                compact: false,
               })}
-              change={`+${formatNumber(data.realtime?.transactionsLast24h || 0, { precision: 0 })} (24h)`}
+              change={`+${formatNumber(data.realtime?.transactionsLast24h || 0, { precision: 0, compact: false })} (24h)`}
               icon={<Activity className='w-5 h-5' />}
             />
             <MetricCard
               title={`${activeTab} Volume`}
               value={formatVolume(
                 data.realtime?.totalVolume || '0',
-                activeTab,
-                { precision: 1 }
+                activeTab
               )}
-              change={`+${formatVolume(data.realtime?.volumeLast24h || '0', activeTab, { precision: 1 })} (24h)`}
+              rawValue={data.realtime?.totalVolume || '0'}
+              tokenSymbol={activeTab}
+              change={`+${formatVolume(data.realtime?.volumeLast24h || '0', activeTab)} (24h)`}
               icon={<TrendingUp className='w-5 h-5' />}
+              isVolume={true}
             />
             <MetricCard
               title='Active Addresses'
               value={formatNumber(data.realtime?.activeAddresses || 0, {
                 precision: 0,
+                compact: false,
               })}
               subtitle={`Trading ${activeTab}`}
               icon={<Users className='w-5 h-5' />}
@@ -1182,9 +1203,13 @@ export function Analytics() {
                       </div>
                       <div className='text-right'>
                         <div className='text-white font-medium'>
-                          {formatVolume(address.totalVolume, activeTab, {
-                            precision: 1,
-                          })}
+                          <VolumeWithTooltip
+                            formattedValue={formatVolume(address.totalVolume, activeTab, {
+                              precision: 0,
+                            })}
+                            rawValue={address.totalVolume}
+                            tokenSymbol={activeTab}
+                          />
                         </div>
                       </div>
                     </div>
@@ -1297,14 +1322,15 @@ export function Analytics() {
               <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
                 <MetricCard
                   title='Total Anomalies'
-                  value={formatNumber(data.anomalyStats.totalAnomalies || 0)}
+                  value={formatNumber(data.anomalyStats.totalAnomalies || 0, { compact: false })}
                   icon={<AlertTriangle className='w-5 h-5' />}
                   color='yellow'
                 />
                 <MetricCard
                   title='Suspicious Addresses'
                   value={formatNumber(
-                    data.anomalyStats.suspiciousAddresses || 0
+                    data.anomalyStats.suspiciousAddresses || 0,
+                    { compact: false }
                   )}
                   icon={<Users className='w-5 h-5' />}
                   color='red'
@@ -1317,7 +1343,8 @@ export function Analytics() {
                 <MetricCard
                   title='High Risk Transactions'
                   value={formatNumber(
-                    data.anomalyStats.highRiskTransactions || 0
+                    data.anomalyStats.highRiskTransactions || 0,
+                    { compact: false }
                   )}
                   icon={<AlertTriangle className='w-5 h-5' />}
                   color='red'

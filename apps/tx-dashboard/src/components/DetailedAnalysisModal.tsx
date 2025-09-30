@@ -13,7 +13,8 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
-import { formatVolume, formatAddress } from '@msq-tx-monitor/msq-common';
+import { formatVolume, formatAddress, formatExactNumber, getTokenDecimals } from '@msq-tx-monitor/msq-common';
+import { VolumeWithTooltip } from './VolumeWithTooltip';
 
 export interface DetailedData {
   type: 'address' | 'token' | 'timeperiod' | 'anomaly';
@@ -187,10 +188,10 @@ export function DetailedAnalysisModal({
 
   if (!isOpen) return null;
 
-  // Helper function for consistent volume formatting (1 decimal place)
+  // Helper function for consistent volume formatting (no decimals)
   const formatVolumeHelper = (volume: string, tokenSymbol?: string) => {
     return formatVolume(volume, tokenSymbol, {
-      precision: 1,
+      precision: 0,
       showSymbol: false,
     });
   };
@@ -507,11 +508,15 @@ export function DetailedAnalysisModal({
                     <span className='text-white/60 text-sm'>Total Volume</span>
                   </div>
                   <div className='text-white font-bold text-lg'>
-                    {formatVolumeHelper(
-                      data.summary.totalVolume,
-                      data.summary.tokenSymbol ||
-                        data.transactions?.[0]?.tokenSymbol
-                    )}
+                    <VolumeWithTooltip
+                      formattedValue={formatVolumeHelper(
+                        data.summary.totalVolume,
+                        data.summary.tokenSymbol ||
+                          data.transactions?.[0]?.tokenSymbol
+                      )}
+                      rawValue={data.summary.totalVolume}
+                      tokenSymbol={data.summary.tokenSymbol || data.transactions?.[0]?.tokenSymbol}
+                    />
                     {data.summary.tokenSymbol && (
                       <span className='text-white/60 text-sm ml-1'>
                         {data.summary.tokenSymbol}
@@ -777,7 +782,11 @@ export function DetailedAnalysisModal({
                             </td>
                             <td className='p-3'>
                               <div className='text-white text-sm'>
-                                {formatVolumeHelper(tx.value, tx.tokenSymbol)}
+                                <VolumeWithTooltip
+                                  formattedValue={formatVolumeHelper(tx.value, tx.tokenSymbol)}
+                                  rawValue={tx.value}
+                                  tokenSymbol={tx.tokenSymbol}
+                                />
                               </div>
                             </td>
                           <td className='p-3'>

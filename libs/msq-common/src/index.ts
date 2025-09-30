@@ -221,6 +221,7 @@ export {
   formatAmount,
   formatPercentage,
   formatAddress,
+  formatExactNumber,
   getTokenDecimals,
   type FormatOptions,
 } from './formatters';
