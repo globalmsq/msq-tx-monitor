@@ -385,7 +385,10 @@ export class AnalyticsService {
     } catch (error) {
       apiLogger.error('Error fetching anomaly stats', error);
       if (error instanceof Error) {
-        apiLogger.error('Error details:', { message: error.message, stack: error.stack });
+        apiLogger.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+        });
       }
       throw new Error('Failed to fetch anomaly stats');
     }

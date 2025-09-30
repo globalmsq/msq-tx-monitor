@@ -26,7 +26,7 @@ import {
   DetailedData,
 } from '../components/DetailedAnalysisModal';
 import { TOKEN_CONFIG } from '../config/tokens';
-import { formatNumber, formatVolume } from '@msq-tx-monitor/msq-common';
+import { formatNumber, formatVolume, logger } from '@msq-tx-monitor/msq-common';
 import { VolumeWithTooltip } from '../components/VolumeWithTooltip';
 
 // Analytics API service
@@ -415,7 +415,7 @@ export function Analytics() {
         setError(
           err instanceof Error ? err.message : 'Failed to fetch analytics data'
         );
-        console.error('Analytics fetch error:', err);
+        logger.error('Analytics fetch error:', err);
       } finally {
         setLoading(false);
       }
@@ -585,7 +585,7 @@ export function Analytics() {
         statsData = await statsResponse.json();
       }
     } catch (error) {
-      console.warn(
+      logger.warn(
         'Failed to fetch address stats, will use transaction data instead:',
         error
       );
@@ -601,13 +601,13 @@ export function Analytics() {
       }
       transactionsData = await transactionsResponse.json();
     } catch (error) {
-      console.error('Failed to fetch transactions:', error);
+      logger.error('Failed to fetch transactions:', error);
       throw error;
     }
 
     // Transform transaction data - handle API field names properly
     const transactions =
-      transactionsData?.data?.map((tx: Record<string, unknown>) => ({
+      (transactionsData as any)?.data?.map((tx: Record<string, unknown>) => ({
         hash: tx.hash || tx.transaction_hash,
         timestamp: tx.timestamp || tx.blockTimestamp,
         from: tx.from_address || tx.from || tx.fromAddress,
@@ -633,9 +633,10 @@ export function Analytics() {
           totalVolume: tokenData.volume || '0',
           transactionCount: tokenData.transaction_count || 0,
           uniqueAddresses:
-            (statsData.data.total_sent_transactions || 0) +
-            (statsData.data.total_received_transactions || 0),
-          riskScore: statsData.data.anomaly_statistics?.avg_anomaly_score || 0,
+            ((statsData.data as any).total_sent_transactions || 0) +
+            ((statsData.data as any).total_received_transactions || 0),
+          riskScore:
+            (statsData.data as any).anomaly_statistics?.avg_anomaly_score || 0,
         };
       } else {
         // Fallback to total volume (all tokens)
@@ -643,9 +644,10 @@ export function Analytics() {
           totalVolume: statsData.data.total_volume || '0',
           transactionCount: statsData.data.total_transactions || 0,
           uniqueAddresses:
-            (statsData.data.total_sent_transactions || 0) +
-            (statsData.data.total_received_transactions || 0),
-          riskScore: statsData.data.anomaly_statistics?.avg_anomaly_score || 0,
+            ((statsData.data as any).total_sent_transactions || 0) +
+            ((statsData.data as any).total_received_transactions || 0),
+          riskScore:
+            (statsData.data as any).anomaly_statistics?.avg_anomaly_score || 0,
         };
       }
     } else {
@@ -697,7 +699,9 @@ export function Analytics() {
       transactions,
       trends: [], // Trends data can be added later if API provides it
       paginationMeta: {
-        totalTransactions: transactionsData?.pagination?.total || summary.transactionCount,
+        totalTransactions:
+          (transactionsData as any)?.pagination?.total ||
+          summary.transactionCount,
         currentToken: token,
         apiEndpoint: `http://localhost:8000/api/v1/transactions/address/${address}`,
       },
@@ -705,7 +709,11 @@ export function Analytics() {
   };
 
   // Fetch transactions for a specific page
-  const fetchTransactionsPage = async (identifier: string, page: number, filter?: string): Promise<{ transactions: any[], pagination: any }> => {
+  const fetchTransactionsPage = async (
+    identifier: string,
+    page: number,
+    filter?: string
+  ): Promise<{ transactions: any[]; pagination: any }> => {
     const hours = getHoursFromTimeRange(timeRange);
     const token = activeTab;
 
@@ -720,30 +728,36 @@ export function Analytics() {
       const data = await response.json();
 
       // Transform transaction data
-      const transactions = data?.data?.map((tx: Record<string, unknown>) => ({
-        hash: tx.hash || tx.transaction_hash,
-        timestamp: tx.timestamp || tx.blockTimestamp,
-        from: tx.from_address || tx.from || tx.fromAddress,
-        to: tx.to_address || tx.to || tx.toAddress,
-        value: tx.amount || tx.value || '0',
-        tokenSymbol: tx.token_symbol || tx.tokenSymbol || token,
-        gasUsed: tx.gas_used || tx.gasUsed || '0',
-        gasPrice: tx.gas_price || tx.gasPrice || '0',
-        status:
-          tx.status === 1 || tx.status === 'success' ? 'success' : 'failed',
-        riskScore: tx.risk_score || tx.anomalyScore || tx.riskScore,
-      })) || [];
+      const transactions =
+        data?.data?.map((tx: Record<string, unknown>) => ({
+          hash: tx.hash || tx.transaction_hash,
+          timestamp: tx.timestamp || tx.blockTimestamp,
+          from: tx.from_address || tx.from || tx.fromAddress,
+          to: tx.to_address || tx.to || tx.toAddress,
+          value: tx.amount || tx.value || '0',
+          tokenSymbol: tx.token_symbol || tx.tokenSymbol || token,
+          gasUsed: tx.gas_used || tx.gasUsed || '0',
+          gasPrice: tx.gas_price || tx.gasPrice || '0',
+          status:
+            tx.status === 1 || tx.status === 'success' ? 'success' : 'failed',
+          riskScore: tx.risk_score || tx.anomalyScore || tx.riskScore,
+        })) || [];
 
       // Return both transactions and pagination metadata
       return {
         transactions,
-        pagination: data?.pagination || { total: 0, totalPages: 0, page: 1, limit: 10 }
+        pagination: data?.pagination || {
+          total: 0,
+          totalPages: 0,
+          page: 1,
+          limit: 10,
+        },
       };
     } catch (error) {
-      console.error('Failed to fetch transaction page:', error);
+      logger.error('Failed to fetch transaction page:', error);
       return {
         transactions: [],
-        pagination: { total: 0, totalPages: 0, page: 1, limit: 10 }
+        pagination: { total: 0, totalPages: 0, page: 1, limit: 10 },
       };
     }
   };
@@ -770,7 +784,7 @@ export function Analytics() {
               timeRange
             );
           } catch (apiError) {
-            console.error(
+            logger.error(
               'API call failed, falling back to mock data:',
               apiError
             );
@@ -811,7 +825,7 @@ export function Analytics() {
 
       setModalData(detailedData);
     } catch (error) {
-      console.error('Failed to fetch detailed data:', error);
+      logger.error('Failed to fetch detailed data:', error);
       // Show error state in modal
       setModalData({
         type,
@@ -907,7 +921,7 @@ export function Analytics() {
         document.body.removeChild(link);
       }
     } catch (error) {
-      console.error('Export failed:', error);
+      logger.error('Export failed:', error);
     }
   };
 
@@ -1098,10 +1112,7 @@ export function Analytics() {
             />
             <MetricCard
               title={`${activeTab} Volume`}
-              value={formatVolume(
-                data.realtime?.totalVolume || '0',
-                activeTab
-              )}
+              value={formatVolume(data.realtime?.totalVolume || '0', activeTab)}
               rawValue={data.realtime?.totalVolume || '0'}
               tokenSymbol={activeTab}
               change={`+${formatVolume(data.realtime?.volumeLast24h || '0', activeTab)} (24h)`}
@@ -1204,9 +1215,13 @@ export function Analytics() {
                       <div className='text-right'>
                         <div className='text-white font-medium'>
                           <VolumeWithTooltip
-                            formattedValue={formatVolume(address.totalVolume, activeTab, {
-                              precision: 0,
-                            })}
+                            formattedValue={formatVolume(
+                              address.totalVolume,
+                              activeTab,
+                              {
+                                precision: 0,
+                              }
+                            )}
                             rawValue={address.totalVolume}
                             tokenSymbol={activeTab}
                           />
@@ -1322,7 +1337,9 @@ export function Analytics() {
               <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
                 <MetricCard
                   title='Total Anomalies'
-                  value={formatNumber(data.anomalyStats.totalAnomalies || 0, { compact: false })}
+                  value={formatNumber(data.anomalyStats.totalAnomalies || 0, {
+                    compact: false,
+                  })}
                   icon={<AlertTriangle className='w-5 h-5' />}
                   color='yellow'
                 />
@@ -1387,10 +1404,17 @@ export function Analytics() {
         loading={modalLoading}
         onFetchTransactions={async (page, filter) => {
           if (modalData?.identifier) {
-            const result = await fetchTransactionsPage(modalData.identifier, page, filter);
+            const result = await fetchTransactionsPage(
+              modalData.identifier,
+              page,
+              filter
+            );
             return result; // Return full result with transactions and pagination
           }
-          return { transactions: [], pagination: { total: 0, totalPages: 0, page: 1, limit: 10 } };
+          return {
+            transactions: [],
+            pagination: { total: 0, totalPages: 0, page: 1, limit: 10 },
+          };
         }}
       />
     </div>

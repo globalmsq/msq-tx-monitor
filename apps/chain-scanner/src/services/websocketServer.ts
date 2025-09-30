@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { config } from '../config';
 import { EVENT_TYPES, CONNECTION_STATUS } from '../config/constants';
 import { StatisticsService } from './statisticsService';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 export interface Client {
   id: string;
@@ -35,7 +36,7 @@ export class WebSocketServer {
 
   async start(): Promise<void> {
     if (this.isRunning) {
-      console.log('WebSocket server is already running');
+      logger.info('WebSocket server is already running');
       return;
     }
 
@@ -59,7 +60,7 @@ export class WebSocketServer {
           if (error) {
             reject(error);
           } else {
-            console.log(
+            logger.info(
               `WebSocket server started on port ${config.websocket.port}`
             );
             this.isRunning = true;
@@ -68,7 +69,7 @@ export class WebSocketServer {
         });
       });
     } catch (error) {
-      console.error('Failed to start WebSocket server:', error);
+      logger.error('Failed to start WebSocket server:', error);
       throw error;
     }
   }
@@ -87,13 +88,13 @@ export class WebSocketServer {
       };
 
       this.clients.set(clientId, client);
-      console.log(
+      logger.info(
         `Client connected: ${clientId} (Total: ${this.clients.size})`
       );
 
       // Check connection limit
       if (this.clients.size > config.websocket.maxConnections) {
-        console.warn(
+        logger.warn(
           `Max connections exceeded (${this.clients.size}/${config.websocket.maxConnections})`
         );
         socket.close(1008, 'Max connections exceeded');
@@ -109,11 +110,11 @@ export class WebSocketServer {
     });
 
     this.server.on('error', error => {
-      console.error('WebSocket server error:', error);
+      logger.error('WebSocket server error:', error);
     });
 
     this.server.on('close', () => {
-      console.log('WebSocket server closed');
+      logger.info('WebSocket server closed');
       this.cleanup();
     });
   }
@@ -124,7 +125,7 @@ export class WebSocketServer {
         const message = JSON.parse(data.toString());
         this.handleClientMessage(clientId, message);
       } catch (error) {
-        console.error(`Error parsing message from client ${clientId}:`, error);
+        logger.error(`Error parsing message from client ${clientId}:`, error);
         this.sendToClient(clientId, {
           type: EVENT_TYPES.ERROR,
           data: { message: 'Invalid JSON message' },
@@ -142,14 +143,14 @@ export class WebSocketServer {
     });
 
     socket.on('close', (code, reason) => {
-      console.log(
+      logger.info(
         `Client disconnected: ${clientId} (Code: ${code}, Reason: ${reason.toString()})`
       );
       this.clients.delete(clientId);
     });
 
     socket.on('error', error => {
-      console.error(`Client error ${clientId}:`, error);
+      logger.error(`Client error ${clientId}:`, error);
       this.clients.delete(clientId);
     });
   }
@@ -182,7 +183,7 @@ export class WebSocketServer {
         break;
 
       default:
-        console.warn(
+        logger.warn(
           `Unknown message type from client ${clientId}:`,
           message.type
         );
@@ -196,7 +197,7 @@ export class WebSocketServer {
   ): Promise<void> {
     // In this implementation, all clients receive all events
     // This could be extended to support selective subscriptions
-    console.log(`Client ${clientId} subscribed to:`, subscriptionData);
+    logger.info(`Client ${clientId} subscribed to:`, subscriptionData);
 
     // Send subscription confirmation without stats to avoid duplication
     // (stats were already sent in welcome message)
@@ -212,7 +213,7 @@ export class WebSocketServer {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     unsubscriptionData: any
   ): void {
-    console.log(`Client ${clientId} unsubscribed from:`, unsubscriptionData);
+    logger.info(`Client ${clientId} unsubscribed from:`, unsubscriptionData);
 
     this.sendToClient(clientId, {
       type: 'unsubscription_confirmed',
@@ -246,14 +247,14 @@ export class WebSocketServer {
       });
 
       if (config.logging.enableDatabaseLogs) {
-        console.log(`📊 Stats sent to client ${clientId}:`, {
+        logger.info(`📊 Stats sent to client ${clientId}:`, {
           totalTransactions: stats.totalTransactions,
           activeAddresses: stats.activeAddresses,
           tokenStatsCount: stats.tokenStats.length,
         });
       }
     } catch (error) {
-      console.error(`❌ Error sending stats to client ${clientId}:`, error);
+      logger.error(`❌ Error sending stats to client ${clientId}:`, error);
 
       // Send connection message without stats as fallback
       this.sendToClient(clientId, {
@@ -289,7 +290,7 @@ export class WebSocketServer {
 
     // Remove dead clients
     deadClients.forEach(clientId => {
-      console.log(`Removing dead client: ${clientId}`);
+      logger.info(`Removing dead client: ${clientId}`);
       const client = this.clients.get(clientId);
       if (client) {
         client.socket.terminate();
@@ -298,7 +299,7 @@ export class WebSocketServer {
     });
 
     if (deadClients.length > 0) {
-      console.log(`Cleaned up ${deadClients.length} dead connections`);
+      logger.info(`Cleaned up ${deadClients.length} dead connections`);
     }
   }
 
@@ -320,13 +321,13 @@ export class WebSocketServer {
           failureCount++;
         }
       } catch (error) {
-        console.error(`Error sending to client ${clientId}:`, error);
+        logger.error(`Error sending to client ${clientId}:`, error);
         failureCount++;
       }
     });
 
     if (config.logging.enableBlockchainLogs) {
-      console.log(
+      logger.info(
         `Broadcast sent: ${successCount} success, ${failureCount} failures`
       );
     }
@@ -342,7 +343,7 @@ export class WebSocketServer {
       client.socket.send(JSON.stringify(message));
       return true;
     } catch (error) {
-      console.error(`Error sending to client ${clientId}:`, error);
+      logger.error(`Error sending to client ${clientId}:`, error);
       return false;
     }
   }
@@ -383,7 +384,7 @@ export class WebSocketServer {
   }
 
   private async gracefulShutdown(): Promise<void> {
-    console.log('Received shutdown signal, closing WebSocket server...');
+    logger.info('Received shutdown signal, closing WebSocket server...');
 
     // Notify all clients about server shutdown
     this.broadcast({
@@ -408,7 +409,7 @@ export class WebSocketServer {
       return;
     }
 
-    console.log('Stopping WebSocket server...');
+    logger.info('Stopping WebSocket server...');
 
     this.cleanup();
 
@@ -416,7 +417,7 @@ export class WebSocketServer {
     if (this.server) {
       await new Promise<void>(resolve => {
         this.server!.close(() => {
-          console.log('WebSocket server closed');
+          logger.info('WebSocket server closed');
           resolve();
         });
       });
@@ -426,7 +427,7 @@ export class WebSocketServer {
     if (this.httpServer) {
       await new Promise<void>(resolve => {
         this.httpServer.close(() => {
-          console.log('HTTP server closed');
+          logger.info('HTTP server closed');
           resolve();
         });
       });
@@ -453,10 +454,10 @@ export class WebSocketServer {
       });
 
       if (config.logging.enableDatabaseLogs) {
-        console.log('📊 Stats update broadcasted to all clients');
+        logger.info('📊 Stats update broadcasted to all clients');
       }
     } catch (error) {
-      console.error('❌ Error broadcasting stats update:', error);
+      logger.error('❌ Error broadcasting stats update:', error);
     }
   }
 

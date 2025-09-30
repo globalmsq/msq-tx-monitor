@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { RedisConnection } from '../cache/redis';
 import prisma from '../lib/prisma';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 // Extend Request type to include database connection
 /* eslint-disable @typescript-eslint/no-namespace */
@@ -24,7 +25,7 @@ export const databaseMiddleware = async (
 
     next();
   } catch (error) {
-    console.error('❌ Database middleware error:', error);
+    logger.error('❌ Database middleware error:', error);
     res.status(503).json({
       error: {
         code: 503,
@@ -36,38 +37,38 @@ export const databaseMiddleware = async (
 };
 
 export const initializeConnections = async (): Promise<void> => {
-  console.log('🔄 Initializing database connections...');
+  logger.info('🔄 Initializing database connections...');
 
   try {
     // Test Prisma database connection
     await prisma.$connect();
-    console.log('✅ Prisma database connection established');
+    logger.info('✅ Prisma database connection established');
 
     // Test database with a simple query
     await prisma.token.findFirst();
-    console.log('✅ Database query test successful');
+    logger.info('✅ Database query test successful');
 
     // Test Redis connection
     const redisConnected = await RedisConnection.testConnection();
     if (!redisConnected) {
-      console.warn('⚠️  Redis connection failed - caching will be disabled');
+      logger.warn('⚠️  Redis connection failed - caching will be disabled');
     }
 
-    console.log('✅ Database connections initialized successfully');
+    logger.info('✅ Database connections initialized successfully');
   } catch (error) {
-    console.error('❌ Failed to initialize database connections:', error);
+    logger.error('❌ Failed to initialize database connections:', error);
     throw error;
   }
 };
 
 export const closeConnections = async (): Promise<void> => {
-  console.log('🔄 Closing database connections...');
+  logger.info('🔄 Closing database connections...');
 
   try {
     await prisma.$disconnect();
     await RedisConnection.closeConnection();
-    console.log('✅ Database connections closed successfully');
+    logger.info('✅ Database connections closed successfully');
   } catch (error) {
-    console.error('❌ Error closing database connections:', error);
+    logger.error('❌ Error closing database connections:', error);
   }
 };

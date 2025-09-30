@@ -1,4 +1,5 @@
 import { DetailedData } from '../components/DetailedAnalysisModal';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 export type TimeRange = '1h' | '24h' | '7d' | '30d' | 'custom';
 
@@ -87,7 +88,7 @@ export const fetchAddressDetails = async (
       statsData = await statsResponse.json();
     }
   } catch (error) {
-    console.warn(
+    logger.warn(
       'Failed to fetch address stats, will use transaction data instead:',
       error
     );
@@ -103,7 +104,7 @@ export const fetchAddressDetails = async (
     }
     transactionsData = await transactionsResponse.json();
   } catch (error) {
-    console.error('Failed to fetch transactions:', error);
+    logger.error('Failed to fetch transactions:', error);
     throw error;
   }
 
@@ -118,8 +119,12 @@ export const fetchAddressDetails = async (
       tokenSymbol: String(tx.token_symbol || tx.tokenSymbol || token),
       gasUsed: String(tx.gas_used || tx.gasUsed || '0'),
       gasPrice: String(tx.gas_price || tx.gasPrice || '0'),
-      status: (tx.status === 1 || tx.status === 'success' ? 'success' : 'failed') as 'success' | 'failed',
-      riskScore: Number(tx.anomaly_score || tx.riskScore || tx.anomalyScore || 0),
+      status: (tx.status === 1 || tx.status === 'success'
+        ? 'success'
+        : 'failed') as 'success' | 'failed',
+      riskScore: Number(
+        tx.anomaly_score || tx.riskScore || tx.anomalyScore || 0
+      ),
     })) || [];
 
   // Calculate statistics from transactions if stats API failed
@@ -198,7 +203,8 @@ export const fetchAddressDetails = async (
     transactions,
     trends: [], // Trends data can be added later if API provides it
     paginationMeta: {
-      totalTransactions: transactionsData?.pagination?.total || summary.transactionCount,
+      totalTransactions:
+        transactionsData?.pagination?.total || summary.transactionCount,
       currentToken: token,
       apiEndpoint: `http://localhost:8000/api/v1/transactions/address/${address}`,
     },
@@ -211,7 +217,7 @@ export const fetchTransactionsPage = async (
   token: string,
   timeRange: TimeRange = '24h',
   filter?: string
-): Promise<{ transactions: any[], pagination: any }> => {
+): Promise<{ transactions: any[]; pagination: any }> => {
   const hours = getHoursFromTimeRange(timeRange);
 
   try {
@@ -225,29 +231,39 @@ export const fetchTransactionsPage = async (
     const data = await response.json();
 
     // Transform transaction data
-    const transactions = data?.data?.map((tx: Record<string, unknown>) => ({
-      hash: String(tx.hash || tx.transaction_hash || ''),
-      timestamp: String(tx.timestamp || tx.blockTimestamp || ''),
-      from: String(tx.from_address || tx.from || tx.fromAddress || ''),
-      to: String(tx.to_address || tx.to || tx.toAddress || ''),
-      value: String(tx.amount || tx.value || '0'),
-      tokenSymbol: String(tx.token_symbol || tx.tokenSymbol || token),
-      gasUsed: String(tx.gas_used || tx.gasUsed || '0'),
-      gasPrice: String(tx.gas_price || tx.gasPrice || '0'),
-      status: (tx.status === 1 || tx.status === 'success' ? 'success' : 'failed') as 'success' | 'failed',
-      riskScore: Number(tx.risk_score || tx.anomalyScore || tx.riskScore || 0),
-    })) || [];
+    const transactions =
+      data?.data?.map((tx: Record<string, unknown>) => ({
+        hash: String(tx.hash || tx.transaction_hash || ''),
+        timestamp: String(tx.timestamp || tx.blockTimestamp || ''),
+        from: String(tx.from_address || tx.from || tx.fromAddress || ''),
+        to: String(tx.to_address || tx.to || tx.toAddress || ''),
+        value: String(tx.amount || tx.value || '0'),
+        tokenSymbol: String(tx.token_symbol || tx.tokenSymbol || token),
+        gasUsed: String(tx.gas_used || tx.gasUsed || '0'),
+        gasPrice: String(tx.gas_price || tx.gasPrice || '0'),
+        status: (tx.status === 1 || tx.status === 'success'
+          ? 'success'
+          : 'failed') as 'success' | 'failed',
+        riskScore: Number(
+          tx.risk_score || tx.anomalyScore || tx.riskScore || 0
+        ),
+      })) || [];
 
     // Return both transactions and pagination metadata
     return {
       transactions,
-      pagination: data?.pagination || { total: 0, totalPages: 0, page: 1, limit: 10 }
+      pagination: data?.pagination || {
+        total: 0,
+        totalPages: 0,
+        page: 1,
+        limit: 10,
+      },
     };
   } catch (error) {
-    console.error('Failed to fetch transaction page:', error);
+    logger.error('Failed to fetch transaction page:', error);
     return {
       transactions: [],
-      pagination: { total: 0, totalPages: 0, page: 1, limit: 10 }
+      pagination: { total: 0, totalPages: 0, page: 1, limit: 10 },
     };
   }
 };

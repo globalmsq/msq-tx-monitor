@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { initializeDatabaseConfig } from './config';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 // Ensure database configuration is loaded before Prisma initialization
 initializeDatabaseConfig();
@@ -13,8 +14,8 @@ declare global {
 
 // Verify DATABASE_URL is available before creating Prisma client
 if (!process.env.DATABASE_URL) {
-  console.error('❌ DATABASE_URL not found in environment variables');
-  console.error(
+  logger.error('❌ DATABASE_URL not found in environment variables');
+  logger.error(
     '   This should have been set by the database configuration module'
   );
   process.exit(1);

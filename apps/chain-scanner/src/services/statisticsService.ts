@@ -4,6 +4,7 @@ import { config } from '../config';
 import Web3 from 'web3';
 import { formatUnits } from 'ethers';
 import { TokenService } from './tokenService';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 // Type for Prisma Decimal values
 type PrismaDecimal = { toString(): string };
@@ -59,9 +60,9 @@ export class StatisticsService {
       // Test database connection
       await prisma.$connect();
       this.initialized = true;
-      console.log('✅ StatisticsService initialized');
+      logger.info('✅ StatisticsService initialized');
     } catch (error) {
-      console.error('❌ Failed to initialize StatisticsService:', error);
+      logger.error('❌ Failed to initialize StatisticsService:', error);
       throw error;
     }
   }
@@ -100,7 +101,7 @@ export class StatisticsService {
       };
 
       if (config.logging.enableDatabaseLogs) {
-        console.log('📊 Dashboard stats calculated:', {
+        logger.info('📊 Dashboard stats calculated:', {
           totalTransactions: stats.totalTransactions,
           activeAddresses: stats.activeAddresses,
           tokenCount: stats.tokenStats.length,
@@ -109,7 +110,7 @@ export class StatisticsService {
 
       return stats;
     } catch (error) {
-      console.error('❌ Error calculating dashboard stats:', error);
+      logger.error('❌ Error calculating dashboard stats:', error);
       // Return default stats in case of error
       return {
         totalTransactions: 0,
@@ -130,7 +131,7 @@ export class StatisticsService {
       const result = await prisma.transaction.count();
       return result;
     } catch (error) {
-      console.error('Error getting total transactions:', error);
+      logger.error('Error getting total transactions:', error);
       return 0;
     }
   }
@@ -149,7 +150,7 @@ export class StatisticsService {
 
       return result;
     } catch (error) {
-      console.error('Error getting active addresses:', error);
+      logger.error('Error getting active addresses:', error);
       return 0;
     }
   }
@@ -174,7 +175,7 @@ export class StatisticsService {
 
       return this.safeBigInt(result._sum.value);
     } catch (error) {
-      console.error('Error getting 24h volume:', error);
+      logger.error('Error getting 24h volume:', error);
       return 0n;
     }
   }
@@ -194,7 +195,7 @@ export class StatisticsService {
       const avgValue = result._avg.value;
       return avgValue ? BigInt(Math.floor(Number(avgValue.toString()))) : 0n;
     } catch (error) {
-      console.error('Error getting average transaction size:', error);
+      logger.error('Error getting average transaction size:', error);
       return 0n;
     }
   }
@@ -206,7 +207,7 @@ export class StatisticsService {
     try {
       // Use TokenService to get all active tokens, fallback to transaction data if not available
       if (!this.tokenService) {
-        console.warn(
+        logger.warn(
           'TokenService not available, falling back to transaction-based token discovery'
         );
 
@@ -239,7 +240,7 @@ export class StatisticsService {
 
       // Get all active tokens from TokenService (includes tokens without transactions)
       const allTokens = this.tokenService.getAllTokens();
-      console.log(
+      logger.info(
         `📊 Calculating stats for ${allTokens.length} tokens:`,
         allTokens.map(t => t.symbol)
       );
@@ -261,7 +262,7 @@ export class StatisticsService {
 
       return await Promise.all(tokenStatsPromises);
     } catch (error) {
-      console.error('Error getting token-specific stats:', error);
+      logger.error('Error getting token-specific stats:', error);
       return [];
     }
   }
@@ -283,10 +284,7 @@ export class StatisticsService {
       const avgValue = result._avg.value;
       return avgValue ? BigInt(Math.floor(Number(avgValue.toString()))) : 0n;
     } catch (error) {
-      console.error(
-        `Error getting average tx size for ${tokenAddress}:`,
-        error
-      );
+      logger.error(`Error getting average tx size for ${tokenAddress}:`, error);
       return 0n;
     }
   }
@@ -307,7 +305,7 @@ export class StatisticsService {
 
       return this.safeBigInt(result._sum.value);
     } catch (error) {
-      console.error(`Error getting total volume for ${tokenAddress}:`, error);
+      logger.error(`Error getting total volume for ${tokenAddress}:`, error);
       return 0n;
     }
   }
@@ -329,7 +327,7 @@ export class StatisticsService {
 
       return this.safeBigInt(result._sum.value);
     } catch (error) {
-      console.error(`Error getting 24h volume for ${tokenAddress}:`, error);
+      logger.error(`Error getting 24h volume for ${tokenAddress}:`, error);
       return 0n;
     }
   }
@@ -366,7 +364,7 @@ export class StatisticsService {
         });
       }
     } catch (error) {
-      console.error('Error formatting token amount:', error);
+      logger.error('Error formatting token amount:', error);
       return '0';
     }
   }
@@ -393,7 +391,7 @@ export class StatisticsService {
         return `$${numValue.toFixed(2)}`;
       }
     } catch (error) {
-      console.error('Error formatting currency:', error);
+      logger.error('Error formatting currency:', error);
       return '$0';
     }
   }
@@ -406,7 +404,7 @@ export class StatisticsService {
       await prisma.$queryRaw`SELECT 1`;
       return true;
     } catch (error) {
-      console.error('StatisticsService health check failed:', error);
+      logger.error('StatisticsService health check failed:', error);
       return false;
     }
   }
@@ -453,7 +451,7 @@ export class StatisticsService {
         uniqueHolders: Number(uniqueHolders[0]?.count || 0),
       };
     } catch (error) {
-      console.error(`Error getting stats for token ${tokenAddress}:`, error);
+      logger.error(`Error getting stats for token ${tokenAddress}:`, error);
       return {
         totalTransactions: 0,
         volume24h: '$0',
@@ -488,7 +486,7 @@ export class StatisticsService {
       const changePercent = ((currentTotal - pastTotal) / pastTotal) * 100;
       return Math.round(changePercent * 10) / 10; // Round to 1 decimal place
     } catch (error) {
-      console.error('Error calculating transactions change 24h:', error);
+      logger.error('Error calculating transactions change 24h:', error);
       return 0;
     }
   }
@@ -520,7 +518,7 @@ export class StatisticsService {
       const changePercent = ((currentActive - pastActive) / pastActive) * 100;
       return Math.round(changePercent * 10) / 10; // Round to 1 decimal place
     } catch (error) {
-      console.error('Error calculating addresses change 24h:', error);
+      logger.error('Error calculating addresses change 24h:', error);
       return 0;
     }
   }

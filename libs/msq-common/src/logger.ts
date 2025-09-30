@@ -67,9 +67,8 @@ export class Logger {
 
   error(message: string, error?: unknown): void {
     if (this.level <= LogLevel.ERROR) {
-      const errorMessage = error instanceof Error
-        ? `${message}: ${error.message}`
-        : message;
+      const errorMessage =
+        error instanceof Error ? `${message}: ${error.message}` : message;
       console.error(this.formatMessage('ERROR', errorMessage));
       if (error instanceof Error && error.stack) {
         console.error(error.stack);
@@ -79,9 +78,8 @@ export class Logger {
 
   fatal(message: string, error?: unknown): void {
     if (this.level <= LogLevel.FATAL) {
-      const errorMessage = error instanceof Error
-        ? `${message}: ${error.message}`
-        : message;
+      const errorMessage =
+        error instanceof Error ? `${message}: ${error.message}` : message;
       console.error(this.formatMessage('FATAL', errorMessage));
       if (error instanceof Error && error.stack) {
         console.error(error.stack);

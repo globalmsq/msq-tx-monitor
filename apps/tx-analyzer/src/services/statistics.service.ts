@@ -1,5 +1,6 @@
 import { prisma } from '@msq-tx-monitor/database';
 import { redisService } from './redis.service';
+import { logger } from '@msq-tx-monitor/msq-common';
 import {
   StatisticsFilters,
   RealtimeStats,
@@ -37,7 +38,7 @@ export class StatisticsService {
 
       return stats;
     } catch (error) {
-      console.error('Error getting realtime stats:', error);
+      logger.error('Error getting realtime stats:', error);
       // Fallback to direct calculation
       return this.calculateRealtimeStats();
     }

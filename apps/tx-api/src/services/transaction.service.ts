@@ -410,8 +410,9 @@ export class TransactionService {
     }
 
     // Special case for address involved (either from or to)
-    const addressInvolved = (filters as TransactionFilters & { address_involved?: string })
-      .address_involved;
+    const addressInvolved = (
+      filters as TransactionFilters & { address_involved?: string }
+    ).address_involved;
 
     if (addressInvolved) {
       // Handle filter parameter for sent/received when address_involved is set

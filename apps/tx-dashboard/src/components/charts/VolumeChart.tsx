@@ -47,12 +47,13 @@ function CustomTooltip({ active, payload }: TooltipProps) {
     const isValidDate = dateStr && !isNaN(new Date(dateStr).getTime());
 
     // Calculate average transaction size
-    const avgTransactionSize = data.transactionCount > 0
-      ? formatVolumeHelper(
-          (parseFloat(data.totalVolume) / data.transactionCount).toString(),
-          data.tokenSymbol
-        )
-      : '0';
+    const avgTransactionSize =
+      data.transactionCount > 0
+        ? formatVolumeHelper(
+            (parseFloat(data.totalVolume) / data.transactionCount).toString(),
+            data.tokenSymbol
+          )
+        : '0';
 
     return (
       <div className='bg-gray-900/95 backdrop-blur border border-white/20 rounded-lg p-3 shadow-xl'>
@@ -71,7 +72,10 @@ function CustomTooltip({ active, payload }: TooltipProps) {
             </span>
           </div>
           <div className='flex items-center justify-between gap-4'>
-            <span className='text-sm' style={{ color: 'rgba(34, 211, 238, 0.6)' }}>
+            <span
+              className='text-sm'
+              style={{ color: 'rgba(34, 211, 238, 0.6)' }}
+            >
               Transactions:
             </span>
             <span className='text-white font-mono'>
@@ -79,12 +83,8 @@ function CustomTooltip({ active, payload }: TooltipProps) {
             </span>
           </div>
           <div className='flex items-center justify-between gap-4'>
-            <span className='text-sm text-gray-400'>
-              Avg Size:
-            </span>
-            <span className='text-white font-mono'>
-              {avgTransactionSize}
-            </span>
+            <span className='text-sm text-gray-400'>Avg Size:</span>
+            <span className='text-white font-mono'>{avgTransactionSize}</span>
           </div>
         </div>
       </div>

@@ -12,3 +12,6 @@
 8. Token Statistics 실시간 업데이트
 9. Tx 세부 페이지 또는 Polygon 스캔으로 연결
 10. Analytics 의 주소 클릭시 세부 페이지
+11. Address Detail에서 Trend 구현
+12. depcheck 문제
+13. 실제 DB에 저장된 tx와 dashboard와 다른 이유

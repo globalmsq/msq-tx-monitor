@@ -140,6 +140,43 @@ export function formatVolume(
 }
 
 /**
+ * Helper function to safely convert any value to BigInt-compatible string
+ */
+function safeBigIntString(value: string | number | bigint): bigint {
+  if (typeof value === 'bigint') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    // Handle scientific notation
+    if (value.includes('e') || value.includes('E')) {
+      const num = Number(value);
+      if (isNaN(num)) return BigInt(0);
+      return BigInt(Math.floor(num));
+    }
+
+    // Handle decimal strings by removing decimal part
+    const dotIndex = value.indexOf('.');
+    if (dotIndex !== -1) {
+      value = value.substring(0, dotIndex);
+    }
+
+    try {
+      return BigInt(value);
+    } catch {
+      return BigInt(0);
+    }
+  }
+
+  if (typeof value === 'number') {
+    if (isNaN(value)) return BigInt(0);
+    return BigInt(Math.floor(value));
+  }
+
+  return BigInt(0);
+}
+
+/**
  * Format a raw amount (BigInt or string) to human readable format
  * Used primarily for whale detection and large amounts
  */
@@ -152,7 +189,7 @@ export function formatAmount(
 
   const decimals = getTokenDecimals(tokenSymbol);
   const divisor = BigInt(10 ** decimals);
-  const value = typeof amount === 'string' ? BigInt(amount) : amount;
+  const value = safeBigIntString(amount);
   const actualValue = Number(value / divisor);
 
   const formatted = formatNumber(actualValue, { precision, compact: true });
@@ -198,4 +235,50 @@ export function formatExactNumber(
 
   // Format with thousand separators
   return rounded.toLocaleString('en-US');
+}
+
+/**
+ * Parse formatted volume value back to raw value
+ * Handles values like "1.5M MSQ", "2.3B", "1,234.56 KWT"
+ * @param formattedValue - Formatted value string
+ * @param tokenSymbol - Token symbol for decimal conversion
+ * @returns Raw value as string (in smallest token units)
+ */
+export function parseFormattedVolume(
+  formattedValue: string,
+  tokenSymbol: string
+): string {
+  if (!formattedValue) return '0';
+
+  // Extract numeric value and potential unit suffix, ignoring token symbol
+  const match = formattedValue.match(/([\d,]+\.?\d*)\s*([MBK]?)/);
+  if (!match) return '0';
+
+  const numericPart = match[1].replace(/,/g, ''); // Remove commas
+  const unitSuffix = match[2]; // M, B, K, or empty
+
+  const numValue = parseFloat(numericPart);
+  if (isNaN(numValue)) return '0';
+
+  // Convert based on unit suffix
+  let rawValue = numValue;
+  switch (unitSuffix) {
+    case 'B':
+      rawValue = numValue * 1e9;
+      break;
+    case 'M':
+      rawValue = numValue * 1e6;
+      break;
+    case 'K':
+      rawValue = numValue * 1e3;
+      break;
+    default:
+      rawValue = numValue; // No suffix, use as-is
+  }
+
+  // Convert to smallest unit based on token decimals
+  const decimals = getTokenDecimals(tokenSymbol);
+  const rawValueInSmallestUnit = rawValue * Math.pow(10, decimals);
+
+  return Math.floor(rawValueInSmallestUnit).toString();
 }

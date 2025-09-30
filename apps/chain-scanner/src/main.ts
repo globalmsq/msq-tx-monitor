@@ -7,6 +7,7 @@ import { WebSocketServer } from './services/websocketServer';
 import { StatisticsService } from './services/statisticsService';
 import { config } from './config';
 import { EVENT_TYPES } from './config/constants';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 class ChainScanner {
   private web3Service: Web3Service;
@@ -87,35 +88,35 @@ class ChainScanner {
 
   async start(): Promise<void> {
     if (this.isRunning) {
-      console.log('Chain scanner is already running');
+      logger.info('Chain scanner is already running');
       return;
     }
 
-    console.log('Starting MSQ Chain Scanner...');
-    console.log(`Environment: ${config.server.env}`);
-    console.log(`WebSocket Server Port: ${config.websocket.port}`);
-    console.log(`Primary Endpoint: ${config.blockchain.primary.endpoint}`);
-    console.log(`Backup Endpoint: ${config.blockchain.backup.endpoint}`);
+    logger.info('Starting MSQ Chain Scanner...');
+    logger.info(`Environment: ${config.server.env}`);
+    logger.info(`WebSocket Server Port: ${config.websocket.port}`);
+    logger.info(`Primary Endpoint: ${config.blockchain.primary.endpoint}`);
+    logger.info(`Backup Endpoint: ${config.blockchain.backup.endpoint}`);
 
     try {
       // 1. Initialize database
-      console.log('Initializing database connection...');
+      logger.info('Initializing database connection...');
       await this.databaseService.initialize();
 
       // 2. Initialize token service
-      console.log('Initializing token service...');
+      logger.info('Initializing token service...');
       await this.tokenService.initialize();
 
       // 3. Initialize statistics service
-      console.log('Initializing statistics service...');
+      logger.info('Initializing statistics service...');
       await this.statisticsService.initialize();
 
       // 4. Start WebSocket server
-      console.log('Starting WebSocket server...');
+      logger.info('Starting WebSocket server...');
       await this.websocketServer.start();
 
       // 5. Connect to blockchain
-      console.log('Connecting to Polygon network...');
+      logger.info('Connecting to Polygon network...');
       await this.web3Service.connect();
 
       // 6. Health check
@@ -125,22 +126,22 @@ class ChainScanner {
       this.startStatsUpdates();
 
       this.isRunning = true;
-      console.log('✅ MSQ Chain Scanner started successfully!');
-      console.log(
+      logger.info('✅ MSQ Chain Scanner started successfully!');
+      logger.info(
         `📊 Monitoring status: ${JSON.stringify(this.eventMonitor.getMonitoringStatus(), null, 2)}`
       );
-      console.log(
+      logger.info(
         `🔗 WebSocket server: ${JSON.stringify(this.websocketServer.getServerStatus(), null, 2)}`
       );
     } catch (error) {
-      console.error('❌ Failed to start chain scanner:', error);
+      logger.error('❌ Failed to start chain scanner:', error);
       await this.shutdown();
       throw error;
     }
   }
 
   private async performHealthCheck(): Promise<void> {
-    console.log('Performing health check...');
+    logger.info('Performing health check...');
 
     // Check database connectivity
     const dbHealthy = await this.databaseService.healthCheck();
@@ -166,18 +167,18 @@ class ChainScanner {
       throw new Error('WebSocket server health check failed');
     }
 
-    console.log('✅ All health checks passed');
+    logger.info('✅ All health checks passed');
   }
 
   private setupSignalHandlers(): void {
     process.on('SIGTERM', this.gracefulShutdown.bind(this));
     process.on('SIGINT', this.gracefulShutdown.bind(this));
     process.on('uncaughtException', error => {
-      console.error('Uncaught exception:', error);
+      logger.error('Uncaught exception:', error);
       this.gracefulShutdown();
     });
     process.on('unhandledRejection', (reason, promise) => {
-      console.error('Unhandled rejection at:', promise, 'reason:', reason);
+      logger.error('Unhandled rejection:', { promise, reason });
       this.gracefulShutdown();
     });
   }
@@ -191,15 +192,15 @@ class ChainScanner {
       try {
         await this.websocketServer.broadcastStatsUpdate();
       } catch (error) {
-        console.error('❌ Error in periodic stats update:', error);
+        logger.error('❌ Error in periodic stats update:', error);
       }
     }, 30000); // 30 seconds
 
-    console.log('📊 Periodic statistics updates started (30s interval)');
+    logger.info('📊 Periodic statistics updates started (30s interval)');
   }
 
   private async gracefulShutdown(): Promise<void> {
-    console.log('Received shutdown signal, initiating graceful shutdown...');
+    logger.info('Received shutdown signal, initiating graceful shutdown...');
     await this.shutdown();
     process.exit(0);
   }
@@ -209,36 +210,36 @@ class ChainScanner {
       return;
     }
 
-    console.log('Shutting down chain scanner...');
+    logger.info('Shutting down chain scanner...');
 
     try {
       // 1. Stop statistics updates
       if (this.statsUpdateInterval) {
         clearInterval(this.statsUpdateInterval);
         this.statsUpdateInterval = null;
-        console.log('Statistics updates stopped');
+        logger.info('Statistics updates stopped');
       }
 
       // 2. Stop event monitoring
-      console.log('Stopping event monitoring...');
+      logger.info('Stopping event monitoring...');
       await this.eventMonitor.stopMonitoring();
 
       // 3. Disconnect from blockchain
-      console.log('Disconnecting from blockchain...');
+      logger.info('Disconnecting from blockchain...');
       await this.web3Service.disconnect();
 
       // 4. Stop WebSocket server
-      console.log('Stopping WebSocket server...');
+      logger.info('Stopping WebSocket server...');
       await this.websocketServer.stop();
 
       // 5. Disconnect from database
-      console.log('Disconnecting from database...');
+      logger.info('Disconnecting from database...');
       await this.databaseService.disconnect();
 
       this.isRunning = false;
-      console.log('✅ Chain scanner shut down successfully');
+      logger.info('✅ Chain scanner shut down successfully');
     } catch (error) {
-      console.error('❌ Error during shutdown:', error);
+      logger.error('❌ Error during shutdown:', error);
     }
   }
 
@@ -266,7 +267,7 @@ class ChainScanner {
 const chainScanner = new ChainScanner();
 
 chainScanner.start().catch(error => {
-  console.error('Failed to start chain scanner:', error);
+  logger.error('Failed to start chain scanner:', error);
   process.exit(1);
 });
 

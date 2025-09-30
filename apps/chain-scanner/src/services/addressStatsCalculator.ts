@@ -15,6 +15,7 @@ import {
   CachedAddressStats,
 } from './addressStatsCacheService';
 import { AddressRankingService } from './addressRankingService';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 interface BehavioralFlags {
   isBot?: boolean;
@@ -123,7 +124,7 @@ export class AddressStatsCalculator {
     try {
       return BigInt(stringValue);
     } catch (error) {
-      console.warn(
+      logger.warn(
         `Failed to convert value to BigInt: ${stringValue}, using 0`,
         error
       );
@@ -138,7 +139,7 @@ export class AddressStatsCalculator {
     try {
       await this.cacheService.initialize();
     } catch (error) {
-      console.error(
+      logger.error(
         '❌ Failed to initialize cache service in AddressStatsCalculator:',
         error
       );
@@ -325,7 +326,7 @@ export class AddressStatsCalculator {
         await this.cacheService.setAddressStats(cachedStats, isWhaleOrRisky);
       }
     } catch (error) {
-      console.error(`❌ Failed to update cache for address ${address}:`, error);
+      logger.error(`❌ Failed to update cache for address ${address}:`, error);
       // Don't throw error - cache update failure shouldn't break the main process
     }
   }
@@ -641,7 +642,7 @@ export class AddressStatsCalculator {
       // Update address ranking (delegated to ranking service)
       await this.rankingService.updateAddressRanking(address, tokenAddress);
     } catch (error) {
-      console.error('❌ Failed to update rankings for address:', error);
+      logger.error('❌ Failed to update rankings for address:', error);
       // Don't throw error - ranking update failure shouldn't break transaction processing
     }
   }
@@ -666,7 +667,7 @@ export class AddressStatsCalculator {
 
       return { whales, active, risky };
     } catch (error) {
-      console.error('❌ Failed to get address rankings:', error);
+      logger.error('❌ Failed to get address rankings:', error);
       return { whales: null, active: null, risky: null };
     }
   }
@@ -700,7 +701,7 @@ export class AddressStatsCalculator {
         },
       };
     } catch (error) {
-      console.error('❌ Failed to generate address analytics:', error);
+      logger.error('❌ Failed to generate address analytics:', error);
       return null;
     }
   }

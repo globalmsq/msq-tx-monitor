@@ -371,7 +371,8 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       const hasExactLength = currentTokens.length === allTokens.length;
       const currentTokensSorted = [...currentTokens].sort();
       const allTokensSorted = [...allTokens].sort();
-      const isExactMatch = JSON.stringify(currentTokensSorted) === JSON.stringify(allTokensSorted);
+      const isExactMatch =
+        JSON.stringify(currentTokensSorted) === JSON.stringify(allTokensSorted);
 
       if (hasAllTokens && hasExactLength && isExactMatch) {
         dispatch({ type: 'SET_TOKEN_FILTER', payload: [] });
@@ -530,7 +531,6 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       const currentTokens = state.filters.tokens;
       const allTokens = FILTER_TOKENS;
 
-
       if (token === 'ALL') {
         // ALL 선택 시 모든 토큰 해제 (빈 배열 = ALL 상태)
         dispatch({ type: 'SET_TOKEN_FILTER', payload: [] });
@@ -540,14 +540,13 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
           ? currentTokens.filter(t => t !== token)
           : [...currentTokens, token];
 
-
         // 모든 토큰이 선택되었는지 정확히 확인 (순서 무관)
         const hasAllTokens = allTokens.every(t => newTokens.includes(t));
         const hasExactLength = newTokens.length === allTokens.length;
         const newTokensSorted = [...newTokens].sort();
         const allTokensSorted = [...allTokens].sort();
-        const isExactMatch = JSON.stringify(newTokensSorted) === JSON.stringify(allTokensSorted);
-
+        const isExactMatch =
+          JSON.stringify(newTokensSorted) === JSON.stringify(allTokensSorted);
 
         if (hasAllTokens && hasExactLength && isExactMatch) {
           // 모든 토큰 선택 시 ALL 상태로 변환 (빈 배열)

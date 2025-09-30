@@ -66,7 +66,10 @@ interface DetailedAnalysisModalProps {
   onClose: () => void;
   data: DetailedData | null;
   loading?: boolean;
-  onFetchTransactions?: (page: number, filter?: string) => Promise<{ transactions: DetailedTransaction[], pagination: any }>;
+  onFetchTransactions?: (
+    page: number,
+    filter?: string
+  ) => Promise<{ transactions: DetailedTransaction[]; pagination: any }>;
 }
 
 export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
@@ -83,8 +86,12 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
     'all' | 'success' | 'failed' | 'high-risk' | 'received' | 'sent'
   >('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [copiedItems, setCopiedItems] = useState<{ [key: string]: boolean }>({});
-  const [allTransactions, setAllTransactions] = useState<DetailedTransaction[]>([]);
+  const [copiedItems, setCopiedItems] = useState<{ [key: string]: boolean }>(
+    {}
+  );
+  const [allTransactions, setAllTransactions] = useState<DetailedTransaction[]>(
+    []
+  );
   const [isLoadingPage, setIsLoadingPage] = useState(false);
   const [paginationData, setPaginationData] = useState<any>(null);
   const itemsPerPage = 10;
@@ -106,7 +113,8 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
     const fetchFilteredTransactions = async () => {
       setIsLoadingPage(true);
       try {
-        const filterParam = transactionFilter === 'all' ? undefined : transactionFilter;
+        const filterParam =
+          transactionFilter === 'all' ? undefined : transactionFilter;
         const result = await onFetchTransactions(1, filterParam);
         setAllTransactions(result.transactions);
         setPaginationData(result.pagination);
@@ -156,14 +164,26 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
         case 'high-risk':
           return (tx.riskScore || 0) > 0.7;
         case 'received':
-          return data?.identifier && tx.to.toLowerCase() === data.identifier.toLowerCase();
+          return (
+            data?.identifier &&
+            tx.to.toLowerCase() === data.identifier.toLowerCase()
+          );
         case 'sent':
-          return data?.identifier && tx.from.toLowerCase() === data.identifier.toLowerCase();
+          return (
+            data?.identifier &&
+            tx.from.toLowerCase() === data.identifier.toLowerCase()
+          );
         default:
           return true;
       }
     });
-  }, [allTransactions, transactionFilter, data?.identifier, !!onFetchTransactions, !!data?.paginationMeta?.apiEndpoint]);
+  }, [
+    allTransactions,
+    transactionFilter,
+    data?.identifier,
+    !!onFetchTransactions,
+    !!data?.paginationMeta?.apiEndpoint,
+  ]);
 
   // Calculate total pages dynamically based on filter state
   // Must be defined before early return to follow React's Rules of Hooks
@@ -175,7 +195,10 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
 
     // If using server-side filtering with API but no pagination data yet
     if (onFetchTransactions && data?.paginationMeta?.apiEndpoint) {
-      if (data?.paginationMeta?.totalTransactions && transactionFilter === 'all') {
+      if (
+        data?.paginationMeta?.totalTransactions &&
+        transactionFilter === 'all'
+      ) {
         return Math.ceil(data.paginationMeta.totalTransactions / itemsPerPage);
       }
       // Default to at least 1 page
@@ -195,9 +218,15 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
           case 'high-risk':
             return (tx.riskScore || 0) > 0.7;
           case 'received':
-            return data?.identifier && tx.to.toLowerCase() === data.identifier.toLowerCase();
+            return (
+              data?.identifier &&
+              tx.to.toLowerCase() === data.identifier.toLowerCase()
+            );
           case 'sent':
-            return data?.identifier && tx.from.toLowerCase() === data.identifier.toLowerCase();
+            return (
+              data?.identifier &&
+              tx.from.toLowerCase() === data.identifier.toLowerCase()
+            );
           default:
             return true;
         }
@@ -205,15 +234,26 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
     }
 
     return Math.max(1, Math.ceil(filteredCount / itemsPerPage));
-  }, [paginationData, transactionFilter, data?.paginationMeta, data?.identifier, allTransactions, onFetchTransactions, itemsPerPage]);
+  }, [
+    paginationData,
+    transactionFilter,
+    data?.paginationMeta,
+    data?.identifier,
+    allTransactions,
+    onFetchTransactions,
+    itemsPerPage,
+  ]);
 
   // Helper function for consistent volume formatting (no decimals)
-  const formatVolumeHelper = useCallback((volume: string, tokenSymbol?: string) => {
-    return formatVolume(volume, tokenSymbol, {
-      precision: 0,
-      showSymbol: false,
-    });
-  }, []);
+  const formatVolumeHelper = useCallback(
+    (volume: string, tokenSymbol?: string) => {
+      return formatVolume(volume, tokenSymbol, {
+        precision: 0,
+        showSymbol: false,
+      });
+    },
+    []
+  );
 
   // Helper function for consistent address formatting
   const formatAddressHelper = useCallback((address: string) => {
@@ -251,22 +291,24 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
       return time.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
-        year: 'numeric'
+        year: 'numeric',
       });
     }
   };
 
   const formatFullTime = (timestamp: string) => {
     const date = new Date(timestamp);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    }).replace(',', '');
+    return date
+      .toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      })
+      .replace(',', '');
   };
 
   const getTimeRangeLabel = (start: string, end: string): string => {
@@ -289,7 +331,8 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
     if (onFetchTransactions && data?.paginationMeta?.apiEndpoint) {
       setIsLoadingPage(true);
       try {
-        const filterParam = transactionFilter === 'all' ? undefined : transactionFilter;
+        const filterParam =
+          transactionFilter === 'all' ? undefined : transactionFilter;
         const result = await onFetchTransactions(newPage, filterParam);
         setAllTransactions(result.transactions);
         setPaginationData(result.pagination);
@@ -539,7 +582,10 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
                           data.transactions?.[0]?.tokenSymbol
                       )}
                       rawValue={data.summary.totalVolume}
-                      tokenSymbol={data.summary.tokenSymbol || data.transactions?.[0]?.tokenSymbol}
+                      tokenSymbol={
+                        data.summary.tokenSymbol ||
+                        data.transactions?.[0]?.tokenSymbol
+                      }
                     />
                     {data.summary.tokenSymbol && (
                       <span className='text-white/60 text-sm ml-1'>
@@ -666,8 +712,7 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
                     ? `${paginationData.total.toLocaleString()} transactions`
                     : transactionFilter === 'all'
                       ? `${(data?.paginationMeta?.totalTransactions || data?.summary.transactionCount || 0).toLocaleString()} transactions`
-                      : `${getFilteredTransactions().length.toLocaleString()} transactions`
-                  }
+                      : `${getFilteredTransactions().length.toLocaleString()} transactions`}
                 </div>
               </div>
 
@@ -710,7 +755,9 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
                         <tr>
                           <td colSpan={7} className='p-8 text-center'>
                             <div className='text-white/60'>
-                              <div className='text-lg mb-2'>No transactions found</div>
+                              <div className='text-lg mb-2'>
+                                No transactions found
+                              </div>
                               <div className='text-sm'>
                                 {transactionFilter !== 'all'
                                   ? 'Try changing the filter or selecting a different time period'
@@ -723,128 +770,146 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
                         getPaginatedTransactions().map((tx, index) => {
                           const txKey = `${tx.hash}_${index}`;
                           return (
-                          <tr
-                            key={tx.hash}
-                            className='border-b border-white/20 hover:bg-white/20'
-                          >
-                            <td className='p-3'>
-                              <div className='flex items-center gap-2'>
-                                <span className='font-mono text-white text-sm'>
-                                  {formatAddress(tx.hash)}
-                                </span>
-                                <button
-                                  onClick={() => handleCopyItem(tx.hash, `hash_${txKey}`)}
-                                  className='p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-all'
-                                  title='Copy transaction hash'
-                                >
-                                  {copiedItems[`hash_${txKey}`] ? (
-                                    <Check className='w-3 h-3 text-green-400' />
-                                  ) : (
-                                    <Copy className='w-3 h-3' />
-                                  )}
-                                </button>
-                              </div>
-                            </td>
-                            <td className='p-3'>
-                              <div className='relative inline-block group'>
-                                <span className='text-white/70 text-sm cursor-help'>
-                                  {getRelativeTime(tx.timestamp)}
-                                </span>
-                                <div className='absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10'>
-                                  {formatFullTime(tx.timestamp)}
-                                  <div className='absolute top-full left-4 -mt-1'>
-                                    <div className='border-4 border-transparent border-t-gray-800'></div>
+                            <tr
+                              key={tx.hash}
+                              className='border-b border-white/20 hover:bg-white/20'
+                            >
+                              <td className='p-3'>
+                                <div className='flex items-center gap-2'>
+                                  <span className='font-mono text-white text-sm'>
+                                    {formatAddress(tx.hash)}
+                                  </span>
+                                  <button
+                                    onClick={() =>
+                                      handleCopyItem(tx.hash, `hash_${txKey}`)
+                                    }
+                                    className='p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-all'
+                                    title='Copy transaction hash'
+                                  >
+                                    {copiedItems[`hash_${txKey}`] ? (
+                                      <Check className='w-3 h-3 text-green-400' />
+                                    ) : (
+                                      <Copy className='w-3 h-3' />
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                              <td className='p-3'>
+                                <div className='relative inline-block group'>
+                                  <span className='text-white/70 text-sm cursor-help'>
+                                    {getRelativeTime(tx.timestamp)}
+                                  </span>
+                                  <div className='absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10'>
+                                    {formatFullTime(tx.timestamp)}
+                                    <div className='absolute top-full left-4 -mt-1'>
+                                      <div className='border-4 border-transparent border-t-gray-800'></div>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            </td>
-                            <td className='p-3'>
-                              <div className='flex items-center gap-2'>
-                                <span className={cn(
-                                  'font-mono text-sm',
-                                  tx.from.toLowerCase() === data?.identifier?.toLowerCase()
-                                    ? 'text-primary-400 font-bold'
-                                    : 'text-white/70'
-                                )}>
-                                  {formatAddressHelper(tx.from)}
-                                </span>
-                                <button
-                                  onClick={() => handleCopyItem(tx.from, `from_${txKey}`)}
-                                  className='p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-all'
-                                  title='Copy from address'
-                                >
-                                  {copiedItems[`from_${txKey}`] ? (
-                                    <Check className='w-3 h-3 text-green-400' />
-                                  ) : (
-                                    <Copy className='w-3 h-3' />
+                              </td>
+                              <td className='p-3'>
+                                <div className='flex items-center gap-2'>
+                                  <span
+                                    className={cn(
+                                      'font-mono text-sm',
+                                      tx.from.toLowerCase() ===
+                                        data?.identifier?.toLowerCase()
+                                        ? 'text-primary-400 font-bold'
+                                        : 'text-white/70'
+                                    )}
+                                  >
+                                    {formatAddressHelper(tx.from)}
+                                  </span>
+                                  <button
+                                    onClick={() =>
+                                      handleCopyItem(tx.from, `from_${txKey}`)
+                                    }
+                                    className='p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-all'
+                                    title='Copy from address'
+                                  >
+                                    {copiedItems[`from_${txKey}`] ? (
+                                      <Check className='w-3 h-3 text-green-400' />
+                                    ) : (
+                                      <Copy className='w-3 h-3' />
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                              <td className='p-3'>
+                                <div className='flex items-center gap-2'>
+                                  <span
+                                    className={cn(
+                                      'font-mono text-sm',
+                                      tx.to.toLowerCase() ===
+                                        data?.identifier?.toLowerCase()
+                                        ? 'text-primary-400 font-bold'
+                                        : 'text-white/70'
+                                    )}
+                                  >
+                                    {formatAddressHelper(tx.to)}
+                                  </span>
+                                  <button
+                                    onClick={() =>
+                                      handleCopyItem(tx.to, `to_${txKey}`)
+                                    }
+                                    className='p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-all'
+                                    title='Copy to address'
+                                  >
+                                    {copiedItems[`to_${txKey}`] ? (
+                                      <Check className='w-3 h-3 text-green-400' />
+                                    ) : (
+                                      <Copy className='w-3 h-3' />
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                              <td className='p-3'>
+                                <div className='text-white text-sm'>
+                                  <VolumeWithTooltip
+                                    formattedValue={formatVolumeHelper(
+                                      tx.value,
+                                      tx.tokenSymbol
+                                    )}
+                                    rawValue={tx.value}
+                                    tokenSymbol={tx.tokenSymbol}
+                                  />
+                                </div>
+                              </td>
+                              <td className='p-3'>
+                                <span
+                                  className={cn(
+                                    'px-2 py-1 rounded text-xs font-medium',
+                                    tx.status === 'success'
+                                      ? 'bg-green-500/20 text-green-400'
+                                      : 'bg-red-500/20 text-red-400'
                                   )}
-                                </button>
-                              </div>
-                            </td>
-                            <td className='p-3'>
-                              <div className='flex items-center gap-2'>
-                                <span className={cn(
-                                  'font-mono text-sm',
-                                  tx.to.toLowerCase() === data?.identifier?.toLowerCase()
-                                    ? 'text-primary-400 font-bold'
-                                    : 'text-white/70'
-                                )}>
-                                  {formatAddressHelper(tx.to)}
-                                </span>
-                                <button
-                                  onClick={() => handleCopyItem(tx.to, `to_${txKey}`)}
-                                  className='p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-all'
-                                  title='Copy to address'
                                 >
-                                  {copiedItems[`to_${txKey}`] ? (
-                                    <Check className='w-3 h-3 text-green-400' />
-                                  ) : (
-                                    <Copy className='w-3 h-3' />
-                                  )}
-                                </button>
-                              </div>
-                            </td>
-                            <td className='p-3'>
-                              <div className='text-white text-sm'>
-                                <VolumeWithTooltip
-                                  formattedValue={formatVolumeHelper(tx.value, tx.tokenSymbol)}
-                                  rawValue={tx.value}
-                                  tokenSymbol={tx.tokenSymbol}
-                                />
-                              </div>
-                            </td>
-                          <td className='p-3'>
-                            <span
-                              className={cn(
-                                'px-2 py-1 rounded text-xs font-medium',
-                                tx.status === 'success'
-                                  ? 'bg-green-500/20 text-green-400'
-                                  : 'bg-red-500/20 text-red-400'
-                              )}
-                            >
-                              {tx.status}
-                            </span>
-                          </td>
-                          <td className='p-3'>
-                            {tx.riskScore ? (
-                              <span
-                                className={cn(
-                                  'px-2 py-1 rounded text-xs font-medium',
-                                  tx.riskScore > 0.7
-                                    ? 'bg-red-500/20 text-red-400'
-                                    : tx.riskScore > 0.4
-                                      ? 'bg-yellow-500/20 text-yellow-400'
-                                      : 'bg-green-500/20 text-green-400'
+                                  {tx.status}
+                                </span>
+                              </td>
+                              <td className='p-3'>
+                                {tx.riskScore ? (
+                                  <span
+                                    className={cn(
+                                      'px-2 py-1 rounded text-xs font-medium',
+                                      tx.riskScore > 0.7
+                                        ? 'bg-red-500/20 text-red-400'
+                                        : tx.riskScore > 0.4
+                                          ? 'bg-yellow-500/20 text-yellow-400'
+                                          : 'bg-green-500/20 text-green-400'
+                                    )}
+                                  >
+                                    {(tx.riskScore * 100).toFixed(0)}%
+                                  </span>
+                                ) : (
+                                  <span className='text-white/40 text-xs'>
+                                    N/A
+                                  </span>
                                 )}
-                              >
-                                {(tx.riskScore * 100).toFixed(0)}%
-                              </span>
-                            ) : (
-                              <span className='text-white/40 text-xs'>N/A</span>
-                            )}
-                          </td>
-                        </tr>
-                      )})
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -868,7 +933,9 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
                       </button>
                       <button
                         onClick={() =>
-                          handlePageChange(Math.min(totalPages, currentPage + 1))
+                          handlePageChange(
+                            Math.min(totalPages, currentPage + 1)
+                          )
                         }
                         disabled={currentPage === totalPages || isLoadingPage}
                         className='px-3 py-1 text-sm text-white/60 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed'

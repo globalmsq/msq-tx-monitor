@@ -571,7 +571,13 @@ export class TransactionController {
         has_anomaly: req.query.has_anomaly
           ? req.query.has_anomaly === 'true'
           : undefined,
-        filter: req.query.filter as 'all' | 'sent' | 'received' | 'success' | 'failed' | 'high-risk',
+        filter: req.query.filter as
+          | 'all'
+          | 'sent'
+          | 'received'
+          | 'success'
+          | 'failed'
+          | 'high-risk',
       };
 
       // Remove undefined values

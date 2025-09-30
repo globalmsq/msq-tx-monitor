@@ -215,7 +215,9 @@ export const MSQ_CONSTANTS = {
 } as const;
 
 // Filter constants for UI
-export const FILTER_TOKENS = Object.values(MSQ_TOKENS).map(token => token.symbol);
+export const FILTER_TOKENS = Object.values(MSQ_TOKENS).map(
+  token => token.symbol
+);
 
 // Export formatters
 export {
@@ -226,6 +228,7 @@ export {
   formatAddress,
   formatExactNumber,
   getTokenDecimals,
+  parseFormattedVolume,
   type FormatOptions,
 } from './formatters';
 

@@ -157,10 +157,17 @@ export function TransactionDetailModal({
                 <code
                   className={cn(
                     'text-sm text-white font-mono flex-1 break-all',
-                    onAddressClick && 'cursor-pointer hover:text-primary-400 transition-colors'
+                    onAddressClick &&
+                      'cursor-pointer hover:text-primary-400 transition-colors'
                   )}
-                  onClick={onAddressClick ? () => onAddressClick('address', transaction.from) : undefined}
-                  title={onAddressClick ? 'Click to view address details' : undefined}
+                  onClick={
+                    onAddressClick
+                      ? () => onAddressClick('address', transaction.from)
+                      : undefined
+                  }
+                  title={
+                    onAddressClick ? 'Click to view address details' : undefined
+                  }
                 >
                   {transaction.from}
                 </code>
@@ -179,10 +186,17 @@ export function TransactionDetailModal({
                 <code
                   className={cn(
                     'text-sm text-white font-mono flex-1 break-all',
-                    onAddressClick && 'cursor-pointer hover:text-primary-400 transition-colors'
+                    onAddressClick &&
+                      'cursor-pointer hover:text-primary-400 transition-colors'
                   )}
-                  onClick={onAddressClick ? () => onAddressClick('address', transaction.to) : undefined}
-                  title={onAddressClick ? 'Click to view address details' : undefined}
+                  onClick={
+                    onAddressClick
+                      ? () => onAddressClick('address', transaction.to)
+                      : undefined
+                  }
+                  title={
+                    onAddressClick ? 'Click to view address details' : undefined
+                  }
                 >
                   {transaction.to}
                 </code>

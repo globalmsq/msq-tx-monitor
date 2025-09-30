@@ -3,6 +3,8 @@
  * Generates fake transaction data for dashboard testing
  */
 
+import { logger } from '@msq-tx-monitor/msq-common';
+
 interface MockTransaction {
   id: string;
   hash: string;
@@ -39,17 +41,17 @@ export class MockDataService {
   ];
 
   constructor() {
-    console.log('MockDataService initialized');
+    logger.info('MockDataService initialized');
   }
 
   start(intervalMs: number = 3000): void {
     if (this.isRunning) {
-      console.log('MockDataService is already running');
+      logger.info('MockDataService is already running');
       return;
     }
 
     this.isRunning = true;
-    console.log(`Starting mock data generation every ${intervalMs}ms`);
+    logger.info(`Starting mock data generation every ${intervalMs}ms`);
 
     this.interval = setInterval(() => {
       this.generateTransaction();
@@ -69,7 +71,7 @@ export class MockDataService {
       clearInterval(this.interval);
       this.interval = null;
     }
-    console.log('MockDataService stopped');
+    logger.info('MockDataService stopped');
   }
 
   onTransaction(callback: (transaction: MockTransaction) => void): void {
@@ -79,7 +81,7 @@ export class MockDataService {
   private generateTransaction(): void {
     const transaction = this.createRandomTransaction();
 
-    console.log('Generated mock transaction:', {
+    logger.info('Generated mock transaction:', {
       hash: transaction.hash,
       token: transaction.token,
       value: transaction.value,

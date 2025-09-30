@@ -8,6 +8,7 @@ import {
   EVENT_TYPES,
 } from '../config/constants';
 import { TokenService } from './tokenService';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 export interface EventData {
   address: string;
@@ -60,12 +61,12 @@ export class EventMonitor {
   }
 
   private async handleConnection(): Promise<void> {
-    console.log('Web3 connected, starting event monitoring...');
+    logger.info('Web3 connected, starting event monitoring...');
     await this.startMonitoring();
   }
 
   private handleDisconnection(): void {
-    console.log('Web3 disconnected, stopping event monitoring...');
+    logger.info('Web3 disconnected, stopping event monitoring...');
     this.stopMonitoring();
   }
 
@@ -74,14 +75,14 @@ export class EventMonitor {
       throw new Error('Web3 service not connected');
     }
 
-    console.log(
+    logger.info(
       '🚀 Starting ERC-20 Transfer event monitoring with HTTP RPC polling...'
     );
 
     try {
       // Get the current block number to start monitoring from
       this.lastProcessedBlock = await this.web3Service.getLatestBlockNumber();
-      console.log(
+      logger.info(
         `📍 Starting monitoring from block: ${this.lastProcessedBlock}`
       );
 
@@ -92,14 +93,14 @@ export class EventMonitor {
       this.startBlockPolling();
 
       const tokenAddresses = Object.values(TOKEN_ADDRESSES);
-      console.log(
+      logger.info(
         `📊 Monitoring ${tokenAddresses.length} tokens for Transfer events using HTTP RPC`
       );
-      console.log(
+      logger.info(
         `🎯 Monitored tokens: ${Object.keys(TOKEN_ADDRESSES).join(', ')}`
       );
     } catch (error) {
-      console.error('❌ Failed to start monitoring:', error);
+      logger.error('❌ Failed to start monitoring:', error);
       throw error;
     }
   }
@@ -109,7 +110,7 @@ export class EventMonitor {
       clearInterval(this.blockPollingTimer);
     }
 
-    console.log(
+    logger.info(
       `🔄 Starting block polling every ${config.monitoring.blockPollingInterval}ms`
     );
 
@@ -130,12 +131,12 @@ export class EventMonitor {
           config.monitoring.maxBlocksPerPoll
         );
 
-        console.log(
+        logger.info(
           `🔍 New blocks detected: ${currentBlockNumber} (last processed: ${this.lastProcessedBlock})`
         );
 
         if (totalBlocksToProcess > config.monitoring.maxBlocksPerPoll) {
-          console.log(
+          logger.warn(
             `⚠️ Too many blocks behind (${totalBlocksToProcess}), processing ${maxBlocksThisPoll} blocks this round`
           );
         }
@@ -154,13 +155,13 @@ export class EventMonitor {
 
         // Log remaining blocks if any
         if (endBlock < currentBlockNumber) {
-          console.log(
+          logger.info(
             `📝 ${currentBlockNumber - endBlock} blocks remaining for next poll cycle`
           );
         }
       }
     } catch (error) {
-      console.error('❌ Error polling for new blocks:', error);
+      logger.error('❌ Error polling for new blocks:', error);
     }
   }
 
@@ -176,14 +177,14 @@ export class EventMonitor {
           blockNumber
         );
       } catch (error) {
-        console.error(
+        logger.error(
           `❌ Error fetching events for all tokens in block ${blockNumber}:`,
           error
         );
 
         // Only fallback to individual tokens if explicitly enabled
         if (!config.monitoring.disableIndividualTokenFallback) {
-          console.log(
+          logger.info(
             `🔄 Falling back to individual token requests for block ${blockNumber}`
           );
           for (const tokenAddress of tokenAddresses) {
@@ -198,7 +199,7 @@ export class EventMonitor {
                 setTimeout(resolve, config.monitoring.requestDelay)
               );
             } catch (individualError) {
-              console.error(
+              logger.error(
                 `❌ Error fetching events for token ${tokenAddress} in block ${blockNumber}:`,
                 individualError
               );
@@ -206,13 +207,13 @@ export class EventMonitor {
             }
           }
         } else {
-          console.log(
+          logger.warn(
             `⚠️ Individual token fallback disabled, skipping block ${blockNumber} events`
           );
         }
       }
     } catch (error) {
-      console.error(`❌ Error processing block ${blockNumber}:`, error);
+      logger.error(`❌ Error processing block ${blockNumber}:`, error);
     }
   }
 
@@ -247,13 +248,13 @@ export class EventMonitor {
         let delay: number;
         if (isRateLimitError) {
           delay = config.monitoring.rateLimitBackoffMs;
-          console.warn(
+          logger.warn(
             `🚫 Rate limit detected, backing off ${delay}ms for all tokens (attempt ${attempt + 1}/${maxRetries})`
           );
         } else {
           // Exponential backoff for other errors: 1s, 2s
           delay = 1000 * Math.pow(2, attempt);
-          console.warn(
+          logger.warn(
             `⚠️ Retry ${attempt + 1}/${maxRetries} for all tokens after ${delay}ms:`,
             errorMessage
           );
@@ -295,13 +296,13 @@ export class EventMonitor {
         let delay: number;
         if (isRateLimitError) {
           delay = config.monitoring.rateLimitBackoffMs;
-          console.warn(
+          logger.warn(
             `🚫 Rate limit detected for token ${tokenAddress}, backing off ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
           );
         } else {
           // Exponential backoff for other errors: 1s, 2s
           delay = 1000 * Math.pow(2, attempt);
-          console.warn(
+          logger.warn(
             `⚠️ Retry ${attempt + 1}/${maxRetries} for token ${tokenAddress} after ${delay}ms:`,
             errorMessage
           );
@@ -343,12 +344,12 @@ export class EventMonitor {
       }
 
       if (logs.length > 0) {
-        console.log(
+        logger.info(
           `📦 Found ${logs.length} Transfer events for all tokens in blocks ${fromBlock}-${toBlock}`
         );
       }
     } catch (error) {
-      console.error(`❌ Error fetching events for all tokens:`, error);
+      logger.error(`❌ Error fetching events for all tokens:`, error);
       throw error;
     }
   }
@@ -384,12 +385,12 @@ export class EventMonitor {
       }
 
       if (logs.length > 0) {
-        console.log(
+        logger.info(
           `📦 Found ${logs.length} Transfer events for token ${tokenAddress} in blocks ${fromBlock}-${toBlock}`
         );
       }
     } catch (error) {
-      console.error(
+      logger.error(
         `❌ Error fetching events for token ${tokenAddress}:`,
         error
       );
@@ -400,7 +401,7 @@ export class EventMonitor {
     this.processingQueue.push(eventData);
 
     if (config.logging.enableBlockchainLogs) {
-      console.log(
+      logger.info(
         `Event queued: ${eventData.transactionHash} (Queue size: ${this.processingQueue.length})`
       );
     }
@@ -430,7 +431,7 @@ export class EventMonitor {
       );
       const eventsToProcess = this.processingQueue.splice(0, batchSize);
 
-      console.log(`Processing ${eventsToProcess.length} events...`);
+      logger.info(`Processing ${eventsToProcess.length} events...`);
 
       const processedEvents: ProcessedEvent[] = [];
       const transactionData: TransactionData[] = [];
@@ -450,7 +451,7 @@ export class EventMonitor {
             }
           }
         } catch (error) {
-          console.error(
+          logger.error(
             `Error processing event ${eventData.transactionHash}:`,
             error
           );
@@ -468,10 +469,10 @@ export class EventMonitor {
       }
 
       if (config.logging.enableBlockchainLogs) {
-        console.log(`Processed ${processedEvents.length} events successfully`);
+        logger.info(`Processed ${processedEvents.length} events successfully`);
       }
     } catch (error) {
-      console.error('Error processing queued events:', error);
+      logger.error('Error processing queued events:', error);
     } finally {
       this.isProcessing = false;
     }
@@ -485,7 +486,7 @@ export class EventMonitor {
 
       // Decode Transfer event data
       if (topics.length < 3) {
-        console.warn('Invalid Transfer event: insufficient topics');
+        logger.warn('Invalid Transfer event: insufficient topics');
         return null;
       }
 
@@ -498,7 +499,7 @@ export class EventMonitor {
       // Skip zero value transfers if configured
       if (config.monitoring.ignoreZeroValueTransfers && value === '0') {
         if (config.logging.enableBlockchainLogs) {
-          console.log(
+          logger.info(
             `Skipping zero value transfer: ${eventData.transactionHash}`
           );
         }
@@ -548,7 +549,7 @@ export class EventMonitor {
             }
           } catch (blockchainError) {
             if (config.logging.enableBlockchainLogs) {
-              console.warn(
+              logger.warn(
                 `Failed to fetch blockchain info for ${eventData.transactionHash}:`,
                 blockchainError
               );
@@ -575,7 +576,7 @@ export class EventMonitor {
 
       return processedEvent;
     } catch (error) {
-      console.error('Error processing event:', error);
+      logger.error('Error processing event:', error);
       return null;
     }
   }
@@ -606,7 +607,7 @@ export class EventMonitor {
 
       // Always try to fetch gas information for transaction fees
       if (!this.web3Service.isConnected()) {
-        console.warn(
+        logger.warn(
           'Web3 service not connected, returning basic transaction data'
         );
         return basicTransactionData;
@@ -614,7 +615,7 @@ export class EventMonitor {
 
       const web3 = this.web3Service.getWeb3Instance();
       if (!web3) {
-        console.warn(
+        logger.warn(
           'Web3 instance not available, returning basic transaction data'
         );
         return basicTransactionData;
@@ -637,7 +638,7 @@ export class EventMonitor {
             Number(currentBlockNumber) - processedEvent.blockNumber;
         }
       } catch (detailError) {
-        console.warn(
+        logger.warn(
           `Failed to fetch transaction details for ${processedEvent.transactionHash}, using basic data:`,
           detailError
         );
@@ -645,7 +646,7 @@ export class EventMonitor {
 
       return basicTransactionData;
     } catch (error) {
-      console.error('Error creating transaction data:', error);
+      logger.error('Error creating transaction data:', error);
       return null;
     }
   }
@@ -659,13 +660,13 @@ export class EventMonitor {
   }
 
   async stopMonitoring(): Promise<void> {
-    console.log('Stopping event monitoring...');
+    logger.info('Stopping event monitoring...');
 
     // Stop block polling
     if (this.blockPollingTimer) {
       clearInterval(this.blockPollingTimer);
       this.blockPollingTimer = null;
-      console.log('✅ Stopped block polling');
+      logger.info('✅ Stopped block polling');
     }
 
     // Stop processing timer
@@ -678,13 +679,13 @@ export class EventMonitor {
 
     // Process remaining events
     if (this.processingQueue.length > 0) {
-      console.log(
+      logger.info(
         `Processing remaining ${this.processingQueue.length} events...`
       );
       await this.processQueuedEvents();
     }
 
-    console.log('Event monitoring stopped');
+    logger.info('Event monitoring stopped');
   }
 
   getMonitoringStatus(): {

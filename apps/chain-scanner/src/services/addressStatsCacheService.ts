@@ -8,6 +8,7 @@
 
 import { createClient, RedisClientType } from 'redis';
 import { config } from '../config';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 export interface CachedAddressStats {
   address: string;
@@ -101,11 +102,11 @@ export class AddressStatsCacheService {
           port: config.redis.port,
           reconnectStrategy: (retries: number) => {
             if (retries > 10) {
-              console.error('❌ Redis connection failed after 10 retries');
+              logger.error('❌ Redis connection failed after 10 retries');
               return new Error('Redis connection failed');
             }
             const delay = Math.min(retries * 100, 2000);
-            console.log(
+            logger.info(
               `🔄 Redis reconnecting in ${delay}ms (attempt ${retries})`
             );
             return delay;
@@ -118,28 +119,28 @@ export class AddressStatsCacheService {
 
       // Event handlers
       this.client.on('connect', () => {
-        console.log('🔄 Redis cache connecting...');
+        logger.info('🔄 Redis cache connecting...');
       });
 
       this.client.on('ready', () => {
-        console.log('✅ Redis cache connected and ready');
+        logger.info('✅ Redis cache connected and ready');
         this.isConnected = true;
       });
 
       this.client.on('error', (error: Error) => {
-        console.error('❌ Redis cache connection error:', error);
+        logger.error('❌ Redis cache connection error:', error);
         this.isConnected = false;
       });
 
       this.client.on('end', () => {
-        console.log('🔌 Redis cache connection ended');
+        logger.info('🔌 Redis cache connection ended');
         this.isConnected = false;
       });
 
       await this.client.connect();
-      console.log('✅ AddressStatsCacheService initialized');
+      logger.info('✅ AddressStatsCacheService initialized');
     } catch (error) {
-      console.error('❌ Failed to initialize AddressStatsCacheService:', error);
+      logger.error('❌ Failed to initialize AddressStatsCacheService:', error);
       throw error;
     }
   }
@@ -175,7 +176,7 @@ export class AddressStatsCacheService {
       this.statistics.operations.misses++;
       return null;
     } catch (error) {
-      console.error(`❌ Cache GET error for address ${address}:`, error);
+      logger.error(`❌ Cache GET error for address ${address}:`, error);
       return null;
     }
   }
@@ -205,7 +206,7 @@ export class AddressStatsCacheService {
       await this.client.setEx(key, ttl, JSON.stringify(stats));
       return true;
     } catch (error) {
-      console.error(`❌ Cache SET error for address ${stats.address}:`, error);
+      logger.error(`❌ Cache SET error for address ${stats.address}:`, error);
       return false;
     }
   }
@@ -234,7 +235,7 @@ export class AddressStatsCacheService {
       await this.client.setEx(key, ttl, JSON.stringify(rankings));
       return true;
     } catch (error) {
-      console.error(`❌ Cache SET error for rankings ${rankingType}:`, error);
+      logger.error(`❌ Cache SET error for rankings ${rankingType}:`, error);
       return false;
     }
   }
@@ -267,7 +268,7 @@ export class AddressStatsCacheService {
       this.statistics.operations.misses++;
       return null;
     } catch (error) {
-      console.error(`❌ Cache GET error for rankings ${rankingType}:`, error);
+      logger.error(`❌ Cache GET error for rankings ${rankingType}:`, error);
       return null;
     }
   }
@@ -291,7 +292,7 @@ export class AddressStatsCacheService {
       await this.client.setEx(key, ttl, JSON.stringify(summary));
       return true;
     } catch (error) {
-      console.error(
+      logger.error(
         `❌ Cache SET error for token summary ${tokenAddress}:`,
         error
       );
@@ -320,7 +321,7 @@ export class AddressStatsCacheService {
       this.statistics.operations.misses++;
       return null;
     } catch (error) {
-      console.error(
+      logger.error(
         `❌ Cache GET error for token summary ${tokenAddress}:`,
         error
       );
@@ -345,7 +346,7 @@ export class AddressStatsCacheService {
       await this.client.del(key);
       return true;
     } catch (error) {
-      console.error(`❌ Cache DELETE error for address ${address}:`, error);
+      logger.error(`❌ Cache DELETE error for address ${address}:`, error);
       return false;
     }
   }
@@ -378,12 +379,12 @@ export class AddressStatsCacheService {
       }
 
       await pipeline.exec();
-      console.log(
+      logger.info(
         `✅ Batch updated ${updates.length} address statistics in cache`
       );
       return true;
     } catch (error) {
-      console.error('❌ Batch cache update error:', error);
+      logger.error('❌ Batch cache update error:', error);
       return false;
     }
   }
@@ -396,7 +397,7 @@ export class AddressStatsCacheService {
       return;
     }
 
-    console.log('🔥 Starting cache warming for address statistics...');
+    logger.info('🔥 Starting cache warming for address statistics...');
 
     try {
       // This is a placeholder - in real implementation, you would:
@@ -406,13 +407,13 @@ export class AddressStatsCacheService {
       // 4. Preload their statistics into cache
 
       for (const tokenAddress of tokenAddresses) {
-        console.log(`🔥 Warming cache for token: ${tokenAddress}`);
+        logger.info(`🔥 Warming cache for token: ${tokenAddress}`);
         // Actual warming logic would be implemented here
       }
 
-      console.log('✅ Cache warming completed');
+      logger.info('✅ Cache warming completed');
     } catch (error) {
-      console.error('❌ Cache warming error:', error);
+      logger.error('❌ Cache warming error:', error);
     }
   }
 
@@ -468,7 +469,7 @@ export class AddressStatsCacheService {
         ping,
       };
     } catch (error) {
-      console.error('❌ Cache health check error:', error);
+      logger.error('❌ Cache health check error:', error);
       return { connected: false };
     }
   }
@@ -483,10 +484,10 @@ export class AddressStatsCacheService {
 
     try {
       await this.client.flushDb();
-      console.log('🗑️ All cache data cleared');
+      logger.info('🗑️ All cache data cleared');
       return true;
     } catch (error) {
-      console.error('❌ Cache clear error:', error);
+      logger.error('❌ Cache clear error:', error);
       return false;
     }
   }
@@ -497,7 +498,7 @@ export class AddressStatsCacheService {
   async disconnect(): Promise<void> {
     if (this.client && this.isConnected) {
       await this.client.quit();
-      console.log('✅ Redis cache connection closed');
+      logger.info('✅ Redis cache connection closed');
       this.isConnected = false;
     }
   }

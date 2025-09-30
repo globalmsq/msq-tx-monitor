@@ -3,6 +3,8 @@
  * Features: Auto-reconnection, connection state management, error handling
  */
 
+import { logger } from '@msq-tx-monitor/msq-common';
+
 export interface WebSocketConfig {
   url: string;
   reconnectInterval: number;
@@ -69,7 +71,7 @@ export class WebSocketService {
       this.ws = new WebSocket(this.config.url);
       this.setupEventListeners();
     } catch (error) {
-      console.error('WebSocket connection failed:', error);
+      logger.error('WebSocket connection failed', error);
       this.setConnectionState(ConnectionState.ERROR);
       this.scheduleReconnect();
     }
@@ -99,7 +101,7 @@ export class WebSocketService {
         this.ws.send(JSON.stringify(message));
         return true;
       } catch (error) {
-        console.error('Failed to send message:', error);
+        logger.error('Failed to send message', error);
         return false;
       }
     }
@@ -140,7 +142,7 @@ export class WebSocketService {
     if (!this.ws) return;
 
     this.ws.onopen = () => {
-      console.log('WebSocket connected');
+      logger.info('WebSocket connected');
       this.reconnectAttempts = 0;
       this.setConnectionState(ConnectionState.CONNECTED);
       this.startHeartbeat();
@@ -151,12 +153,12 @@ export class WebSocketService {
         const message: TransactionMessage = JSON.parse(event.data);
         this.handleMessage(message);
       } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
+        logger.error('Failed to parse WebSocket message', error);
       }
     };
 
     this.ws.onclose = event => {
-      console.log('WebSocket closed:', event.code, event.reason);
+      logger.info(`WebSocket closed: ${event.code} ${event.reason}`);
       this.clearTimers();
 
       if (event.code !== 1000) {
@@ -169,7 +171,7 @@ export class WebSocketService {
     };
 
     this.ws.onerror = error => {
-      console.error('WebSocket error:', error);
+      logger.error('WebSocket error', error);
       this.setConnectionState(ConnectionState.ERROR);
     };
   }
@@ -185,7 +187,7 @@ export class WebSocketService {
       try {
         callback(message);
       } catch (error) {
-        console.error('Error in WebSocket callback:', error);
+        logger.error('Error in WebSocket callback', error);
       }
     });
   }
@@ -197,7 +199,7 @@ export class WebSocketService {
         try {
           callback(state);
         } catch (error) {
-          console.error('Error in connection state callback:', error);
+          logger.error('Error in connection state callback', error);
         }
       });
     }
@@ -205,7 +207,7 @@ export class WebSocketService {
 
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.config.maxReconnectAttempts) {
-      console.error('Max reconnection attempts reached');
+      logger.error('Max reconnection attempts reached');
       this.setConnectionState(ConnectionState.ERROR);
       return;
     }
@@ -218,7 +220,7 @@ export class WebSocketService {
       30000 // Max 30 seconds
     );
 
-    console.log(
+    logger.info(
       `Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`
     );
 

@@ -1,5 +1,6 @@
 import { Web3 } from 'web3';
 import { CONNECTION_STATUS } from '../config/constants';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 interface LogFilter {
   address?: string | string[];
@@ -50,11 +51,11 @@ export class Web3Service {
     try {
       await this.connectToPrimary();
     } catch (error) {
-      console.warn('Primary endpoint failed, trying backup:', error);
+      logger.warn('Primary endpoint failed, trying backup:', error);
       try {
         await this.connectToBackup();
       } catch (backupError) {
-        console.error('Both endpoints failed:', backupError);
+        logger.error('Both endpoints failed:', backupError);
         this.scheduleReconnect();
       }
     } finally {
@@ -71,7 +72,7 @@ export class Web3Service {
   }
 
   private async establishHttpConnection(endpoint: string): Promise<void> {
-    console.log(`Attempting to connect to ${endpoint}...`);
+    logger.info(`Attempting to connect to ${endpoint}...`);
 
     try {
       // Test connection with a simple blockNumber request
@@ -99,7 +100,7 @@ export class Web3Service {
         throw new Error(`RPC error: ${data.error.message}`);
       }
 
-      console.log(`Connected to ${endpoint}`);
+      logger.info(`Connected to ${endpoint}`);
 
       this.currentEndpoint = endpoint;
       this.web3 = new Web3(new Web3.providers.HttpProvider(endpoint));
@@ -116,7 +117,7 @@ export class Web3Service {
         endpoint,
       });
     } catch (error) {
-      console.error(`HTTP connection error on ${endpoint}:`, error);
+      logger.error(`HTTP connection error on ${endpoint}:`, error);
       throw error;
     }
   }
@@ -137,7 +138,7 @@ export class Web3Service {
       this.connectionStatus.reconnectAttempts >=
       this.serviceConfig.maxReconnectAttempts
     ) {
-      console.error('Max reconnection attempts reached');
+      logger.error('Max reconnection attempts reached');
       this.connectionStatus.status = CONNECTION_STATUS.ERROR;
       this.emit('maxReconnectAttemptsReached', this.connectionStatus);
       return;
@@ -146,7 +147,7 @@ export class Web3Service {
     this.connectionStatus.status = CONNECTION_STATUS.RECONNECTING;
     this.connectionStatus.reconnectAttempts++;
 
-    console.log(
+    logger.info(
       `Scheduling reconnection attempt ${this.connectionStatus.reconnectAttempts}/${this.serviceConfig.maxReconnectAttempts} in ${this.serviceConfig.reconnectInterval}ms`
     );
 
@@ -201,10 +202,10 @@ export class Web3Service {
       return data.result || [];
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        console.error('RPC request timed out after 10 seconds');
+        logger.error('RPC request timed out after 10 seconds');
         throw new Error('RPC error: request timed out');
       }
-      console.error('Error fetching logs via HTTP:', error);
+      logger.error('Error fetching logs via HTTP:', error);
       throw error;
     }
   }
@@ -241,7 +242,7 @@ export class Web3Service {
 
       return parseInt(data.result, 16);
     } catch (error) {
-      console.error('Error fetching latest block number:', error);
+      logger.error('Error fetching latest block number:', error);
       throw error;
     }
   }

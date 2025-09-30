@@ -1,4 +1,5 @@
 import { DatabaseService } from './databaseService';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 export interface TokenInfo {
   address: string;
@@ -22,11 +23,11 @@ export class TokenService {
     try {
       await this.loadTokensFromDB();
       this.initialized = true;
-      console.log(
+      logger.info(
         `✅ TokenService initialized with ${this.tokenCache.size} tokens`
       );
     } catch (error) {
-      console.error('❌ Failed to initialize TokenService:', error);
+      logger.error('❌ Failed to initialize TokenService:', error);
       throw error;
     }
   }
@@ -50,12 +51,12 @@ export class TokenService {
       this.tokenCache.set(token.address.toLowerCase(), token);
     }
 
-    console.log(`📋 Loaded ${tokens.length} active tokens from database`);
+    logger.info(`📋 Loaded ${tokens.length} active tokens from database`);
   }
 
   getTokenInfo(address: string): TokenInfo | undefined {
     if (!this.initialized) {
-      console.warn('⚠️ TokenService not initialized. Call initialize() first.');
+      logger.warn('⚠️ TokenService not initialized. Call initialize() first.');
       return undefined;
     }
 
@@ -90,7 +91,7 @@ export class TokenService {
   }
 
   async refreshTokenCache(): Promise<void> {
-    console.log('🔄 Refreshing token cache from database...');
+    logger.info('🔄 Refreshing token cache from database...');
     await this.loadTokensFromDB();
   }
 }

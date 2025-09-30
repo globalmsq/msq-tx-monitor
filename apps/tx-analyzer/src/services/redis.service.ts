@@ -1,5 +1,6 @@
 import { createClient, RedisClientType } from 'redis';
 import { config } from '../config';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 export class RedisService {
   private client: RedisClientType;
@@ -16,22 +17,22 @@ export class RedisService {
     });
 
     this.client.on('error', error => {
-      console.error('Redis cache connection error:', error);
+      logger.error('Redis cache connection error:', error);
       this.isConnected = false;
     });
 
     this.client.on('connect', () => {
-      console.log('✅ Redis cache connected');
+      logger.info('✅ Redis cache connected');
       this.isConnected = true;
     });
 
     this.client.on('ready', () => {
-      console.log('🔗 Redis cache ready');
+      logger.info('🔗 Redis cache ready');
       this.isConnected = true;
     });
 
     this.client.on('end', () => {
-      console.log('❌ Redis cache disconnected');
+      logger.info('❌ Redis cache disconnected');
       this.isConnected = false;
     });
   }
@@ -41,7 +42,7 @@ export class RedisService {
       try {
         await this.client.connect();
       } catch (error) {
-        console.error('Failed to connect to Redis:', error);
+        logger.error('Failed to connect to Redis:', error);
         // Continue without cache if Redis is not available
       }
     }
@@ -63,7 +64,7 @@ export class RedisService {
       const value = await this.client.get(key);
       return value ? JSON.parse(value) : null;
     } catch (error) {
-      console.error('Redis get error:', error);
+      logger.error('Redis get error:', error);
       return null;
     }
   }
@@ -85,7 +86,7 @@ export class RedisService {
       await this.client.setEx(key, ttlSeconds, serializedValue);
       return true;
     } catch (error) {
-      console.error('Redis set error:', error);
+      logger.error('Redis set error:', error);
       return false;
     }
   }
@@ -99,7 +100,7 @@ export class RedisService {
       await this.client.del(key);
       return true;
     } catch (error) {
-      console.error('Redis del error:', error);
+      logger.error('Redis del error:', error);
       return false;
     }
   }
@@ -113,7 +114,7 @@ export class RedisService {
       const result = await this.client.exists(key);
       return result === 1;
     } catch (error) {
-      console.error('Redis exists error:', error);
+      logger.error('Redis exists error:', error);
       return false;
     }
   }

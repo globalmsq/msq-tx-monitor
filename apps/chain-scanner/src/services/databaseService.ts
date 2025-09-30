@@ -1,6 +1,7 @@
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { prisma, initializeDatabaseConfig } from '@msq-tx-monitor/database';
 import { config } from '../config';
+import { logger } from '@msq-tx-monitor/msq-common';
 import { AddressStatsCalculator } from './addressStatsCalculator';
 import {
   AddressStatsCacheService,
@@ -52,7 +53,7 @@ export class DatabaseService {
 
       // Test database connection
       await prisma.$connect();
-      console.log('Database connected successfully');
+      logger.info('Database connected successfully');
 
       // Initialize cache service and address stats calculator
       await this.cacheService.initialize();
@@ -60,7 +61,7 @@ export class DatabaseService {
 
       this.initialized = true;
     } catch (error) {
-      console.error('Failed to initialize database:', error);
+      logger.error('Failed to initialize database:', error);
       throw error;
     }
   }
@@ -90,7 +91,7 @@ export class DatabaseService {
       );
 
       if (config.logging.enableDatabaseLogs) {
-        console.log(`Transaction saved: ${transactionData.hash}`);
+        logger.info(`Transaction saved: ${transactionData.hash}`);
       }
     } catch (error) {
       if (
@@ -99,11 +100,11 @@ export class DatabaseService {
       ) {
         // Transaction already exists, skip
         if (config.logging.enableDatabaseLogs) {
-          console.log(`Transaction already exists: ${transactionData.hash}`);
+          logger.info(`Transaction already exists: ${transactionData.hash}`);
         }
         return;
       }
-      console.error('Error saving transaction:', error);
+      logger.error('Error saving transaction:', error);
       throw error;
     }
   }
@@ -144,9 +145,9 @@ export class DatabaseService {
         }
       });
 
-      console.log(`Batch saved: ${transactions.length} transactions`);
+      logger.info(`Batch saved: ${transactions.length} transactions`);
     } catch (error) {
-      console.error('Error saving transaction batch:', error);
+      logger.error('Error saving transaction batch:', error);
       throw error;
     }
   }
@@ -215,7 +216,7 @@ export class DatabaseService {
             return [dbStats];
           }
         } catch (error) {
-          console.error(
+          logger.error(
             '❌ Cache lookup error, falling back to database:',
             error
           );
@@ -369,7 +370,7 @@ export class DatabaseService {
   ): Promise<void> {
     // This function can be removed since confirmations is not in the schema
     // or we can add a comment for future implementation
-    console.log(
+    logger.info(
       `Confirmation update for ${hash}: ${confirmations} confirmations`
     );
   }
@@ -379,7 +380,7 @@ export class DatabaseService {
       await prisma.$queryRaw`SELECT 1`;
       return true;
     } catch (error) {
-      console.error('Database health check failed:', error);
+      logger.error('Database health check failed:', error);
       return false;
     }
   }

@@ -1,3 +1,5 @@
+import { logger } from '@msq-tx-monitor/msq-common';
+
 /**
  * Database Configuration
  * Constructs DATABASE_URL from individual MySQL environment variables
@@ -61,7 +63,7 @@ export function initializeDatabaseConfig(): DatabaseConfig {
     // Set DATABASE_URL in process.env for Prisma
     process.env.DATABASE_URL = databaseUrl;
 
-    console.log(
+    logger.info(
       `✅ Database URL constructed for database: ${database} on ${host}:${port}`
     );
 
@@ -76,7 +78,7 @@ export function initializeDatabaseConfig(): DatabaseConfig {
         connectionLimit = getRequiredNumericEnvVar('DB_CONNECTION_LIMIT');
       }
     } catch (error) {
-      console.warn(`⚠️ Invalid DB_CONNECTION_LIMIT, using default: 10`);
+      logger.warn(`⚠️ Invalid DB_CONNECTION_LIMIT, using default: 10`);
     }
 
     try {
@@ -84,7 +86,7 @@ export function initializeDatabaseConfig(): DatabaseConfig {
         connectionTimeout = getRequiredNumericEnvVar('DB_CONNECTION_TIMEOUT');
       }
     } catch (error) {
-      console.warn(`⚠️ Invalid DB_CONNECTION_TIMEOUT, using default: 60000`);
+      logger.warn(`⚠️ Invalid DB_CONNECTION_TIMEOUT, using default: 60000`);
     }
 
     try {
@@ -92,7 +94,7 @@ export function initializeDatabaseConfig(): DatabaseConfig {
         acquireTimeout = getRequiredNumericEnvVar('DB_ACQUIRE_TIMEOUT');
       }
     } catch (error) {
-      console.warn(`⚠️ Invalid DB_ACQUIRE_TIMEOUT, using default: 60000`);
+      logger.warn(`⚠️ Invalid DB_ACQUIRE_TIMEOUT, using default: 60000`);
     }
 
     try {
@@ -100,7 +102,7 @@ export function initializeDatabaseConfig(): DatabaseConfig {
         timeout = getRequiredNumericEnvVar('DB_TIMEOUT');
       }
     } catch (error) {
-      console.warn(`⚠️ Invalid DB_TIMEOUT, using default: 5000`);
+      logger.warn(`⚠️ Invalid DB_TIMEOUT, using default: 5000`);
     }
 
     return {
@@ -115,18 +117,18 @@ export function initializeDatabaseConfig(): DatabaseConfig {
       timeout,
     };
   } catch (error) {
-    console.error('❌ Failed to initialize database configuration:');
-    console.error(
+    logger.error('❌ Failed to initialize database configuration:');
+    logger.error(
       `   ${error instanceof Error ? error.message : String(error)}`
     );
-    console.error('');
-    console.error('Required environment variables:');
-    console.error('  - MYSQL_HOST: Database host address');
-    console.error('  - MYSQL_PORT: Database port number');
-    console.error('  - MYSQL_DATABASE: Database name');
-    console.error('  - MYSQL_USERNAME: Database username');
-    console.error('  - MYSQL_PASSWORD: Database password');
-    console.error('');
+    logger.error('');
+    logger.error('Required environment variables:');
+    logger.error('  - MYSQL_HOST: Database host address');
+    logger.error('  - MYSQL_PORT: Database port number');
+    logger.error('  - MYSQL_DATABASE: Database name');
+    logger.error('  - MYSQL_USERNAME: Database username');
+    logger.error('  - MYSQL_PASSWORD: Database password');
+    logger.error('');
     process.exit(1);
   }
 }

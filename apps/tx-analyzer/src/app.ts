@@ -1,6 +1,7 @@
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import { logger } from '@msq-tx-monitor/msq-common';
 import { analyzeRoutes } from './routes/analyze.routes';
 import statisticsRoutes from './routes/statistics.routes';
 
@@ -80,7 +81,7 @@ export function createApp(): Application {
       res: express.Response,
       _next: express.NextFunction
     ) => {
-      console.error('Error:', err);
+      logger.error('Error:', err);
       res.status(500).json({
         error: 'Internal server error',
         message:

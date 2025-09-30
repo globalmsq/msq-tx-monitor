@@ -4,6 +4,7 @@
  */
 
 import Web3 from 'web3';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 // Address validation utilities
 export class AddressValidator {
@@ -65,19 +66,21 @@ export class Web3Helper {
       await this.web3.eth.getBlockNumber();
       return true;
     } catch (error) {
-      console.error(`Failed to switch to RPC: ${nextRpcUrl}`, error);
+      logger.error(`Failed to switch to RPC: ${nextRpcUrl}`, error);
       return false;
     }
   }
 
   async getBlockNumber(): Promise<number> {
     try {
-      return await this.web3.eth.getBlockNumber();
+      const blockNumber = await this.web3.eth.getBlockNumber();
+      return Number(blockNumber);
     } catch (error) {
-      console.error('Failed to get block number:', error);
+      logger.error('Failed to get block number:', error);
       const switched = await this.switchToBackupRpc();
       if (switched) {
-        return await this.web3.eth.getBlockNumber();
+        const blockNumber = await this.web3.eth.getBlockNumber();
+        return Number(blockNumber);
       }
       throw error;
     }
@@ -87,7 +90,7 @@ export class Web3Helper {
     try {
       return await this.web3.eth.getTransaction(hash);
     } catch (error) {
-      console.error(`Failed to get transaction ${hash}:`, error);
+      logger.error(`Failed to get transaction ${hash}:`, error);
       const switched = await this.switchToBackupRpc();
       if (switched) {
         return await this.web3.eth.getTransaction(hash);
@@ -191,12 +194,4 @@ export class RpcError extends ChainError {
   }
 }
 
-// Export all utilities
-export {
-  AddressValidator,
-  TokenParser,
-  Web3Helper,
-  BlockProcessor,
-  ChainError,
-  RpcError,
-};
+// Export all utilities - classes are already exported above

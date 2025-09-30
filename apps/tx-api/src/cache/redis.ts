@@ -1,5 +1,6 @@
 import { createClient, RedisClientType } from 'redis';
 import { config } from '../config';
+import { logger } from '@msq-tx-monitor/msq-common';
 
 export class RedisConnection {
   private static instance: RedisClientType;
@@ -13,11 +14,11 @@ export class RedisConnection {
           port: config.redis.port,
           reconnectStrategy: retries => {
             if (retries > 10) {
-              console.error('❌ Redis connection failed after 10 retries');
+              logger.error('❌ Redis connection failed after 10 retries');
               return new Error('Redis connection failed');
             }
             const delay = Math.min(retries * 50, 1000);
-            console.log(
+            logger.info(
               `🔄 Redis reconnecting in ${delay}ms (attempt ${retries})`
             );
             return delay;
@@ -30,21 +31,21 @@ export class RedisConnection {
 
       // Event handlers
       RedisConnection.instance.on('connect', () => {
-        console.log('🔄 Redis connecting...');
+        logger.info('🔄 Redis connecting...');
       });
 
       RedisConnection.instance.on('ready', () => {
-        console.log('✅ Redis connected and ready');
+        logger.info('✅ Redis connected and ready');
         RedisConnection.isConnected = true;
       });
 
       RedisConnection.instance.on('error', error => {
-        console.error('❌ Redis connection error:', error);
+        logger.error('❌ Redis connection error:', error);
         RedisConnection.isConnected = false;
       });
 
       RedisConnection.instance.on('end', () => {
-        console.log('🔌 Redis connection ended');
+        logger.info('🔌 Redis connection ended');
         RedisConnection.isConnected = false;
       });
     }
@@ -53,7 +54,7 @@ export class RedisConnection {
       try {
         await RedisConnection.instance.connect();
       } catch (error) {
-        console.error('❌ Failed to connect to Redis:', error);
+        logger.error('❌ Failed to connect to Redis:', error);
         throw error;
       }
     }
@@ -67,12 +68,12 @@ export class RedisConnection {
       const pong = await client.ping();
 
       if (pong === 'PONG') {
-        console.log('✅ Redis connection test successful');
+        logger.info('✅ Redis connection test successful');
         return true;
       }
       return false;
     } catch (error) {
-      console.error('❌ Redis connection test failed:', error);
+      logger.error('❌ Redis connection test failed:', error);
       return false;
     }
   }
@@ -84,7 +85,7 @@ export class RedisConnection {
   public static async closeConnection(): Promise<void> {
     if (RedisConnection.instance && RedisConnection.isConnected) {
       await RedisConnection.instance.quit();
-      console.log('✅ Redis connection closed');
+      logger.info('✅ Redis connection closed');
       RedisConnection.isConnected = false;
     }
   }
@@ -95,7 +96,7 @@ export class RedisConnection {
       const client = await RedisConnection.getInstance();
       return await client.get(key);
     } catch (error) {
-      console.error(`❌ Redis GET error for key ${key}:`, error);
+      logger.error(`❌ Redis GET error for key ${key}:`, error);
       return null;
     }
   }
@@ -114,7 +115,7 @@ export class RedisConnection {
       }
       return true;
     } catch (error) {
-      console.error(`❌ Redis SET error for key ${key}:`, error);
+      logger.error(`❌ Redis SET error for key ${key}:`, error);
       return false;
     }
   }
@@ -125,7 +126,7 @@ export class RedisConnection {
       await client.del(key);
       return true;
     } catch (error) {
-      console.error(`❌ Redis DEL error for key ${key}:`, error);
+      logger.error(`❌ Redis DEL error for key ${key}:`, error);
       return false;
     }
   }

@@ -16,10 +16,18 @@ import {
   DetailedAnalysisModal,
   DetailedData,
 } from '../components/DetailedAnalysisModal';
-import { fetchAddressDetails, fetchTransactionsPage } from '../utils/addressAnalytics';
+import {
+  fetchAddressDetails,
+  fetchTransactionsPage,
+} from '../utils/addressAnalytics';
 import { getFilterSummary, hasActiveFilters } from '../utils/filterUtils';
 import { cn } from '../utils/cn';
-import { FILTER_TOKENS } from '@msq-tx-monitor/msq-common';
+import {
+  FILTER_TOKENS,
+  formatVolume,
+  parseFormattedVolume,
+  logger,
+} from '@msq-tx-monitor/msq-common';
 import {
   TransactionProvider,
   useConnectionState,
@@ -51,48 +59,8 @@ function ConnectionStatus() {
 function StatsCards() {
   const { stats, isInitialLoad } = useTransactionData();
 
-  // Helper to extract raw numeric value from formatted string
-  const extractRawValue = (value: string): string => {
-    if (!value) return '0';
-    const match = value.match(/[\d,]+\.?\d*/);
-    if (!match) return '0';
-    // Remove commas but keep the raw numeric value
-    const rawValue = match[0].replace(/,/g, '');
-    const numValue = parseFloat(rawValue);
-    if (isNaN(numValue)) return '0';
-    // Convert to smallest unit (multiply by decimals)
-    // This is already the displayed value, so we need to convert it back to raw
-    return rawValue;
-  };
-
   // Show all token stats regardless of filter selection
   const filteredTokenStats = stats.tokenStats;
-
-  // Helper function to parse volume values with K/M/B suffixes
-  const parseVolumeValue = (value: string): string => {
-    // Check for empty or null values
-    if (!value) return '0';
-
-    // Extract numeric value from various formats like "123.45 MSQ" or "1,234.56 KWT"
-    const match = value.match(/[\d,]+\.?\d*/);
-    if (!match) return '0';
-
-    // Remove commas and convert to number
-    const numericValue = parseFloat(match[0].replace(/,/g, ''));
-    if (isNaN(numericValue) || numericValue === 0) return '0';
-
-    // Format with M/B suffixes - show 1 decimal place, remove trailing zeros
-    if (numericValue >= 1e9) {
-      const billions = numericValue / 1e9;
-      return billions.toFixed(1).replace(/\.0+$/, '') + 'B';
-    } else if (numericValue >= 1e6) {
-      const millions = numericValue / 1e6;
-      return millions.toFixed(1).replace(/\.0+$/, '') + 'M';
-    } else {
-      // For values below 1M, show full number with thousand separators (no decimals)
-      return Math.round(numericValue).toLocaleString('en-US');
-    }
-  };
 
   const generalStats = [
     {
@@ -168,8 +136,18 @@ function StatsCards() {
                     <span className='text-white/60'>24h Volume:</span>
                     <span className='text-white'>
                       <VolumeWithTooltip
-                        formattedValue={parseVolumeValue(tokenStat.volume24h)}
-                        rawValue={extractRawValue(tokenStat.volume24h)}
+                        formattedValue={formatVolume(
+                          parseFormattedVolume(
+                            tokenStat.volume24h,
+                            tokenStat.tokenSymbol
+                          ),
+                          tokenStat.tokenSymbol,
+                          { precision: 1 }
+                        )}
+                        rawValue={parseFormattedVolume(
+                          tokenStat.volume24h,
+                          tokenStat.tokenSymbol
+                        )}
                         tokenSymbol={tokenStat.tokenSymbol}
                         className='inline-block'
                       />
@@ -179,8 +157,18 @@ function StatsCards() {
                     <span className='text-white/60'>Total Volume:</span>
                     <span className='text-white'>
                       <VolumeWithTooltip
-                        formattedValue={parseVolumeValue(tokenStat.totalVolume)}
-                        rawValue={extractRawValue(tokenStat.totalVolume)}
+                        formattedValue={formatVolume(
+                          parseFormattedVolume(
+                            tokenStat.totalVolume,
+                            tokenStat.tokenSymbol
+                          ),
+                          tokenStat.tokenSymbol,
+                          { precision: 1 }
+                        )}
+                        rawValue={parseFormattedVolume(
+                          tokenStat.totalVolume,
+                          tokenStat.tokenSymbol
+                        )}
                         tokenSymbol={tokenStat.tokenSymbol}
                         className='inline-block'
                       />
@@ -218,11 +206,12 @@ function TransactionFeed() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Address detail modal state
-  const [addressModalData, setAddressModalData] = useState<DetailedData | null>(null);
+  const [addressModalData, setAddressModalData] = useState<DetailedData | null>(
+    null
+  );
   const [addressModalLoading, setAddressModalLoading] = useState(false);
 
   const tokens = FILTER_TOKENS;
-
 
   const handleTransactionClick = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
@@ -238,26 +227,29 @@ function TransactionFeed() {
     updateFilters({ addressSearch: value });
   };
 
-  const handleAddressClick = useCallback(async (type: 'address', address: string) => {
-    if (!selectedTransaction) return;
+  const handleAddressClick = useCallback(
+    async (type: 'address', address: string) => {
+      if (!selectedTransaction) return;
 
-    setAddressModalLoading(true);
+      setAddressModalLoading(true);
 
-    try {
-      const detailedData = await fetchAddressDetails(
-        address,
-        selectedTransaction.token,
-        '24h'
-      );
-      setAddressModalData(detailedData);
-    } catch (error) {
-      console.error('Failed to fetch address details:', error);
-      // Optionally show a toast notification here
-    } finally {
-      console.log('🏁 DEBUG: Setting loading to false');
-      setAddressModalLoading(false);
-    }
-  }, [selectedTransaction]);
+      try {
+        const detailedData = await fetchAddressDetails(
+          address,
+          selectedTransaction.token,
+          '24h'
+        );
+        setAddressModalData(detailedData);
+      } catch (error) {
+        logger.error('Failed to fetch address details', error);
+        // Optionally show a toast notification here
+      } finally {
+        logger.debug('🏁 Setting loading to false');
+        setAddressModalLoading(false);
+      }
+    },
+    [selectedTransaction]
+  );
 
   const closeAddressModal = useCallback(() => {
     setAddressModalData(null);
@@ -302,7 +294,7 @@ function TransactionFeed() {
             className={cn(
               'px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
               'border border-white/10 hover:border-white/20',
-filters.tokens.length === 0
+              filters.tokens.length === 0
                 ? 'bg-primary-500/20 text-primary-400 border-primary-500/30'
                 : 'bg-white/5 text-white/60 hover:text-white/80'
             )}
@@ -318,7 +310,7 @@ filters.tokens.length === 0
               className={cn(
                 'px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
                 'border border-white/10 hover:border-white/20',
-filters.tokens.length > 0 && filters.tokens.includes(token)
+                filters.tokens.length > 0 && filters.tokens.includes(token)
                   ? 'bg-primary-500/20 text-primary-400 border-primary-500/30'
                   : 'bg-white/5 text-white/60 hover:text-white/80'
               )}
@@ -398,19 +390,25 @@ filters.tokens.length > 0 && filters.tokens.includes(token)
         onClose={closeAddressModal}
         data={addressModalData}
         loading={addressModalLoading}
-        onFetchTransactions={useCallback(async (page: number, filter?: string) => {
-          if (addressModalData?.identifier && selectedTransaction) {
-            const result = await fetchTransactionsPage(
-              addressModalData.identifier,
-              page,
-              selectedTransaction.token,
-              '24h',
-              filter
-            );
-            return result;
-          }
-          return { transactions: [], pagination: { total: 0, totalPages: 0, page: 1, limit: 10 } };
-        }, [addressModalData?.identifier, selectedTransaction])}
+        onFetchTransactions={useCallback(
+          async (page: number, filter?: string) => {
+            if (addressModalData?.identifier && selectedTransaction) {
+              const result = await fetchTransactionsPage(
+                addressModalData.identifier,
+                page,
+                selectedTransaction.token,
+                '24h',
+                filter
+              );
+              return result;
+            }
+            return {
+              transactions: [],
+              pagination: { total: 0, totalPages: 0, page: 1, limit: 10 },
+            };
+          },
+          [addressModalData?.identifier, selectedTransaction]
+        )}
       />
     </div>
   );

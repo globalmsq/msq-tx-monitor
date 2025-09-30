@@ -7,6 +7,8 @@ import {
   truncateHash,
   truncateAddress,
 } from '../utils/dateUtils';
+import { VolumeWithTooltip } from './VolumeWithTooltip';
+import { formatAmount } from '@msq-tx-monitor/msq-common';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -152,7 +154,14 @@ function TableRow({ transaction, onClick, isEven }: TableRowProps) {
       <td className='px-4 py-3 text-right whitespace-nowrap'>
         <div className='flex flex-col items-end'>
           <span className='text-white font-semibold text-sm'>
-            {transaction.value} {transaction.token}
+            <VolumeWithTooltip
+              formattedValue={formatAmount(
+                transaction.rawValue,
+                transaction.token
+              )}
+              rawValue={transaction.rawValue}
+              tokenSymbol={transaction.token}
+            />
           </span>
           {!!transaction.anomalyScore && transaction.anomalyScore > 0.3 && (
             <div className='flex items-center space-x-1 text-orange-400 text-xs mt-1'>
@@ -220,7 +229,7 @@ export function TransactionTable({
                 To
               </th>
               <th className='px-4 py-3 text-right text-sm font-medium text-white/70 whitespace-nowrap'>
-                Value
+                Amount
               </th>
               <th className='px-4 py-3 text-right text-sm font-medium text-white/70 hidden lg:table-cell whitespace-nowrap'>
                 Txn Fee
