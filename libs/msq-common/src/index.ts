@@ -7,25 +7,25 @@
 export const MSQ_TOKENS = {
   MSQ: {
     symbol: 'MSQ',
-    name: 'MSQ Token',
+    name: 'MSQUARE',
     decimals: 18,
     address: '0x0000000000000000000000000000000000000001', // Placeholder
   },
   SUT: {
     symbol: 'SUT',
-    name: 'Stablecoin Utility Token',
+    name: 'SUPER TRUST',
     decimals: 18,
     address: '0x0000000000000000000000000000000000000002', // Placeholder
   },
   KWT: {
     symbol: 'KWT',
-    name: 'Kingdomware Token',
-    decimals: 18,
+    name: 'Korean Won Token',
+    decimals: 6, // KWT uses 6 decimals (like USDC)
     address: '0x0000000000000000000000000000000000000003', // Placeholder
   },
   P2UC: {
     symbol: 'P2UC',
-    name: 'Pay2Use Coin',
+    name: 'Point to You Coin',
     decimals: 18,
     address: '0x0000000000000000000000000000000000000004', // Placeholder
   },
@@ -112,10 +112,10 @@ export class RiskCalculator {
 // Whale detector utilities
 export class WhaleDetector {
   private static readonly WHALE_THRESHOLDS = {
-    MSQ: BigInt('1000000000000000000000000'), // 1M MSQ
-    SUT: BigInt('5000000000000000000000000'), // 5M SUT (stablecoin)
-    KWT: BigInt('500000000000000000000000'), // 500K KWT
-    P2UC: BigInt('2000000000000000000000000'), // 2M P2UC
+    MSQ: BigInt('1000000000000000000000000'), // 1M MSQ (18 decimals)
+    SUT: BigInt('5000000000000000000000000'), // 5M SUT (18 decimals, stablecoin)
+    KWT: BigInt('500000000000'), // 500K KWT (6 decimals, Korean Won stable)
+    P2UC: BigInt('2000000000000000000000000'), // 2M P2UC (18 decimals)
   };
 
   static isWhale(amount: string, tokenSymbol: string): boolean {
@@ -214,11 +214,13 @@ export const MSQ_CONSTANTS = {
   CRITICAL_RISK_THRESHOLD: 0.95,
 } as const;
 
-// Export all utilities
+// Export formatters
 export {
-  MSQ_TOKENS,
-  RiskCalculator,
-  WhaleDetector,
-  MSQEcosystem,
-  MSQ_CONSTANTS,
-};
+  formatNumber,
+  formatVolume,
+  formatAmount,
+  formatPercentage,
+  formatAddress,
+  getTokenDecimals,
+  type FormatOptions,
+} from './formatters';

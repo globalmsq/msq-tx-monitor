@@ -7,6 +7,8 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
+import { formatVolume, formatPercentage } from '@msq-tx-monitor/msq-common';
+import { TOKEN_CONFIG } from '../../config/tokens';
 
 interface TokenDistribution {
   tokenSymbol: string;
@@ -44,13 +46,13 @@ function CustomTooltip({ active, payload }: TooltipProps) {
           <div className='flex items-center justify-between gap-4'>
             <span className='text-white/70 text-sm'>Share:</span>
             <span className='text-white font-bold'>
-              {data.percentage.toFixed(1)}%
+              {formatPercentage(data.percentage, 1)}
             </span>
           </div>
           <div className='flex items-center justify-between gap-4'>
             <span className='text-white/70 text-sm'>Volume:</span>
             <span className='text-white font-mono'>
-              {formatVolume(data.volume)}
+              {formatVolumeHelper(data.volume, data.tokenSymbol)}
             </span>
           </div>
           <div className='flex items-center justify-between gap-4'>
@@ -91,7 +93,7 @@ function CustomLegend({ payload }: LegendProps) {
             {entry.value}
           </span>
           <span className='text-white/60 text-sm'>
-            ({entry.payload.percentage.toFixed(1)}%)
+            ({formatPercentage(entry.payload.percentage, 1)})
           </span>
         </div>
       ))}
@@ -100,12 +102,9 @@ function CustomLegend({ payload }: LegendProps) {
 }
 
 // Volume formatting helper
-function formatVolume(volume: string): string {
-  const num = parseFloat(volume) / 1e18; // Convert from wei
-  if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-  if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-  if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
-  return num.toFixed(4);
+// Volume formatting helper - using common formatter with 1 decimal place
+function formatVolumeHelper(volume: string, tokenSymbol?: string): string {
+  return formatVolume(volume, tokenSymbol, { precision: 1, showSymbol: false });
 }
 
 // Default colors for tokens
@@ -133,14 +132,15 @@ export function TokenDistributionChart({
     // Determine value based on metric
     value:
       metric === 'volume'
-        ? parseFloat(item.volume) / 1e18
+        ? parseFloat(item.volume) /
+          Math.pow(10, TOKEN_CONFIG[item.tokenSymbol]?.decimals || 18)
         : item.transactionCount,
   }));
 
   // Custom label function
   const renderLabel = (entry: Record<string, unknown>) => {
     const percentage = entry.percentage as number;
-    return percentage > 5 ? `${percentage.toFixed(1)}%` : '';
+    return percentage > 5 ? formatPercentage(percentage, 1) : '';
   };
 
   return (

@@ -171,10 +171,10 @@ CREATE TABLE `system_statistics` (
 
 -- Initialize MSQ ecosystem tokens
 INSERT INTO `tokens` (`address`, `symbol`, `name`, `decimals`, `isActive`) VALUES
-('0x6A8Ec2d9BfBDD20A7F5A4E89D640F7E7cebA4499', 'MSQ', 'MSQ Token', 18, true),
-('0x435001Af7fC65B621B0043df99810B2f30860c5d', 'KWT', 'KWT Token', 6, true),
-('0x98965474EcBeC2F532F1f780ee37b0b05F77Ca55', 'SUT', 'SUT Token', 18, true),
-('0x8B3C6ff5911392dECB5B08611822280dEe0E4f64', 'P2UC', 'P2UC Token', 18, true);
+('0x6A8Ec2d9BfBDD20A7F5A4E89D640F7E7cebA4499', 'MSQ', 'MSQUARE', 18, true),
+('0x435001Af7fC65B621B0043df99810B2f30860c5d', 'KWT', 'Korean Won Token', 6, true),
+('0x98965474EcBeC2F532F1f780ee37b0b05F77Ca55', 'SUT', 'SUPER TRUST', 18, true),
+('0x8B3C6ff5911392dECB5B08611822280dEe0E4f64', 'P2UC', 'Point to You Coin', 18, true);
 
 -- Initialize system statistics
 INSERT INTO `system_statistics` (`metricName`, `metricValue`) VALUES

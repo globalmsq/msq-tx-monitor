@@ -6,25 +6,25 @@ const MSQ_TOKENS = [
   {
     address: '0x6A8Ec2d9BfBDD20A7F5A4E89D640F7E7cebA4499',
     symbol: 'MSQ',
-    name: 'MSQ Token',
+    name: 'MSQUARE',
     decimals: 18,
   },
   {
     address: '0x435001Af7fC65B621B0043df99810B2f30860c5d',
     symbol: 'KWT',
-    name: 'KWT Token',
+    name: 'Korean Won Token',
     decimals: 6,
   },
   {
     address: '0x98965474EcBeC2F532F1f780ee37b0b05F77Ca55',
     symbol: 'SUT',
-    name: 'SUT Token',
+    name: 'SUPER TRUST',
     decimals: 18,
   },
   {
     address: '0x8B3C6ff5911392dECB5B08611822280dEe0E4f64',
     symbol: 'P2UC',
-    name: 'P2UC Token',
+    name: 'Point to You Coin',
     decimals: 18,
   },
 ];

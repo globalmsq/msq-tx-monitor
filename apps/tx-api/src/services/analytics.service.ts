@@ -270,6 +270,7 @@ export class AnalyticsService {
     tokenSymbol?: string,
     hours?: number
   ): Promise<any[]> {
+    let query = '';
     try {
       let whereClause = '';
       if (hours) {
@@ -282,23 +283,30 @@ export class AnalyticsService {
       }
 
       // Create a union query to get both from and to addresses
-      const query =
+      query =
         metric === 'volume'
           ? `
           SELECT
             address,
             SUM(volume) as totalVolume,
-            COUNT(*) as transactionCount
+            COUNT(DISTINCT hash) as transactionCount,
+            COUNT(DISTINCT token) as uniqueInteractions
           FROM (
-            SELECT fromAddress as address, SUM(value) as volume
+            SELECT
+              fromAddress as address,
+              hash,
+              CAST(value AS DECIMAL(65, 0)) as volume,
+              tokenSymbol as token
             FROM transactions
             ${whereClause}
-            GROUP BY fromAddress
             UNION ALL
-            SELECT toAddress as address, SUM(value) as volume
+            SELECT
+              toAddress as address,
+              hash,
+              CAST(value AS DECIMAL(65, 0)) as volume,
+              tokenSymbol as token
             FROM transactions
             ${whereClause}
-            GROUP BY toAddress
           ) as combined_addresses
           GROUP BY address
           ORDER BY totalVolume DESC
@@ -307,14 +315,23 @@ export class AnalyticsService {
           : `
           SELECT
             address,
-            COUNT(*) as transactionCount,
-            SUM(volume) as totalVolume
+            COUNT(DISTINCT hash) as transactionCount,
+            SUM(CAST(volume AS DECIMAL(65, 0))) as totalVolume,
+            COUNT(DISTINCT tokenSymbol) as uniqueInteractions
           FROM (
-            SELECT fromAddress as address, value as volume
+            SELECT
+              fromAddress as address,
+              hash,
+              value as volume,
+              tokenSymbol
             FROM transactions
             ${whereClause}
             UNION ALL
-            SELECT toAddress as address, value as volume
+            SELECT
+              toAddress as address,
+              hash,
+              value as volume,
+              tokenSymbol
             FROM transactions
             ${whereClause}
           ) as combined_addresses
@@ -323,13 +340,16 @@ export class AnalyticsService {
           LIMIT ${limit}
         `;
 
+      console.log('Executing getTopAddresses query...');
       const rows = (await prisma.$queryRawUnsafe(query)) as any[];
+      console.log('Query executed successfully, rows:', rows.length);
 
       return rows.map((row, index) => ({
         rank: index + 1,
         address: row.address,
         totalVolume: row.totalVolume?.toString() || '0',
         transactionCount: parseInt(row.transactionCount?.toString() || '0'),
+        uniqueInteractions: parseInt(row.uniqueInteractions?.toString() || '0'),
         metric:
           metric === 'volume'
             ? row.totalVolume?.toString() || '0'
@@ -337,6 +357,7 @@ export class AnalyticsService {
       }));
     } catch (error) {
       console.error('Error fetching top addresses:', error);
+      console.error('Query was:', query);
       throw new Error('Failed to fetch top addresses');
     }
   }

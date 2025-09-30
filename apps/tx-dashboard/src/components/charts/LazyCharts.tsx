@@ -50,17 +50,21 @@ export const LazyVolumeChart = React.memo((props: VolumeChartProps) => (
   </Suspense>
 ));
 
-export const LazyTokenDistributionChart = React.memo((props: TokenDistributionChartProps) => (
-  <Suspense fallback={<ChartLoader height={props.height} />}>
-    <TokenDistributionChart {...props} />
-  </Suspense>
-));
+export const LazyTokenDistributionChart = React.memo(
+  (props: TokenDistributionChartProps) => (
+    <Suspense fallback={<ChartLoader height={props.height} />}>
+      <TokenDistributionChart {...props} />
+    </Suspense>
+  )
+);
 
-export const LazyAddressActivityChart = React.memo((props: AddressActivityChartProps) => (
-  <Suspense fallback={<ChartLoader height={props.height} />}>
-    <AddressActivityChart {...props} />
-  </Suspense>
-));
+export const LazyAddressActivityChart = React.memo(
+  (props: AddressActivityChartProps) => (
+    <Suspense fallback={<ChartLoader height={props.height} />}>
+      <AddressActivityChart {...props} />
+    </Suspense>
+  )
+);
 
 export const LazyAnomalyChart = React.memo((props: AnomalyChartProps) => (
   <Suspense fallback={<ChartLoader height={props.height} />}>
@@ -68,11 +72,13 @@ export const LazyAnomalyChart = React.memo((props: AnomalyChartProps) => (
   </Suspense>
 ));
 
-export const LazyTransactionChart = React.memo((props: TransactionChartProps) => (
-  <Suspense fallback={<ChartLoader height={props.height} />}>
-    <TransactionChart {...props} />
-  </Suspense>
-));
+export const LazyTransactionChart = React.memo(
+  (props: TransactionChartProps) => (
+    <Suspense fallback={<ChartLoader height={props.height} />}>
+      <TransactionChart {...props} />
+    </Suspense>
+  )
+);
 
 LazyVolumeChart.displayName = 'LazyVolumeChart';
 LazyTokenDistributionChart.displayName = 'LazyTokenDistributionChart';

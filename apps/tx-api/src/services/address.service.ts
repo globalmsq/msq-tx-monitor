@@ -318,8 +318,13 @@ export class AddressService {
 
   /**
    * Get detailed statistics for a specific address
+   * @param address - The address to get statistics for
+   * @param hours - Optional time range in hours to filter transactions
    */
-  async getAddressStatistics(address: string): Promise<{
+  async getAddressStatistics(
+    address: string,
+    hours?: number
+  ): Promise<{
     address: string;
     total_transactions: number;
     total_sent: string;
@@ -345,7 +350,7 @@ export class AddressService {
     };
     calculation_method: string;
   } | null> {
-    const cacheKey = `address_stats:${address}`;
+    const cacheKey = `address_stats:${address}:${hours || 'all'}`;
 
     // Try to get from cache first
     try {
@@ -358,11 +363,42 @@ export class AddressService {
     }
 
     // Check if we have address statistics in the address_statistics table first
-    const existingStats = await prisma.addressStatistics.findMany({
-      where: { address },
-    });
+    // Skip address_statistics table if hours is provided (it doesn't support time filtering)
+    const existingStats = hours
+      ? []
+      : await prisma.addressStatistics.findMany({
+          where: { address },
+        });
 
-    // Get token information separately
+    // Get token information - tokenAddress in addressStatistics might not match tokens table
+    // So we'll create a map from known token addresses
+    const knownTokens: Record<
+      string,
+      { symbol: string; decimals: number; name: string }
+    > = {
+      '0x6A8Ec2d9BfBDD20A7F5A4E89D640F7E7cebA4499': {
+        symbol: 'MSQ',
+        decimals: 18,
+        name: 'MSQUARE',
+      },
+      '0x435001Af7fC65B621B0043df99810B2f30860c5d': {
+        symbol: 'KWT',
+        decimals: 6,
+        name: 'Korean Won Token',
+      },
+      '0x98965474EcBeC2F532F1f780ee37b0b05F77Ca55': {
+        symbol: 'SUT',
+        decimals: 18,
+        name: 'SUPER TRUST',
+      },
+      '0x8B3C6ff5911392dECB5B08611822280dEe0E4f64': {
+        symbol: 'P2UC',
+        decimals: 18,
+        name: 'Point to You Coin',
+      },
+    };
+
+    // Try to get from database first, fallback to known tokens
     const tokenAddresses = [
       ...new Set(existingStats.map(stat => stat.tokenAddress)),
     ];
@@ -370,18 +406,28 @@ export class AddressService {
       where: { address: { in: tokenAddresses } },
       select: { address: true, symbol: true, name: true, decimals: true },
     });
-    const tokenMap = new Map(
-      addressTokens.map(token => [token.address, token])
-    );
+
+    // Create token map with fallback to known tokens
+    const tokenMap = new Map();
+    tokenAddresses.forEach(addr => {
+      const dbToken = addressTokens.find(
+        t => t.address.toLowerCase() === addr.toLowerCase()
+      );
+      if (dbToken) {
+        tokenMap.set(addr, dbToken);
+      } else if (knownTokens[addr]) {
+        tokenMap.set(addr, { address: addr, ...knownTokens[addr] });
+      }
+    });
 
     if (existingStats.length > 0) {
       // Use existing address statistics
       const totalSent = existingStats.reduce(
-        (sum, stat) => sum + BigInt(stat.totalSent.toString()),
+        (sum, stat) => sum + BigInt(stat.totalSent.toFixed(0)),
         BigInt(0)
       );
       const totalReceived = existingStats.reduce(
-        (sum, stat) => sum + BigInt(stat.totalReceived.toString()),
+        (sum, stat) => sum + BigInt(stat.totalReceived.toFixed(0)),
         BigInt(0)
       );
       const totalTxSent = existingStats.reduce(
@@ -409,7 +455,8 @@ export class AddressService {
           sent: stat.totalSent.toString(),
           received: stat.totalReceived.toString(),
           volume: (
-            stat.totalSent.toNumber() + stat.totalReceived.toNumber()
+            BigInt(stat.totalSent.toFixed(0)) +
+            BigInt(stat.totalReceived.toFixed(0))
           ).toString(),
           transaction_count:
             stat.transactionCountSent + stat.transactionCountReceived,
@@ -476,18 +523,40 @@ export class AddressService {
     }
 
     // Fallback: calculate statistics from transaction table directly
-    const stats = await prisma.$queryRaw<AddressStatsQueryResult[]>`
-      SELECT
-        ${address} as address,
-        SUM(CASE WHEN fromAddress = ${address} THEN value ELSE 0 END) as total_sent,
-        SUM(CASE WHEN toAddress = ${address} THEN value ELSE 0 END) as total_received,
-        SUM(CASE WHEN fromAddress = ${address} THEN 1 ELSE 0 END) as total_sent_transactions,
-        SUM(CASE WHEN toAddress = ${address} THEN 1 ELSE 0 END) as total_received_transactions,
-        MIN(timestamp) as first_transaction_date,
-        MAX(timestamp) as last_transaction_date
-      FROM transactions
-      WHERE fromAddress = ${address} OR toAddress = ${address}
-    `;
+    // Build time filter if hours is provided
+    const cutoffDate = hours
+      ? new Date(Date.now() - hours * 60 * 60 * 1000)
+      : null;
+
+    const statsQuery = cutoffDate
+      ? `
+        SELECT
+          '${address}' as address,
+          CAST(SUM(CASE WHEN fromAddress = '${address}' THEN value ELSE 0 END) AS CHAR) as total_sent,
+          CAST(SUM(CASE WHEN toAddress = '${address}' THEN value ELSE 0 END) AS CHAR) as total_received,
+          SUM(CASE WHEN fromAddress = '${address}' THEN 1 ELSE 0 END) as total_sent_transactions,
+          SUM(CASE WHEN toAddress = '${address}' THEN 1 ELSE 0 END) as total_received_transactions,
+          MIN(timestamp) as first_transaction_date,
+          MAX(timestamp) as last_transaction_date
+        FROM transactions
+        WHERE (fromAddress = '${address}' OR toAddress = '${address}')
+          AND timestamp >= '${cutoffDate.toISOString()}'
+      `
+      : `
+        SELECT
+          '${address}' as address,
+          CAST(SUM(CASE WHEN fromAddress = '${address}' THEN value ELSE 0 END) AS CHAR) as total_sent,
+          CAST(SUM(CASE WHEN toAddress = '${address}' THEN value ELSE 0 END) AS CHAR) as total_received,
+          SUM(CASE WHEN fromAddress = '${address}' THEN 1 ELSE 0 END) as total_sent_transactions,
+          SUM(CASE WHEN toAddress = '${address}' THEN 1 ELSE 0 END) as total_received_transactions,
+          MIN(timestamp) as first_transaction_date,
+          MAX(timestamp) as last_transaction_date
+        FROM transactions
+        WHERE fromAddress = '${address}' OR toAddress = '${address}'
+      `;
+
+    const stats =
+      await prisma.$queryRawUnsafe<AddressStatsQueryResult[]>(statsQuery);
 
     if (
       !stats.length ||
@@ -504,17 +573,35 @@ export class AddressService {
       Number(stat.total_received_transactions);
 
     // Get token breakdown
-    const tokenBreakdown = await prisma.$queryRaw<TokenBreakdownQueryResult[]>`
-      SELECT
-        tokenSymbol,
-        SUM(CASE WHEN fromAddress = ${address} THEN value ELSE 0 END) as sent,
-        SUM(CASE WHEN toAddress = ${address} THEN value ELSE 0 END) as received,
-        SUM(CASE WHEN fromAddress = ${address} THEN 1 ELSE 0 END) as sent_count,
-        SUM(CASE WHEN toAddress = ${address} THEN 1 ELSE 0 END) as received_count
-      FROM transactions
-      WHERE fromAddress = ${address} OR toAddress = ${address}
-      GROUP BY tokenSymbol
-    `;
+    const tokenBreakdownQuery = cutoffDate
+      ? `
+        SELECT
+          tokenSymbol,
+          CAST(SUM(CASE WHEN fromAddress = '${address}' THEN value ELSE 0 END) AS CHAR) as sent,
+          CAST(SUM(CASE WHEN toAddress = '${address}' THEN value ELSE 0 END) AS CHAR) as received,
+          SUM(CASE WHEN fromAddress = '${address}' THEN 1 ELSE 0 END) as sent_count,
+          SUM(CASE WHEN toAddress = '${address}' THEN 1 ELSE 0 END) as received_count
+        FROM transactions
+        WHERE (fromAddress = '${address}' OR toAddress = '${address}')
+          AND timestamp >= '${cutoffDate.toISOString()}'
+        GROUP BY tokenSymbol
+      `
+      : `
+        SELECT
+          tokenSymbol,
+          CAST(SUM(CASE WHEN fromAddress = '${address}' THEN value ELSE 0 END) AS CHAR) as sent,
+          CAST(SUM(CASE WHEN toAddress = '${address}' THEN value ELSE 0 END) AS CHAR) as received,
+          SUM(CASE WHEN fromAddress = '${address}' THEN 1 ELSE 0 END) as sent_count,
+          SUM(CASE WHEN toAddress = '${address}' THEN 1 ELSE 0 END) as received_count
+        FROM transactions
+        WHERE fromAddress = '${address}' OR toAddress = '${address}'
+        GROUP BY tokenSymbol
+      `;
+
+    const tokenBreakdown =
+      await prisma.$queryRawUnsafe<TokenBreakdownQueryResult[]>(
+        tokenBreakdownQuery
+      );
 
     const tokenBreakdownMap: {
       [key: string]: {
@@ -534,11 +621,18 @@ export class AddressService {
     });
 
     // Get anomaly statistics
+    const anomalyWhere: any = {
+      OR: [{ fromAddress: address }, { toAddress: address }],
+      anomalyScore: { gt: 0 },
+    };
+
+    if (hours) {
+      const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+      anomalyWhere.timestamp = { gte: cutoffDate };
+    }
+
     const anomalyStats = await prisma.transaction.aggregate({
-      where: {
-        OR: [{ fromAddress: address }, { toAddress: address }],
-        anomalyScore: { gt: 0 },
-      },
+      where: anomalyWhere,
       _count: true,
       _avg: { anomalyScore: true },
       _max: { anomalyScore: true },
@@ -696,8 +790,8 @@ export class AddressService {
     const totalVolume = addressStats.reduce(
       (sum, stat) =>
         sum +
-        BigInt(stat.totalSent.toString()) +
-        BigInt(stat.totalReceived.toString()),
+        BigInt(stat.totalSent.toFixed(0)) +
+        BigInt(stat.totalReceived.toFixed(0)),
       BigInt(0)
     );
 
@@ -824,8 +918,8 @@ export class AddressService {
     const profiles: AddressProfile[] = await Promise.all(
       whaleStats.map(async (stat, index) => {
         const totalVolume =
-          BigInt(stat.totalSent.toString()) +
-          BigInt(stat.totalReceived.toString());
+          BigInt(stat.totalSent.toFixed(0)) +
+          BigInt(stat.totalReceived.toFixed(0));
         const totalTransactions =
           stat.transactionCountSent + stat.transactionCountReceived;
 
@@ -932,8 +1026,8 @@ export class AddressService {
     const profiles: AddressProfile[] = await Promise.all(
       activeTraders.map(async (stat, index) => {
         const totalVolume =
-          BigInt(stat.totalSent.toString()) +
-          BigInt(stat.totalReceived.toString());
+          BigInt(stat.totalSent.toFixed(0)) +
+          BigInt(stat.totalReceived.toFixed(0));
         const totalTransactions =
           stat.transactionCountSent + stat.transactionCountReceived;
 
@@ -1037,8 +1131,8 @@ export class AddressService {
     const profiles: AddressProfile[] = await Promise.all(
       suspiciousAddresses.map(async (stat, index) => {
         const totalVolume =
-          BigInt(stat.totalSent.toString()) +
-          BigInt(stat.totalReceived.toString());
+          BigInt(stat.totalSent.toFixed(0)) +
+          BigInt(stat.totalReceived.toFixed(0));
         const totalTransactions =
           stat.transactionCountSent + stat.transactionCountReceived;
 

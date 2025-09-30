@@ -9,7 +9,7 @@ import {
   Tooltip,
 } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
-import { getTokenDecimals } from '../../config/tokens';
+import { formatVolume, getTokenDecimals } from '@msq-tx-monitor/msq-common';
 
 interface VolumeDataPoint {
   timestamp: string;
@@ -57,7 +57,7 @@ function CustomTooltip({ active, payload }: TooltipProps) {
               Volume:
             </span>
             <span className='text-white font-mono'>
-              {formatVolume(data.totalVolume, data.tokenSymbol)}
+              {formatVolumeHelper(data.totalVolume, data.tokenSymbol)}
             </span>
           </div>
         </div>
@@ -67,14 +67,9 @@ function CustomTooltip({ active, payload }: TooltipProps) {
   return null;
 }
 
-// Volume formatting helper
-function formatVolume(volume: string, tokenSymbol?: string): string {
-  const decimals = tokenSymbol ? getTokenDecimals(tokenSymbol) : 18;
-  const num = parseFloat(volume) / Math.pow(10, decimals);
-  if (num >= 1e9) return Math.round(num / 1e9) + 'B';
-  if (num >= 1e6) return Math.round(num / 1e6) + 'M';
-  if (num >= 1e3) return Math.round(num / 1e3) + 'K';
-  return Math.round(num).toString();
+// Volume formatting helper - using common formatter with 1 decimal place
+function formatVolumeHelper(volume: string, tokenSymbol?: string): string {
+  return formatVolume(volume, tokenSymbol, { precision: 1, showSymbol: false });
 }
 
 // Format hour for X-axis based on data length
@@ -176,7 +171,7 @@ export function VolumeChart({
             tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }}
             tickFormatter={value => {
               const decimals = getTokenDecimals(tokenSymbol || 'MSQ');
-              return formatVolume(
+              return formatVolumeHelper(
                 (value * Math.pow(10, decimals)).toString(),
                 tokenSymbol
               );

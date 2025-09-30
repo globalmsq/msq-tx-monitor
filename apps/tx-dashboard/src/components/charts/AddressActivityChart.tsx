@@ -8,6 +8,8 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
+import { formatVolume, formatNumber } from '@msq-tx-monitor/msq-common';
+import { TOKEN_CONFIG } from '../../config/tokens';
 
 interface TopAddress {
   address: string;
@@ -15,6 +17,7 @@ interface TopAddress {
   transactionCount: number;
   uniqueInteractions: number;
   rank?: number;
+  tokenSymbol?: string;
 }
 
 export interface AddressActivityChartProps {
@@ -22,6 +25,7 @@ export interface AddressActivityChartProps {
   height?: number;
   showGrid?: boolean;
   metric?: 'volume' | 'transactions' | 'interactions';
+  tokenSymbol?: string;
 }
 
 // Custom tooltip component
@@ -45,7 +49,7 @@ function CustomTooltip({ active, payload }: TooltipProps) {
           <div className='flex items-center justify-between gap-4'>
             <span className='text-primary-400 text-sm'>Volume:</span>
             <span className='text-white font-mono'>
-              {formatVolume(data.totalVolume)}
+              {formatVolumeHelper(data.totalVolume, data.tokenSymbol)}
             </span>
           </div>
           <div className='flex items-center justify-between gap-4'>
@@ -72,12 +76,9 @@ function CustomTooltip({ active, payload }: TooltipProps) {
 }
 
 // Volume formatting helper
-function formatVolume(volume: string): string {
-  const num = parseFloat(volume) / 1e18; // Convert from wei
-  if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-  if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-  if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
-  return num.toFixed(4);
+// Volume formatting helper - using common formatter with 1 decimal place
+function formatVolumeHelper(volume: string, tokenSymbol?: string): string {
+  return formatVolume(volume, tokenSymbol, { precision: 1, showSymbol: false });
 }
 
 // Format address for display
@@ -90,6 +91,7 @@ export function AddressActivityChart({
   height = 400,
   showGrid = true,
   metric = 'volume',
+  tokenSymbol,
 }: AddressActivityChartProps) {
   // Transform data for chart display
   const chartData = data.map((item, index) => {
@@ -105,10 +107,17 @@ export function AddressActivityChart({
         displayValue = item.uniqueInteractions;
         barColor = '#10b981';
         break;
-      default: // volume
-        displayValue = parseFloat(item.totalVolume) / 1e18;
+      default: {
+        // volume
+        const decimals =
+          item.tokenSymbol || tokenSymbol
+            ? TOKEN_CONFIG[item.tokenSymbol || tokenSymbol || '']?.decimals ||
+              18
+            : 18;
+        displayValue = parseFloat(item.totalVolume) / Math.pow(10, decimals);
         barColor = '#8b5cf6';
         break;
+      }
     }
 
     return {
@@ -123,11 +132,18 @@ export function AddressActivityChart({
   // Format Y-axis values based on metric
   const formatYAxis = (value: number) => {
     switch (metric) {
-      case 'volume':
-        return formatVolume((value * 1e18).toString());
+      case 'volume': {
+        const decimals = tokenSymbol
+          ? TOKEN_CONFIG[tokenSymbol]?.decimals || 18
+          : 18;
+        return formatVolumeHelper(
+          (value * Math.pow(10, decimals)).toString(),
+          tokenSymbol
+        );
+      }
       case 'transactions':
         return value >= 1000
-          ? `${(value / 1000).toFixed(1)}K`
+          ? formatNumber(value, { precision: 1 })
           : value.toString();
       case 'interactions':
         return value.toString();
@@ -265,7 +281,11 @@ export function AddressActivityChart({
               {formatAddress(address.address)}
             </div>
             <div className='text-primary-400 font-bold'>
-              {metric === 'volume' && formatVolume(address.totalVolume)}
+              {metric === 'volume' &&
+                formatVolumeHelper(
+                  address.totalVolume,
+                  address.tokenSymbol || tokenSymbol
+                )}
               {metric === 'transactions' &&
                 address.transactionCount.toLocaleString()}
               {metric === 'interactions' &&

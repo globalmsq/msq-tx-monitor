@@ -7,8 +7,13 @@ import {
   Users,
   Filter,
   Download,
+  Info,
+  Copy,
+  Check,
+  ExternalLink,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { formatVolume, formatAddress } from '@msq-tx-monitor/msq-common';
 
 export interface DetailedData {
   type: 'address' | 'token' | 'timeperiod' | 'anomaly';
@@ -23,6 +28,7 @@ export interface DetailedData {
     transactionCount: number;
     uniqueAddresses?: number;
     riskScore?: number;
+    tokenSymbol?: string; // Token context for proper volume formatting
   };
   transactions: DetailedTransaction[];
   trends: TrendDataPoint[];
@@ -67,6 +73,7 @@ export function DetailedAnalysisModal({
     'all' | 'success' | 'failed' | 'high-risk'
   >('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [copied, setCopied] = useState(false);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -77,17 +84,36 @@ export function DetailedAnalysisModal({
     }
   }, [isOpen]);
 
+  // ESC key handler
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscKey);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
-  const formatAddress = (address: string) =>
-    `${address.slice(0, 6)}...${address.slice(-4)}`;
+  // Helper function for consistent volume formatting (1 decimal place)
+  const formatVolumeHelper = (volume: string, tokenSymbol?: string) => {
+    return formatVolume(volume, tokenSymbol, {
+      precision: 1,
+      showSymbol: false,
+    });
+  };
 
-  const formatVolume = (volume: string) => {
-    const num = parseFloat(volume) / 1e18;
-    if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-    if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
-    return num.toFixed(4);
+  // Helper function for consistent address formatting
+  const formatAddressHelper = (address: string) => {
+    return formatAddress(address);
   };
 
   const formatTime = (timestamp: string) => {
@@ -98,6 +124,20 @@ export function DetailedAnalysisModal({
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const getTimeRangeLabel = (start: string, end: string): string => {
+    const startTime = new Date(start).getTime();
+    const endTime = new Date(end).getTime();
+    const diffMs = endTime - startTime;
+    const diffHours = diffMs / (1000 * 60 * 60);
+    const diffDays = diffHours / 24;
+
+    if (diffHours <= 1) return '1h';
+    if (diffHours <= 24) return '24h';
+    if (diffDays <= 7) return '7 days';
+    if (diffDays <= 30) return '30 days';
+    return `${Math.round(diffDays)} days`;
   };
 
   const getFilteredTransactions = () => {
@@ -124,6 +164,25 @@ export function DetailedAnalysisModal({
   };
 
   const totalPages = Math.ceil(getFilteredTransactions().length / itemsPerPage);
+
+  const handleCopyAddress = async () => {
+    if (!data?.identifier) return;
+
+    try {
+      await navigator.clipboard.writeText(data.identifier);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy address:', err);
+    }
+  };
+
+  const handleOpenPolygonscan = () => {
+    if (!data?.identifier) return;
+
+    const polygonscanUrl = `https://polygonscan.com/address/${data.identifier}`;
+    window.open(polygonscanUrl, '_blank', 'noopener,noreferrer');
+  };
 
   const handleExportDetailed = () => {
     if (!data) return;
@@ -202,16 +261,41 @@ export function DetailedAnalysisModal({
 
   return (
     <div className='fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4'>
-      <div className='bg-gray-900 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden'>
+      <div className='bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden'>
         {/* Header */}
         <div className='flex items-center justify-between p-6 border-b border-white/10'>
-          <div>
+          <div className='flex-1'>
             <h2 className='text-xl font-bold text-white'>{data.title}</h2>
-            <p className='text-white/60 mt-1'>
-              Detailed analysis for {data.type}: {data.identifier}
-            </p>
+            {data.type === 'address' && data.identifier && (
+              <div className='flex items-center gap-2 mt-2'>
+                <span className='text-sm text-gray-400 font-mono break-all'>
+                  {data.identifier}
+                </span>
+                <button
+                  onClick={handleCopyAddress}
+                  className='flex-shrink-0 p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all'
+                  title='Copy address'
+                >
+                  {copied ? (
+                    <Check className='w-4 h-4 text-green-400' />
+                  ) : (
+                    <Copy className='w-4 h-4' />
+                  )}
+                </button>
+                <button
+                  onClick={handleOpenPolygonscan}
+                  className='flex-shrink-0 p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all'
+                  title='View on Polygonscan'
+                >
+                  <ExternalLink className='w-4 h-4' />
+                </button>
+                {copied && (
+                  <span className='text-xs text-green-400'>Copied!</span>
+                )}
+              </div>
+            )}
           </div>
-          <div className='flex items-center gap-2'>
+          <div className='flex items-center gap-2 ml-4'>
             <button
               onClick={handleExportDetailed}
               className='p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors'
@@ -248,7 +332,9 @@ export function DetailedAnalysisModal({
           ].map(tab => (
             <button
               key={tab.key}
-              onClick={() => setActiveView(tab.key as 'summary' | 'transactions' | 'trends')}
+              onClick={() =>
+                setActiveView(tab.key as 'summary' | 'transactions' | 'trends')
+              }
               className={cn(
                 'flex items-center gap-2 px-6 py-3 transition-colors',
                 activeView === tab.key
@@ -274,7 +360,16 @@ export function DetailedAnalysisModal({
                     <span className='text-white/60 text-sm'>Total Volume</span>
                   </div>
                   <div className='text-white font-bold text-lg'>
-                    {formatVolume(data.summary.totalVolume)}
+                    {formatVolumeHelper(
+                      data.summary.totalVolume,
+                      data.summary.tokenSymbol ||
+                        data.transactions?.[0]?.tokenSymbol
+                    )}
+                    {data.summary.tokenSymbol && (
+                      <span className='text-white/60 text-sm ml-1'>
+                        {data.summary.tokenSymbol}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -288,12 +383,22 @@ export function DetailedAnalysisModal({
                   </div>
                 </div>
 
-                {data.summary.uniqueAddresses && (
+                {data.summary.uniqueAddresses !== undefined && (
                   <div className='bg-white/5 rounded-lg p-4'>
                     <div className='flex items-center gap-2 mb-2'>
                       <Users className='w-4 h-4 text-green-400' />
-                      <span className='text-white/60 text-sm'>
+                      <span className='text-white/60 text-sm flex items-center gap-1'>
                         Unique Addresses
+                        <div className='relative group inline-flex'>
+                          <Info className='w-3 h-3 text-white/40 cursor-help' />
+                          <div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10'>
+                            Number of unique addresses that have interacted with
+                            this address
+                            <div className='absolute top-full left-1/2 transform -translate-x-1/2 -mt-1'>
+                              <div className='border-4 border-transparent border-t-gray-800'></div>
+                            </div>
+                          </div>
+                        </div>
                       </span>
                     </div>
                     <div className='text-white font-bold text-lg'>
@@ -302,7 +407,7 @@ export function DetailedAnalysisModal({
                   </div>
                 )}
 
-                {data.summary.riskScore && (
+                {data.summary.riskScore !== undefined && (
                   <div className='bg-white/5 rounded-lg p-4'>
                     <div className='flex items-center gap-2 mb-2'>
                       <div
@@ -330,10 +435,18 @@ export function DetailedAnalysisModal({
                   <h3 className='text-white font-medium mb-3 flex items-center gap-2'>
                     <Calendar className='w-4 h-4' />
                     Time Range
+                    <span className='ml-auto px-2 py-1 bg-primary-400/20 text-primary-400 text-xs font-bold rounded'>
+                      {getTimeRangeLabel(
+                        data.timeRange.start,
+                        data.timeRange.end
+                      )}
+                    </span>
                   </h3>
                   <div className='text-white/70'>
-                    <p>Start: {formatTime(data.timeRange.start)}</p>
-                    <p>End: {formatTime(data.timeRange.end)}</p>
+                    <p>
+                      {formatTime(data.timeRange.start)} ~{' '}
+                      {formatTime(data.timeRange.end)}
+                    </p>
                   </div>
                 </div>
               )}
@@ -350,7 +463,13 @@ export function DetailedAnalysisModal({
                   <select
                     value={transactionFilter}
                     onChange={e => {
-                      setTransactionFilter(e.target.value as 'all' | 'success' | 'failed' | 'high-risk');
+                      setTransactionFilter(
+                        e.target.value as
+                          | 'all'
+                          | 'success'
+                          | 'failed'
+                          | 'high-risk'
+                      );
                       setCurrentPage(1);
                     }}
                     className='bg-white/10 text-white text-sm rounded px-3 py-1 border border-white/20'
@@ -412,17 +531,18 @@ export function DetailedAnalysisModal({
                           </td>
                           <td className='p-3'>
                             <span className='font-mono text-white/70 text-sm'>
-                              {formatAddress(tx.from)}
+                              {formatAddressHelper(tx.from)}
                             </span>
                           </td>
                           <td className='p-3'>
                             <span className='font-mono text-white/70 text-sm'>
-                              {formatAddress(tx.to)}
+                              {formatAddressHelper(tx.to)}
                             </span>
                           </td>
                           <td className='p-3'>
                             <div className='text-white text-sm'>
-                              {formatVolume(tx.value)} {tx.tokenSymbol}
+                              {formatVolumeHelper(tx.value, tx.tokenSymbol)}{' '}
+                              {tx.tokenSymbol}
                             </div>
                           </td>
                           <td className='p-3'>

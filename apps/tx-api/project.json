@@ -7,7 +7,7 @@
   "targets": {
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["apps/tx-api/dist"],
+      "outputs": ["{projectRoot}/dist"],
       "options": {
         "commands": [
           "rm -rf apps/tx-api/dist",
@@ -21,7 +21,10 @@
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "tx-api:build",
-        "runBuildTargetDependencies": false
+        "runBuildTargetDependencies": false,
+        "buildTargetOptions": {
+          "outputPath": "apps/tx-api/dist/apps/tx-api/src"
+        }
       },
       "configurations": {
         "development": {

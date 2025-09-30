@@ -21,8 +21,12 @@ import {
   ConnectionState,
   TransactionMessage,
 } from '../services/websocket';
-import { DetailedAnalysisModal, DetailedData } from '../components/DetailedAnalysisModal';
+import {
+  DetailedAnalysisModal,
+  DetailedData,
+} from '../components/DetailedAnalysisModal';
 import { TOKEN_CONFIG } from '../config/tokens';
+import { formatNumber, formatVolume } from '@msq-tx-monitor/msq-common';
 
 // Analytics API service
 const ANALYTICS_BASE_URL = 'http://localhost:8000/api/v1/analytics';
@@ -432,7 +436,7 @@ export function Analytics() {
         }
       }
     },
-    [autoRefresh, lastUpdated, activeTab, timeRange, fetchAnalyticsData]
+    [autoRefresh, lastUpdated, activeTab, fetchAnalyticsData] // Remove timeRange as it's not used in the callback
   );
 
   // WebSocket connection management
@@ -514,6 +518,169 @@ export function Analytics() {
     fetchAnalyticsData(token);
   };
 
+  // Fetch address details from API
+  const fetchAddressDetails = async (
+    address: string,
+    token: string = activeTab,
+    timeRangeParam: TimeRange = '24h'
+  ) => {
+    const now = Date.now();
+    const hours = getHoursFromTimeRange(timeRangeParam);
+    interface StatsResponse {
+      data?: {
+        address: string;
+        total_transactions: number;
+        total_sent: string;
+        total_received: string;
+        total_volume: string;
+        token_breakdown?: Record<
+          string,
+          {
+            sent: string;
+            received: string;
+            volume: string;
+            transaction_count: number;
+          }
+        >;
+      };
+    }
+
+    interface TransactionData {
+      hash: string;
+      from: string;
+      to: string;
+      value: string;
+      tokenSymbol: string;
+      timestamp: string;
+      riskScore?: number;
+    }
+
+    let statsData: StatsResponse | null = null;
+    let transactionsData: TransactionData[] | null = null;
+
+    try {
+      // Try to fetch stats data with time range and token filter
+      const statsResponse = await fetch(
+        `http://localhost:8000/api/v1/addresses/stats/${address}?hours=${hours}&token=${token}`
+      );
+      if (statsResponse.ok) {
+        statsData = await statsResponse.json();
+      }
+    } catch (error) {
+      console.warn(
+        'Failed to fetch address stats, will use transaction data instead:',
+        error
+      );
+    }
+
+    try {
+      // Always fetch transactions data (with token filter and time range)
+      const transactionsResponse = await fetch(
+        `http://localhost:8000/api/v1/transactions/address/${address}?hours=${hours}&limit=25&token=${token}`
+      );
+      if (!transactionsResponse.ok) {
+        throw new Error('Failed to fetch transactions');
+      }
+      transactionsData = await transactionsResponse.json();
+    } catch (error) {
+      console.error('Failed to fetch transactions:', error);
+      throw error;
+    }
+
+    // Transform transaction data
+    const transactions =
+      transactionsData.data?.map((tx: Record<string, unknown>) => ({
+        hash: tx.hash || tx.transactionHash,
+        timestamp: tx.timestamp || tx.blockTimestamp,
+        from: tx.from || tx.fromAddress,
+        to: tx.to || tx.toAddress,
+        value: tx.value || tx.amount || '0',
+        tokenSymbol: tx.tokenSymbol || token,
+        gasUsed: tx.gasUsed || '0',
+        gasPrice: tx.gasPrice || '0',
+        status:
+          tx.status === 1 || tx.status === 'success' ? 'success' : 'failed',
+        riskScore: tx.riskScore || tx.anomalyScore || 0,
+      })) || [];
+
+    // Calculate statistics from transactions if stats API failed
+    let summary;
+    if (statsData?.data) {
+      // Use stats API data if available
+      // Check if we have token-specific data in token_breakdown
+      const tokenData = statsData.data.token_breakdown?.[token];
+      if (tokenData) {
+        // Use token-specific data
+        summary = {
+          totalVolume: tokenData.volume || '0',
+          transactionCount: tokenData.transaction_count || 0,
+          uniqueAddresses:
+            (statsData.data.total_sent_transactions || 0) +
+            (statsData.data.total_received_transactions || 0),
+          riskScore: statsData.data.anomaly_statistics?.avg_anomaly_score || 0,
+        };
+      } else {
+        // Fallback to total volume (all tokens)
+        summary = {
+          totalVolume: statsData.data.total_volume || '0',
+          transactionCount: statsData.data.total_transactions || 0,
+          uniqueAddresses:
+            (statsData.data.total_sent_transactions || 0) +
+            (statsData.data.total_received_transactions || 0),
+          riskScore: statsData.data.anomaly_statistics?.avg_anomaly_score || 0,
+        };
+      }
+    } else {
+      // Calculate from transactions data
+      const totalVolume = transactions.reduce(
+        (sum: bigint, tx: TransactionData) => {
+          try {
+            return sum + BigInt(tx.value || 0);
+          } catch {
+            return sum;
+          }
+        },
+        BigInt(0)
+      );
+
+      const uniqueAddrs = new Set<string>();
+      transactions.forEach((tx: TransactionData) => {
+        if (tx.from && tx.from !== address) uniqueAddrs.add(tx.from);
+        if (tx.to && tx.to !== address) uniqueAddrs.add(tx.to);
+      });
+
+      summary = {
+        totalVolume: totalVolume.toString(),
+        transactionCount: transactions.length,
+        uniqueAddresses: uniqueAddrs.size,
+        riskScore:
+          transactions.reduce(
+            (sum: number, tx: TransactionData) => sum + (tx.riskScore || 0),
+            0
+          ) / Math.max(transactions.length, 1),
+      };
+    }
+
+    // Set time range based on user selection
+    const timeRange = {
+      start: new Date(now - hours * 60 * 60 * 1000).toISOString(),
+      end: new Date(now).toISOString(),
+    };
+
+    return {
+      type: 'address' as const,
+      title: `${token} Address Detail`,
+      identifier: address,
+      timeRange,
+      summary: {
+        ...summary,
+        tokenSymbol: token, // Add token context for proper volume formatting
+      },
+      transactions,
+      trends: [], // Trends data can be added later if API provides it
+    };
+  };
+
   // Drill-down handlers
   const handleChartClick = async (
     type: 'address' | 'token' | 'timeperiod' | 'anomaly',
@@ -523,35 +690,59 @@ export function Analytics() {
     setModalLoading(true);
 
     try {
-      // Fetch detailed data based on type and identifier
+      let detailedData: DetailedData;
       let title = '';
 
       switch (type) {
         case 'address':
-          title = `Address Analysis: ${identifier.slice(0, 6)}...${identifier.slice(-4)}`;
+          // Fetch real data from API for addresses
+          try {
+            detailedData = await fetchAddressDetails(
+              identifier,
+              activeTab,
+              timeRange
+            );
+          } catch (apiError) {
+            console.error(
+              'API call failed, falling back to mock data:',
+              apiError
+            );
+            // Fallback to mock data if API fails
+            title = `Address Analysis`;
+            detailedData = generateMockDetailedData(type, identifier, title);
+          }
           break;
+
         case 'token':
           title = `Token Analysis: ${identifier}`;
+          // For now, keep mock data for token type
+          detailedData = generateMockDetailedData(type, identifier, title);
           break;
+
         case 'timeperiod':
           title = `Time Period Analysis: ${
-            additionalData && typeof additionalData === 'object' && 'start' in additionalData
+            additionalData &&
+            typeof additionalData === 'object' &&
+            'start' in additionalData
               ? new Date(additionalData.start as string).toLocaleDateString()
               : 'Unknown Period'
           }`;
+          // For now, keep mock data for timeperiod type
+          detailedData = generateMockDetailedData(type, identifier, title);
           break;
+
         case 'anomaly':
           title = `Anomaly Analysis: ${identifier}`;
+          // For now, keep mock data for anomaly type
+          detailedData = generateMockDetailedData(type, identifier, title);
           break;
+
+        default:
+          title = `Analysis: ${identifier}`;
+          detailedData = generateMockDetailedData(type, identifier, title);
       }
 
-      // For now, generate mock detailed data since the backend endpoints don't exist yet
-      const mockDetailedData = generateMockDetailedData(
-        type,
-        identifier,
-        title
-      );
-      setModalData(mockDetailedData);
+      setModalData(detailedData);
     } catch (error) {
       console.error('Failed to fetch detailed data:', error);
       // Show error state in modal
@@ -584,7 +775,9 @@ export function Analytics() {
       tokenSymbol: ['MSQ', 'SUT', 'KWT', 'P2UC'][Math.floor(Math.random() * 4)],
       gasUsed: (Math.random() * 100000).toFixed(0),
       gasPrice: (Math.random() * 50).toFixed(0),
-      status: (Math.random() > 0.1 ? 'success' : 'failed') as 'success' | 'failed',
+      status: (Math.random() > 0.1 ? 'success' : 'failed') as
+        | 'success'
+        | 'failed',
       riskScore: Math.random(),
     }));
 
@@ -672,7 +865,10 @@ export function Analytics() {
     }
 
     // Token distribution
-    if (exportData.tokenDistribution && exportData.tokenDistribution.length > 0) {
+    if (
+      exportData.tokenDistribution &&
+      exportData.tokenDistribution.length > 0
+    ) {
       lines.push('Token Distribution');
       lines.push('Token,Transaction Count,Volume,Percentage');
       exportData.tokenDistribution?.forEach((token: TokenDistribution) => {
@@ -698,28 +894,9 @@ export function Analytics() {
     return lines.join('\n');
   };
 
-  // Helper functions for data formatting
-  const formatNumber = (num: number | string) => {
-    const n = typeof num === 'string' ? parseFloat(num) : num;
-    if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
-    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
-    return n.toLocaleString();
-  };
-
   // Helper function for transaction counts (no decimals)
   const formatTransactionCount = (num: number | string) => {
-    const n = typeof num === 'string' ? parseFloat(num) : num;
-    if (n >= 1e9) return Math.round(n / 1e9) + 'B';
-    if (n >= 1e6) return Math.round(n / 1e6) + 'M';
-    if (n >= 1e3) return Math.round(n / 1e3) + 'K';
-    return Math.round(n).toLocaleString();
-  };
-
-  const formatVolume = (volume: string, token: string = activeTab) => {
-    const decimals = TOKEN_CONFIG[token]?.decimals || 18;
-    const num = parseFloat(volume) / Math.pow(10, decimals);
-    return formatNumber(num);
+    return formatNumber(num, { precision: 0 });
   };
 
   if (error) {
@@ -845,19 +1022,27 @@ export function Analytics() {
           <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
             <MetricCard
               title={`${activeTab} Transactions`}
-              value={formatNumber(data.realtime?.totalTransactions || 0)}
-              change={`+${formatNumber(data.realtime?.transactionsLast24h || 0)} (24h)`}
+              value={formatNumber(data.realtime?.totalTransactions || 0, {
+                precision: 0,
+              })}
+              change={`+${formatNumber(data.realtime?.transactionsLast24h || 0, { precision: 0 })} (24h)`}
               icon={<Activity className='w-5 h-5' />}
             />
             <MetricCard
               title={`${activeTab} Volume`}
-              value={formatVolume(data.realtime?.totalVolume || '0', activeTab)}
-              change={`+${formatVolume(data.realtime?.volumeLast24h || '0', activeTab)} (24h)`}
+              value={formatVolume(
+                data.realtime?.totalVolume || '0',
+                activeTab,
+                { precision: 1 }
+              )}
+              change={`+${formatVolume(data.realtime?.volumeLast24h || '0', activeTab, { precision: 1 })} (24h)`}
               icon={<TrendingUp className='w-5 h-5' />}
             />
             <MetricCard
               title='Active Addresses'
-              value={formatNumber(data.realtime?.activeAddresses || 0)}
+              value={formatNumber(data.realtime?.activeAddresses || 0, {
+                precision: 0,
+              })}
               subtitle={`Trading ${activeTab}`}
               icon={<Users className='w-5 h-5' />}
             />
@@ -947,7 +1132,9 @@ export function Analytics() {
                       </div>
                       <div className='text-right'>
                         <div className='text-white font-medium'>
-                          {formatVolume(address.totalVolume, activeTab)}
+                          {formatVolume(address.totalVolume, activeTab, {
+                            precision: 1,
+                          })}
                         </div>
                       </div>
                     </div>
@@ -984,10 +1171,6 @@ export function Analytics() {
                         >
                           <div className='text-white font-mono text-sm hover:text-green-400 transition-colors'>
                             {address.address}
-                          </div>
-                          <div className='text-white/60 text-xs'>
-                            {formatTransactionCount(address.transactionCount)}{' '}
-                            transactions
                           </div>
                         </div>
                       </div>
@@ -1033,10 +1216,6 @@ export function Analytics() {
                         >
                           <div className='text-white font-mono text-sm hover:text-orange-400 transition-colors'>
                             {address.address}
-                          </div>
-                          <div className='text-white/60 text-xs'>
-                            {formatTransactionCount(address.transactionCount)}{' '}
-                            transactions
                           </div>
                         </div>
                       </div>

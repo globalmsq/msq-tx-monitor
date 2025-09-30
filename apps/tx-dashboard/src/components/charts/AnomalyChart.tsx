@@ -12,6 +12,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { AlertTriangle, Shield, TrendingUp } from 'lucide-react';
+import { formatPercentage } from '@msq-tx-monitor/msq-common';
 
 interface AnomalyDataPoint {
   timestamp: string;
@@ -55,7 +56,7 @@ function CustomTooltip({ active, payload }: TooltipProps) {
           <div className='flex items-center justify-between gap-4'>
             <span className='text-yellow-400 text-sm'>Risk Score:</span>
             <span className='text-white'>
-              {(data.averageScore * 100).toFixed(1)}%
+              {formatPercentage(data.averageScore * 100, 1)}
             </span>
           </div>
           <div className='flex items-center justify-between gap-4'>
@@ -70,7 +71,9 @@ function CustomTooltip({ active, payload }: TooltipProps) {
           </div>
           <div className='flex items-center justify-between gap-4'>
             <span className='text-purple-400 text-sm'>Anomaly Rate:</span>
-            <span className='text-white'>{data.anomalyRate.toFixed(2)}%</span>
+            <span className='text-white'>
+              {formatPercentage(data.anomalyRate, 1)}
+            </span>
           </div>
         </div>
       </div>
@@ -172,7 +175,7 @@ export function AnomalyChart({
             <span className='text-white/60 text-sm'>Avg Risk Score</span>
           </div>
           <div className='text-white font-bold text-lg'>
-            {(avgRiskScore * 100).toFixed(1)}%
+            {formatPercentage(avgRiskScore * 100, 1)}
           </div>
         </div>
 
