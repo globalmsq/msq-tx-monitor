@@ -5,7 +5,7 @@
 MSQ Transaction Monitor is a real-time blockchain transaction monitoring system built as an NX monorepo. The system tracks token transactions on the Polygon network for MSQ ecosystem tokens (MSQ, SUT, KWT, P2UC).
 
 **Architecture**: NX Monorepo with 4 microservices
-**Primary Technology**: TypeScript, React 18, Express.js, Python, MySQL, Redis
+**Primary Technology**: TypeScript, React 18, Express.js, MySQL, Redis
 **Blockchain**: Polygon Network via https://polygon-rpc.com
 **Deployment**: Docker containerized with unified Dockerfile.packages
 
@@ -16,7 +16,7 @@ MSQ Transaction Monitor is a real-time blockchain transaction monitoring system 
 - **tx-dashboard** (port 3000): React 18 dashboard with real-time WebSocket updates
 - **tx-api** (port 8000): Express.js REST API with MySQL/Redis integration
 - **chain-scanner** (port 8001): Node.js blockchain scanner with Web3.js
-- **tx-analyzer** (port 8002): Python FastAPI analytics with ML anomaly detection
+- **tx-analyzer** (port 8002): Express.js analytics service with real-time statistics
 
 ### Shared Libraries
 
@@ -33,7 +33,7 @@ MSQ Transaction Monitor is a real-time blockchain transaction monitoring system 
 nx serve tx-dashboard    # React dashboard
 nx serve tx-api         # Express API
 nx serve chain-scanner  # Blockchain scanner
-nx serve tx-analyzer    # Python analytics
+nx serve tx-analyzer    # Analytics service
 
 # Build and test
 nx build-all

@@ -37,7 +37,7 @@ MSQ Transaction Monitor is a comprehensive real-time monitoring platform that tr
 | ----------------- | ------------------ | ----------------------- | ---- |
 | **tx-api**        | REST API Server    | Express.js + TypeScript | 8000 |
 | **chain-scanner** | Blockchain Monitor | Node.js + Web3.js       | 8001 |
-| **tx-analyzer**   | AI Analytics       | Python + FastAPI        | 8002 |
+| **tx-analyzer**   | Analytics Engine   | Express.js + TypeScript | 8002 |
 
 ### Data Flow
 
@@ -53,7 +53,6 @@ Polygon Network → chain-scanner → MySQL → tx-api
 
 - Docker & Docker Compose
 - Node.js 18+ (for development)
-- Python 3.11+ (for analytics service)
 
 ### 2. Clone and Setup
 
@@ -96,7 +95,7 @@ npm install
 # Serve individual apps
 nx serve tx-api         # Express API
 nx serve chain-scanner  # Blockchain scanner
-nx serve tx-analyzer    # Python analytics
+nx serve tx-analyzer    # Analytics service
 
 # Build all apps
 nx build-all
@@ -142,7 +141,7 @@ msq-tx-monitor/
 ├── apps/
 │   ├── tx-api/           # Express.js API
 │   ├── chain-scanner/    # Blockchain scanner
-│   └── tx-analyzer/      # Python analytics
+│   └── tx-analyzer/      # Analytics service
 ├── docker/
 │   ├── docker-compose.yml
 │   ├── Dockerfile.packages
