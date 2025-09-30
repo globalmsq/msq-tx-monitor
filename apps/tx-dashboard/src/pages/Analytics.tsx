@@ -522,7 +522,8 @@ export function Analytics() {
   const fetchAddressDetails = async (
     address: string,
     token: string = activeTab,
-    timeRangeParam: TimeRange = '24h'
+    timeRangeParam: TimeRange = '24h',
+    page: number = 1
   ) => {
     const now = Date.now();
     const hours = getHoursFromTimeRange(timeRangeParam);
@@ -574,9 +575,9 @@ export function Analytics() {
     }
 
     try {
-      // Always fetch transactions data (with token filter and time range)
+      // Fetch transactions with pagination
       const transactionsResponse = await fetch(
-        `http://localhost:8000/api/v1/transactions/address/${address}?hours=${hours}&limit=25&token=${token}`
+        `http://localhost:8000/api/v1/transactions/address/${address}?hours=${hours}&page=${page}&limit=10&token=${token}`
       );
       if (!transactionsResponse.ok) {
         throw new Error('Failed to fetch transactions');
@@ -587,20 +588,20 @@ export function Analytics() {
       throw error;
     }
 
-    // Transform transaction data
+    // Transform transaction data - handle API field names properly
     const transactions =
-      transactionsData.data?.map((tx: Record<string, unknown>) => ({
-        hash: tx.hash || tx.transactionHash,
+      transactionsData?.data?.map((tx: Record<string, unknown>) => ({
+        hash: tx.hash || tx.transaction_hash,
         timestamp: tx.timestamp || tx.blockTimestamp,
-        from: tx.from || tx.fromAddress,
-        to: tx.to || tx.toAddress,
-        value: tx.value || tx.amount || '0',
-        tokenSymbol: tx.tokenSymbol || token,
-        gasUsed: tx.gasUsed || '0',
-        gasPrice: tx.gasPrice || '0',
+        from: tx.from_address || tx.from || tx.fromAddress,
+        to: tx.to_address || tx.to || tx.toAddress,
+        value: tx.amount || tx.value || '0',
+        tokenSymbol: tx.token_symbol || tx.tokenSymbol || token,
+        gasUsed: tx.gas_used || tx.gasUsed || '0',
+        gasPrice: tx.gas_price || tx.gasPrice || '0',
         status:
           tx.status === 1 || tx.status === 'success' ? 'success' : 'failed',
-        riskScore: tx.riskScore || tx.anomalyScore || 0,
+        riskScore: tx.anomaly_score || tx.riskScore || tx.anomalyScore || 0,
       })) || [];
 
     // Calculate statistics from transactions if stats API failed
@@ -678,7 +679,56 @@ export function Analytics() {
       },
       transactions,
       trends: [], // Trends data can be added later if API provides it
+      paginationMeta: {
+        totalTransactions: transactionsData?.pagination?.total || summary.transactionCount,
+        currentToken: token,
+        apiEndpoint: `http://localhost:8000/api/v1/transactions/address/${address}`,
+      },
     };
+  };
+
+  // Fetch transactions for a specific page
+  const fetchTransactionsPage = async (identifier: string, page: number, filter?: string): Promise<{ transactions: any[], pagination: any }> => {
+    const hours = getHoursFromTimeRange(timeRange);
+    const token = activeTab;
+
+    try {
+      const filterParam = filter ? `&filter=${filter}` : '';
+      const response = await fetch(
+        `http://localhost:8000/api/v1/transactions/address/${identifier}?hours=${hours}&page=${page}&limit=10&token=${token}${filterParam}`
+      );
+      if (!response.ok) {
+        throw new Error('Failed to fetch transactions page');
+      }
+      const data = await response.json();
+
+      // Transform transaction data
+      const transactions = data?.data?.map((tx: Record<string, unknown>) => ({
+        hash: tx.hash || tx.transaction_hash,
+        timestamp: tx.timestamp || tx.blockTimestamp,
+        from: tx.from_address || tx.from || tx.fromAddress,
+        to: tx.to_address || tx.to || tx.toAddress,
+        value: tx.amount || tx.value || '0',
+        tokenSymbol: tx.token_symbol || tx.tokenSymbol || token,
+        gasUsed: tx.gas_used || tx.gasUsed || '0',
+        gasPrice: tx.gas_price || tx.gasPrice || '0',
+        status:
+          tx.status === 1 || tx.status === 'success' ? 'success' : 'failed',
+        riskScore: tx.risk_score || tx.anomalyScore || tx.riskScore,
+      })) || [];
+
+      // Return both transactions and pagination metadata
+      return {
+        transactions,
+        pagination: data?.pagination || { total: 0, totalPages: 0, page: 1, limit: 10 }
+      };
+    } catch (error) {
+      console.error('Failed to fetch transaction page:', error);
+      return {
+        transactions: [],
+        pagination: { total: 0, totalPages: 0, page: 1, limit: 10 }
+      };
+    }
   };
 
   // Drill-down handlers
@@ -1308,6 +1358,13 @@ export function Analytics() {
         onClose={closeModal}
         data={modalData}
         loading={modalLoading}
+        onFetchTransactions={async (page, filter) => {
+          if (modalData?.identifier) {
+            const result = await fetchTransactionsPage(modalData.identifier, page, filter);
+            return result; // Return full result with transactions and pagination
+          }
+          return { transactions: [], pagination: { total: 0, totalPages: 0, page: 1, limit: 10 } };
+        }}
       />
     </div>
   );

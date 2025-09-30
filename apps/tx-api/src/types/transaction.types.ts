@@ -27,6 +27,7 @@ export interface TransactionFilters {
   end_date?: string;
   anomaly_threshold?: number;
   has_anomaly?: boolean;
+  filter?: 'all' | 'sent' | 'received' | 'success' | 'failed' | 'high-risk';
 }
 
 export interface PaginationParams {

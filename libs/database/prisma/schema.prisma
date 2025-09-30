@@ -51,6 +51,7 @@ model Transaction {
   gasUsed          BigInt?
   gasPrice         BigInt?
   timestamp        DateTime
+  status           Int      @default(1) // 0 = failed, 1 = success
   anomalyScore     Decimal  @default(0.0000) @db.Decimal(5, 4)
   isAnomaly        Boolean  @default(false)
   createdAt        DateTime @default(now())
@@ -66,6 +67,7 @@ model Transaction {
   @@index([tokenAddress])
   @@index([tokenSymbol])
   @@index([timestamp])
+  @@index([status])
   @@index([isAnomaly, anomalyScore])
   @@index([value])
   @@index([fromAddress, tokenAddress])

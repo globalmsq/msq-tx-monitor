@@ -40,6 +40,7 @@ interface TransactionWithIncludes {
   gasUsed: bigint | null;
   gasPrice: bigint | null;
   timestamp: Date;
+  status: number;
   anomalyScore: Prisma.Decimal;
   isAnomaly: boolean;
   createdAt: Date;
@@ -72,6 +73,7 @@ interface TransactionResponse {
   timestamp: Date;
   gas_used?: number;
   gas_price?: string;
+  status: number;
   anomaly_score: number;
   anomaly_flags: string[];
   created_at: Date;
@@ -408,22 +410,41 @@ export class TransactionService {
     }
 
     // Special case for address involved (either from or to)
-    if (
-      (filters as TransactionFilters & { address_involved?: string })
-        .address_involved
-    ) {
-      where.OR = [
-        {
-          fromAddress: (
-            filters as TransactionFilters & { address_involved: string }
-          ).address_involved,
-        },
-        {
-          toAddress: (
-            filters as TransactionFilters & { address_involved: string }
-          ).address_involved,
-        },
-      ];
+    const addressInvolved = (filters as TransactionFilters & { address_involved?: string })
+      .address_involved;
+
+    if (addressInvolved) {
+      // Handle filter parameter for sent/received when address_involved is set
+      if (filters.filter === 'sent') {
+        where.fromAddress = addressInvolved;
+      } else if (filters.filter === 'received') {
+        where.toAddress = addressInvolved;
+      } else {
+        // Default behavior: either from or to
+        where.OR = [
+          { fromAddress: addressInvolved },
+          { toAddress: addressInvolved },
+        ];
+      }
+    }
+
+    // Handle filter parameter for other cases
+    if (filters.filter) {
+      switch (filters.filter) {
+        case 'success':
+          where.status = 1;
+          break;
+        case 'failed':
+          where.status = 0;
+          break;
+        case 'high-risk':
+          where.anomalyScore = {
+            gte: 0.7,
+          };
+          break;
+        // 'sent' and 'received' are handled above with address_involved
+        // 'all' requires no additional filtering
+      }
     }
 
     if (filters.min_amount) {
@@ -492,6 +513,7 @@ export class TransactionService {
       gas_price: transaction.gasPrice
         ? transaction.gasPrice.toString()
         : undefined,
+      status: transaction.status,
       anomaly_score: Number(transaction.anomalyScore),
       anomaly_flags: transaction.isAnomaly ? ['suspicious_pattern'] : [],
       created_at: transaction.createdAt,

@@ -469,6 +469,12 @@ export class TransactionController {
    *         description: Filter transactions with/without anomalies
    *         schema:
    *           type: boolean
+   *       - name: filter
+   *         in: query
+   *         description: Filter for transaction direction and status
+   *         schema:
+   *           type: string
+   *           enum: ['all', 'sent', 'received', 'success', 'failed', 'high-risk']
    *       - name: page
    *         in: query
    *         description: Page number for pagination
@@ -565,6 +571,7 @@ export class TransactionController {
         has_anomaly: req.query.has_anomaly
           ? req.query.has_anomaly === 'true'
           : undefined,
+        filter: req.query.filter as 'all' | 'sent' | 'received' | 'success' | 'failed' | 'high-risk',
       };
 
       // Remove undefined values

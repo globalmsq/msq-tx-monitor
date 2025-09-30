@@ -34,6 +34,7 @@ export interface ProcessedEvent {
   timestamp: Date;
   gasPrice?: string;
   gasUsed?: string;
+  status?: number; // 0 = failed, 1 = success
 }
 
 export class EventMonitor {
@@ -512,6 +513,7 @@ export class EventMonitor {
       let gasPrice: string | undefined;
       let gasUsed: string | undefined;
       let blockTimestamp = new Date(); // Fallback to current time if block fetch fails
+      let transactionStatus = 1; // default to success
 
       if (this.web3Service.isConnected()) {
         const web3 = this.web3Service.getWeb3Instance();
@@ -533,12 +535,16 @@ export class EventMonitor {
               gasPrice = transaction.gasPrice.toString();
             }
 
-            // Get transaction receipt for gas usage
+            // Get transaction receipt for gas usage and status
             const receipt = await web3.eth.getTransactionReceipt(
               eventData.transactionHash
             );
-            if (receipt?.gasUsed) {
-              gasUsed = receipt.gasUsed.toString();
+            if (receipt) {
+              if (receipt.gasUsed) {
+                gasUsed = receipt.gasUsed.toString();
+              }
+              // Check transaction status (true/1 = success, false/0 = failed)
+              transactionStatus = receipt.status ? 1 : 0;
             }
           } catch (blockchainError) {
             if (config.logging.enableBlockchainLogs) {
@@ -564,6 +570,7 @@ export class EventMonitor {
         timestamp: blockTimestamp,
         gasPrice,
         gasUsed,
+        status: transactionStatus,
       };
 
       return processedEvent;
@@ -589,6 +596,7 @@ export class EventMonitor {
         value: processedEvent.value,
         gasPrice: '0', // Will be filled from transaction details
         gasUsed: '0', // Will be filled from receipt
+        status: processedEvent.status || 1, // Default to success
         tokenAddress: processedEvent.tokenAddress,
         tokenSymbol: processedEvent.tokenSymbol,
         tokenDecimals: processedEvent.tokenDecimals,

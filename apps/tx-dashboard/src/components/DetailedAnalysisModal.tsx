@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   X,
   TrendingUp,
@@ -32,6 +32,12 @@ export interface DetailedData {
   };
   transactions: DetailedTransaction[];
   trends: TrendDataPoint[];
+  // Pagination metadata for API-based fetching
+  paginationMeta?: {
+    totalTransactions: number;
+    currentToken?: string;
+    apiEndpoint?: string;
+  };
 }
 
 interface DetailedTransaction {
@@ -58,6 +64,7 @@ interface DetailedAnalysisModalProps {
   onClose: () => void;
   data: DetailedData | null;
   loading?: boolean;
+  onFetchTransactions?: (page: number, filter?: string) => Promise<{ transactions: DetailedTransaction[], pagination: any }>;
 }
 
 export function DetailedAnalysisModal({
@@ -65,15 +72,19 @@ export function DetailedAnalysisModal({
   onClose,
   data,
   loading = false,
+  onFetchTransactions,
 }: DetailedAnalysisModalProps) {
   const [activeView, setActiveView] = useState<
     'summary' | 'transactions' | 'trends'
   >('summary');
   const [transactionFilter, setTransactionFilter] = useState<
-    'all' | 'success' | 'failed' | 'high-risk'
+    'all' | 'success' | 'failed' | 'high-risk' | 'received' | 'sent'
   >('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [copied, setCopied] = useState(false);
+  const [copiedItems, setCopiedItems] = useState<{ [key: string]: boolean }>({});
+  const [allTransactions, setAllTransactions] = useState<DetailedTransaction[]>([]);
+  const [isLoadingPage, setIsLoadingPage] = useState(false);
+  const [paginationData, setPaginationData] = useState<any>(null);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -81,8 +92,32 @@ export function DetailedAnalysisModal({
       setActiveView('summary');
       setCurrentPage(1);
       setTransactionFilter('all');
+      // Initialize with provided transactions or empty array
+      setAllTransactions(data?.transactions || []);
     }
-  }, [isOpen]);
+  }, [isOpen, data]);
+
+  // Refetch transactions when filter changes
+  useEffect(() => {
+    if (!isOpen || !onFetchTransactions || !data?.identifier) return;
+
+    const fetchFilteredTransactions = async () => {
+      setIsLoadingPage(true);
+      try {
+        const filterParam = transactionFilter === 'all' ? undefined : transactionFilter;
+        const result = await onFetchTransactions(1, filterParam);
+        setAllTransactions(result.transactions);
+        setPaginationData(result.pagination);
+        setCurrentPage(1);
+      } catch (error) {
+        console.error('Failed to fetch filtered transactions:', error);
+      } finally {
+        setIsLoadingPage(false);
+      }
+    };
+
+    fetchFilteredTransactions();
+  }, [transactionFilter, isOpen, data?.identifier]);
 
   // ESC key handler
   useEffect(() => {
@@ -100,6 +135,55 @@ export function DetailedAnalysisModal({
       document.removeEventListener('keydown', handleEscKey);
     };
   }, [isOpen, onClose]);
+
+  // Convert getFilteredTransactions to useCallback to maintain hooks order
+  // Must be defined before early return to follow React's Rules of Hooks
+  const getFilteredTransactions = useCallback(() => {
+    // If we have API filtering capability, transactions are already filtered
+    if (onFetchTransactions && data?.paginationMeta?.apiEndpoint) {
+      return allTransactions;
+    }
+
+    // Otherwise, apply client-side filtering (legacy fallback)
+    return allTransactions.filter(tx => {
+      switch (transactionFilter) {
+        case 'success':
+          return tx.status === 'success';
+        case 'failed':
+          return tx.status === 'failed';
+        case 'high-risk':
+          return (tx.riskScore || 0) > 0.7;
+        case 'received':
+          return data?.identifier && tx.to.toLowerCase() === data.identifier.toLowerCase();
+        case 'sent':
+          return data?.identifier && tx.from.toLowerCase() === data.identifier.toLowerCase();
+        default:
+          return true;
+      }
+    });
+  }, [allTransactions, transactionFilter, data?.identifier, onFetchTransactions, data?.paginationMeta?.apiEndpoint]);
+
+  // Calculate total pages dynamically based on filter state
+  // Must be defined before early return to follow React's Rules of Hooks
+  const totalPages = useMemo(() => {
+    // If we have pagination data from API, use it
+    if (paginationData && paginationData.totalPages !== undefined) {
+      return paginationData.totalPages;
+    }
+
+    // If using server-side filtering with API but no pagination data yet
+    if (onFetchTransactions && data?.paginationMeta?.apiEndpoint) {
+      if (data?.paginationMeta?.totalTransactions && transactionFilter === 'all') {
+        return Math.ceil(data.paginationMeta.totalTransactions / itemsPerPage);
+      }
+      // Default to at least 1 page
+      return 1;
+    }
+
+    // For client-side filtering (legacy)
+    const filteredCount = getFilteredTransactions().length;
+    return Math.max(1, Math.ceil(filteredCount / itemsPerPage));
+  }, [paginationData, transactionFilter, data?.paginationMeta, allTransactions, getFilteredTransactions, onFetchTransactions]);
 
   if (!isOpen) return null;
 
@@ -126,6 +210,45 @@ export function DetailedAnalysisModal({
     });
   };
 
+  const getRelativeTime = (timestamp: string) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffMs = now.getTime() - time.getTime();
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffSecs < 60) {
+      return `${diffSecs} ${diffSecs === 1 ? 'sec' : 'secs'} ago`;
+    } else if (diffMins < 60) {
+      return `${diffMins} ${diffMins === 1 ? 'min' : 'mins'} ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours} ${diffHours === 1 ? 'hr' : 'hrs'} ago`;
+    } else if (diffDays < 30) {
+      return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+    } else {
+      return time.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    }
+  };
+
+  const formatFullTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).replace(',', '');
+  };
+
   const getTimeRangeLabel = (start: string, end: string): string => {
     const startTime = new Date(start).getTime();
     const endTime = new Date(end).getTime();
@@ -140,40 +263,64 @@ export function DetailedAnalysisModal({
     return `${Math.round(diffDays)} days`;
   };
 
-  const getFilteredTransactions = () => {
-    if (!data?.transactions) return [];
-
-    return data.transactions.filter(tx => {
-      switch (transactionFilter) {
-        case 'success':
-          return tx.status === 'success';
-        case 'failed':
-          return tx.status === 'failed';
-        case 'high-risk':
-          return (tx.riskScore || 0) > 0.7;
-        default:
-          return true;
+  // Fetch transactions for a specific page
+  const handlePageChange = async (newPage: number) => {
+    // Use API pagination if available
+    if (onFetchTransactions && data?.paginationMeta?.apiEndpoint) {
+      setIsLoadingPage(true);
+      try {
+        const filterParam = transactionFilter === 'all' ? undefined : transactionFilter;
+        const result = await onFetchTransactions(newPage, filterParam);
+        setAllTransactions(result.transactions);
+        setPaginationData(result.pagination);
+        setCurrentPage(newPage);
+      } catch (error) {
+        console.error('Failed to fetch transactions:', error);
+      } finally {
+        setIsLoadingPage(false);
       }
-    });
+    } else {
+      // When no API pagination, use local pagination
+      setCurrentPage(newPage);
+    }
   };
 
   const getPaginatedTransactions = () => {
     const filtered = getFilteredTransactions();
+
+    // If using API pagination, transactions are already paginated from API (regardless of filter)
+    if (onFetchTransactions && data?.paginationMeta?.apiEndpoint) {
+      return filtered;
+    }
+
+    // Only use local pagination when no API pagination is available
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filtered.slice(startIndex, startIndex + itemsPerPage);
   };
-
-  const totalPages = Math.ceil(getFilteredTransactions().length / itemsPerPage);
 
   const handleCopyAddress = async () => {
     if (!data?.identifier) return;
 
     try {
       await navigator.clipboard.writeText(data.identifier);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopiedItems({ ...copiedItems, mainAddress: true });
+      setTimeout(() => {
+        setCopiedItems(prev => ({ ...prev, mainAddress: false }));
+      }, 2000);
     } catch (err) {
       console.error('Failed to copy address:', err);
+    }
+  };
+
+  const handleCopyItem = async (text: string, itemKey: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedItems({ ...copiedItems, [itemKey]: true });
+      setTimeout(() => {
+        setCopiedItems(prev => ({ ...prev, [itemKey]: false }));
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
     }
   };
 
@@ -276,7 +423,7 @@ export function DetailedAnalysisModal({
                   className='flex-shrink-0 p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all'
                   title='Copy address'
                 >
-                  {copied ? (
+                  {copiedItems.mainAddress ? (
                     <Check className='w-4 h-4 text-green-400' />
                   ) : (
                     <Copy className='w-4 h-4' />
@@ -289,7 +436,7 @@ export function DetailedAnalysisModal({
                 >
                   <ExternalLink className='w-4 h-4' />
                 </button>
-                {copied && (
+                {copiedItems.mainAddress && (
                   <span className='text-xs text-green-400'>Copied!</span>
                 )}
               </div>
@@ -469,6 +616,8 @@ export function DetailedAnalysisModal({
                           | 'success'
                           | 'failed'
                           | 'high-risk'
+                          | 'received'
+                          | 'sent'
                       );
                       setCurrentPage(1);
                     }}
@@ -478,22 +627,34 @@ export function DetailedAnalysisModal({
                     <option value='success'>Successful Only</option>
                     <option value='failed'>Failed Only</option>
                     <option value='high-risk'>High Risk Only</option>
+                    <option value='received'>Received Only</option>
+                    <option value='sent'>Sent Only</option>
                   </select>
                 </div>
 
                 <div className='text-white/60 text-sm'>
-                  {getFilteredTransactions().length} transactions
+                  {paginationData?.total !== undefined
+                    ? `${paginationData.total.toLocaleString()} transactions`
+                    : transactionFilter === 'all'
+                      ? `${(data?.paginationMeta?.totalTransactions || data?.summary.transactionCount || 0).toLocaleString()} transactions`
+                      : `${getFilteredTransactions().length.toLocaleString()} transactions`
+                  }
                 </div>
               </div>
 
               {/* Transactions Table */}
-              <div className='bg-white/20 rounded-lg overflow-hidden'>
+              <div className='bg-white/20 rounded-lg overflow-hidden relative'>
+                {isLoadingPage && (
+                  <div className='absolute inset-0 bg-black/20 flex items-center justify-center z-10'>
+                    <div className='w-6 h-6 border-2 border-primary-400 border-t-transparent rounded-full animate-spin' />
+                  </div>
+                )}
                 <div className='overflow-x-auto'>
                   <table className='w-full'>
                     <thead className='bg-white/30'>
                       <tr>
                         <th className='text-left p-3 text-white/60 font-medium'>
-                          Hash
+                          txHash
                         </th>
                         <th className='text-left p-3 text-white/60 font-medium'>
                           Time
@@ -505,7 +666,7 @@ export function DetailedAnalysisModal({
                           To
                         </th>
                         <th className='text-left p-3 text-white/60 font-medium'>
-                          Value
+                          Amount
                         </th>
                         <th className='text-left p-3 text-white/60 font-medium'>
                           Status
@@ -516,35 +677,109 @@ export function DetailedAnalysisModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {getPaginatedTransactions().map((tx, _index) => (
-                        <tr
-                          key={tx.hash}
-                          className='border-b border-white/20 hover:bg-white/20'
-                        >
-                          <td className='p-3'>
-                            <span className='font-mono text-white text-sm'>
-                              {formatAddress(tx.hash)}
-                            </span>
-                          </td>
-                          <td className='p-3 text-white/70 text-sm'>
-                            {formatTime(tx.timestamp)}
-                          </td>
-                          <td className='p-3'>
-                            <span className='font-mono text-white/70 text-sm'>
-                              {formatAddressHelper(tx.from)}
-                            </span>
-                          </td>
-                          <td className='p-3'>
-                            <span className='font-mono text-white/70 text-sm'>
-                              {formatAddressHelper(tx.to)}
-                            </span>
-                          </td>
-                          <td className='p-3'>
-                            <div className='text-white text-sm'>
-                              {formatVolumeHelper(tx.value, tx.tokenSymbol)}{' '}
-                              {tx.tokenSymbol}
+                      {getPaginatedTransactions().length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className='p-8 text-center'>
+                            <div className='text-white/60'>
+                              <div className='text-lg mb-2'>No transactions found</div>
+                              <div className='text-sm'>
+                                {transactionFilter !== 'all'
+                                  ? 'Try changing the filter or selecting a different time period'
+                                  : 'This address has no transactions in the selected time period'}
+                              </div>
                             </div>
                           </td>
+                        </tr>
+                      ) : (
+                        getPaginatedTransactions().map((tx, index) => {
+                          const txKey = `${tx.hash}_${index}`;
+                          return (
+                          <tr
+                            key={tx.hash}
+                            className='border-b border-white/20 hover:bg-white/20'
+                          >
+                            <td className='p-3'>
+                              <div className='flex items-center gap-2'>
+                                <span className='font-mono text-white text-sm'>
+                                  {formatAddress(tx.hash)}
+                                </span>
+                                <button
+                                  onClick={() => handleCopyItem(tx.hash, `hash_${txKey}`)}
+                                  className='p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-all'
+                                  title='Copy transaction hash'
+                                >
+                                  {copiedItems[`hash_${txKey}`] ? (
+                                    <Check className='w-3 h-3 text-green-400' />
+                                  ) : (
+                                    <Copy className='w-3 h-3' />
+                                  )}
+                                </button>
+                              </div>
+                            </td>
+                            <td className='p-3'>
+                              <div className='relative inline-block group'>
+                                <span className='text-white/70 text-sm cursor-help'>
+                                  {getRelativeTime(tx.timestamp)}
+                                </span>
+                                <div className='absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10'>
+                                  {formatFullTime(tx.timestamp)}
+                                  <div className='absolute top-full left-4 -mt-1'>
+                                    <div className='border-4 border-transparent border-t-gray-800'></div>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className='p-3'>
+                              <div className='flex items-center gap-2'>
+                                <span className={cn(
+                                  'font-mono text-sm',
+                                  tx.from.toLowerCase() === data?.identifier?.toLowerCase()
+                                    ? 'text-primary-400 font-bold'
+                                    : 'text-white/70'
+                                )}>
+                                  {formatAddressHelper(tx.from)}
+                                </span>
+                                <button
+                                  onClick={() => handleCopyItem(tx.from, `from_${txKey}`)}
+                                  className='p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-all'
+                                  title='Copy from address'
+                                >
+                                  {copiedItems[`from_${txKey}`] ? (
+                                    <Check className='w-3 h-3 text-green-400' />
+                                  ) : (
+                                    <Copy className='w-3 h-3' />
+                                  )}
+                                </button>
+                              </div>
+                            </td>
+                            <td className='p-3'>
+                              <div className='flex items-center gap-2'>
+                                <span className={cn(
+                                  'font-mono text-sm',
+                                  tx.to.toLowerCase() === data?.identifier?.toLowerCase()
+                                    ? 'text-primary-400 font-bold'
+                                    : 'text-white/70'
+                                )}>
+                                  {formatAddressHelper(tx.to)}
+                                </span>
+                                <button
+                                  onClick={() => handleCopyItem(tx.to, `to_${txKey}`)}
+                                  className='p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-all'
+                                  title='Copy to address'
+                                >
+                                  {copiedItems[`to_${txKey}`] ? (
+                                    <Check className='w-3 h-3 text-green-400' />
+                                  ) : (
+                                    <Copy className='w-3 h-3' />
+                                  )}
+                                </button>
+                              </div>
+                            </td>
+                            <td className='p-3'>
+                              <div className='text-white text-sm'>
+                                {formatVolumeHelper(tx.value, tx.tokenSymbol)}
+                              </div>
+                            </td>
                           <td className='p-3'>
                             <span
                               className={cn(
@@ -576,7 +811,8 @@ export function DetailedAnalysisModal({
                             )}
                           </td>
                         </tr>
-                      ))}
+                      )})
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -590,18 +826,18 @@ export function DetailedAnalysisModal({
                     <div className='flex gap-2'>
                       <button
                         onClick={() =>
-                          setCurrentPage(Math.max(1, currentPage - 1))
+                          handlePageChange(Math.max(1, currentPage - 1))
                         }
-                        disabled={currentPage === 1}
+                        disabled={currentPage === 1 || isLoadingPage}
                         className='px-3 py-1 text-sm text-white/60 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed'
                       >
                         Previous
                       </button>
                       <button
                         onClick={() =>
-                          setCurrentPage(Math.min(totalPages, currentPage + 1))
+                          handlePageChange(Math.min(totalPages, currentPage + 1))
                         }
-                        disabled={currentPage === totalPages}
+                        disabled={currentPage === totalPages || isLoadingPage}
                         className='px-3 py-1 text-sm text-white/60 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed'
                       >
                         Next

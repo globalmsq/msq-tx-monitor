@@ -17,6 +17,7 @@ export interface TransactionData {
   value: string;
   gasPrice: string;
   gasUsed: string;
+  status: number; // 0 = failed, 1 = success
   tokenAddress: string;
   tokenSymbol: string;
   tokenDecimals: number;
@@ -125,6 +126,7 @@ export class DatabaseService {
             value: t.value,
             gasPrice: BigInt(t.gasPrice),
             gasUsed: BigInt(t.gasUsed),
+            status: t.status,
             tokenAddress: t.tokenAddress,
             tokenSymbol: t.tokenSymbol,
             tokenDecimals: t.tokenDecimals,
