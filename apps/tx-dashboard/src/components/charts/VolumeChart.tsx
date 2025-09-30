@@ -1,12 +1,14 @@
 import React from 'react';
 import {
   ResponsiveContainer,
-  AreaChart,
+  ComposedChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
 } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
 import { formatVolume, getTokenDecimals } from '@msq-tx-monitor/msq-common';
@@ -44,6 +46,14 @@ function CustomTooltip({ active, payload }: TooltipProps) {
     const dateStr = data.timestamp || data.hour;
     const isValidDate = dateStr && !isNaN(new Date(dateStr).getTime());
 
+    // Calculate average transaction size
+    const avgTransactionSize = data.transactionCount > 0
+      ? formatVolumeHelper(
+          (parseFloat(data.totalVolume) / data.transactionCount).toString(),
+          data.tokenSymbol
+        )
+      : '0';
+
     return (
       <div className='bg-gray-900/95 backdrop-blur border border-white/20 rounded-lg p-3 shadow-xl'>
         <p className='text-white font-medium mb-2'>
@@ -58,6 +68,22 @@ function CustomTooltip({ active, payload }: TooltipProps) {
             </span>
             <span className='text-white font-mono'>
               {formatVolumeHelper(data.totalVolume, data.tokenSymbol)}
+            </span>
+          </div>
+          <div className='flex items-center justify-between gap-4'>
+            <span className='text-sm' style={{ color: 'rgba(34, 211, 238, 0.6)' }}>
+              Transactions:
+            </span>
+            <span className='text-white font-mono'>
+              {data.transactionCount.toLocaleString()}
+            </span>
+          </div>
+          <div className='flex items-center justify-between gap-4'>
+            <span className='text-sm text-gray-400'>
+              Avg Size:
+            </span>
+            <span className='text-white font-mono'>
+              {avgTransactionSize}
             </span>
           </div>
         </div>
@@ -132,13 +158,13 @@ export function VolumeChart({
   return (
     <div className='w-full' style={{ height }}>
       <ResponsiveContainer width='100%' height='100%'>
-        <AreaChart
+        <ComposedChart
           data={chartData}
           margin={{
             top: 5,
             right: 30,
             left: 20,
-            bottom: 5,
+            bottom: 25,
           }}
         >
           {gradient && (
@@ -165,7 +191,10 @@ export function VolumeChart({
             interval={xAxisInterval}
           />
 
+          {/* Left Y-axis for Volume */}
           <YAxis
+            yAxisId='volume'
+            orientation='left'
             axisLine={false}
             tickLine={false}
             tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }}
@@ -178,18 +207,56 @@ export function VolumeChart({
             }}
           />
 
+          {/* Right Y-axis for Transaction Count */}
+          <YAxis
+            yAxisId='count'
+            orientation='right'
+            domain={[0, dataMax => Math.ceil(dataMax * 1.5)]}
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }}
+            tickFormatter={value => {
+              if (value >= 1000) {
+                return `${(value / 1000).toFixed(1)}k`;
+              }
+              return value.toString();
+            }}
+          />
+
           <Tooltip content={<CustomTooltip />} />
 
+          <Legend
+            verticalAlign='bottom'
+            height={36}
+            iconType='line'
+            wrapperStyle={{
+              paddingTop: '10px',
+              fontSize: '12px',
+            }}
+          />
+
           <Area
+            yAxisId='volume'
             type='monotone'
             dataKey='volumeDisplay'
             stroke='#8b5cf6'
             strokeWidth={2}
             fill={gradient ? 'url(#volumeGradient)' : '#8b5cf6'}
             fillOpacity={gradient ? 1 : 0.3}
-            name='Total Volume'
+            name='Volume'
           />
-        </AreaChart>
+
+          <Line
+            yAxisId='count'
+            type='monotone'
+            dataKey='transactionCount'
+            stroke='rgba(34, 211, 238, 0.4)'
+            strokeWidth={1.5}
+            dot={false}
+            activeDot={{ r: 3, fill: 'rgba(34, 211, 238, 0.6)' }}
+            name='Transactions'
+          />
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );

@@ -1086,7 +1086,7 @@ export function Analytics() {
               {data.hourlyVolume && data.hourlyVolume.length > 0 ? (
                 <LazyTransactionChart
                   data={data.hourlyVolume}
-                  height={400}
+                  height={300}
                   showGrid={true}
                   tokenSymbol={activeTab}
                 />

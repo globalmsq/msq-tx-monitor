@@ -125,12 +125,12 @@ export function TransactionChart({
         <BarChart
           data={chartData}
           margin={{
-            top: 5,
+            top: 10,
             right: 30,
             left: 20,
-            bottom: 5,
+            bottom: 25,
           }}
-          barCategoryGap={3}
+          barCategoryGap={2}
         >
           {showGrid && (
             <CartesianGrid
@@ -152,6 +152,7 @@ export function TransactionChart({
             tickLine={false}
             tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }}
             tickFormatter={value => value.toLocaleString()}
+            domain={[0, dataMax => Math.ceil(dataMax * 1.15)]}
           />
 
           <Tooltip content={<CustomTooltip />} />
