@@ -245,7 +245,7 @@ export function DetailedAnalysisModal({
   if (loading) {
     return (
       <div className='fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center'>
-        <div className='bg-gray-900 rounded-2xl p-6 max-w-md w-full mx-4'>
+        <div className='bg-gray-700 rounded-2xl p-6 max-w-md w-full mx-4'>
           <div className='flex items-center justify-center'>
             <div className='w-8 h-8 border-2 border-primary-400 border-t-transparent rounded-full animate-spin' />
             <span className='ml-3 text-white'>
@@ -261,7 +261,7 @@ export function DetailedAnalysisModal({
 
   return (
     <div className='fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4'>
-      <div className='bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden'>
+      <div className='bg-gray-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden'>
         {/* Header */}
         <div className='flex items-center justify-between p-6 border-b border-white/10'>
           <div className='flex-1'>
@@ -354,7 +354,7 @@ export function DetailedAnalysisModal({
             <div className='space-y-6'>
               {/* Summary Cards */}
               <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
-                <div className='bg-white/5 rounded-lg p-4'>
+                <div className='bg-white/20 rounded-lg p-4'>
                   <div className='flex items-center gap-2 mb-2'>
                     <TrendingUp className='w-4 h-4 text-primary-400' />
                     <span className='text-white/60 text-sm'>Total Volume</span>
@@ -373,7 +373,7 @@ export function DetailedAnalysisModal({
                   </div>
                 </div>
 
-                <div className='bg-white/5 rounded-lg p-4'>
+                <div className='bg-white/20 rounded-lg p-4'>
                   <div className='flex items-center gap-2 mb-2'>
                     <Activity className='w-4 h-4 text-blue-400' />
                     <span className='text-white/60 text-sm'>Transactions</span>
@@ -384,7 +384,7 @@ export function DetailedAnalysisModal({
                 </div>
 
                 {data.summary.uniqueAddresses !== undefined && (
-                  <div className='bg-white/5 rounded-lg p-4'>
+                  <div className='bg-white/20 rounded-lg p-4'>
                     <div className='flex items-center gap-2 mb-2'>
                       <Users className='w-4 h-4 text-green-400' />
                       <span className='text-white/60 text-sm flex items-center gap-1'>
@@ -408,7 +408,7 @@ export function DetailedAnalysisModal({
                 )}
 
                 {data.summary.riskScore !== undefined && (
-                  <div className='bg-white/5 rounded-lg p-4'>
+                  <div className='bg-white/20 rounded-lg p-4'>
                     <div className='flex items-center gap-2 mb-2'>
                       <div
                         className={cn(
@@ -431,7 +431,7 @@ export function DetailedAnalysisModal({
 
               {/* Time Range */}
               {data.timeRange && (
-                <div className='bg-white/5 rounded-lg p-4'>
+                <div className='bg-white/20 rounded-lg p-4'>
                   <h3 className='text-white font-medium mb-3 flex items-center gap-2'>
                     <Calendar className='w-4 h-4' />
                     Time Range
@@ -487,10 +487,10 @@ export function DetailedAnalysisModal({
               </div>
 
               {/* Transactions Table */}
-              <div className='bg-white/5 rounded-lg overflow-hidden'>
+              <div className='bg-white/20 rounded-lg overflow-hidden'>
                 <div className='overflow-x-auto'>
                   <table className='w-full'>
-                    <thead className='bg-white/10'>
+                    <thead className='bg-white/30'>
                       <tr>
                         <th className='text-left p-3 text-white/60 font-medium'>
                           Hash
@@ -519,7 +519,7 @@ export function DetailedAnalysisModal({
                       {getPaginatedTransactions().map((tx, _index) => (
                         <tr
                           key={tx.hash}
-                          className='border-b border-white/10 hover:bg-white/5'
+                          className='border-b border-white/20 hover:bg-white/20'
                         >
                           <td className='p-3'>
                             <span className='font-mono text-white text-sm'>
