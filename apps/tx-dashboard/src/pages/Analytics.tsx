@@ -687,6 +687,20 @@ export function Analytics() {
       end: new Date(now).toISOString(),
     };
 
+    // Fetch trends data
+    let trends: any[] = [];
+    try {
+      const trendsResponse = await fetch(
+        `http://localhost:8000/api/v1/addresses/${address}/trends?hours=${hours}&tokenSymbol=${token}&interval=${hours > 168 ? 'daily' : 'hourly'}`
+      );
+      if (trendsResponse.ok) {
+        const trendsData = await trendsResponse.json();
+        trends = trendsData?.data?.trends || [];
+      }
+    } catch (error) {
+      logger.warn('Failed to fetch address trends:', error);
+    }
+
     return {
       type: 'address' as const,
       title: `${token} Address Detail`,
@@ -697,7 +711,7 @@ export function Analytics() {
         tokenSymbol: token, // Add token context for proper volume formatting
       },
       transactions,
-      trends: [], // Trends data can be added later if API provides it
+      trends,
       paginationMeta: {
         totalTransactions:
           (transactionsData as any)?.pagination?.total ||
@@ -880,8 +894,13 @@ export function Analytics() {
       transactions,
       trends: Array.from({ length: 24 }, (_, i) => ({
         timestamp: new Date(now - (23 - i) * 3600000).toISOString(),
-        value: Math.random() * 100,
+        transactionCount: Math.floor(Math.random() * 100),
         volume: (Math.random() * 1000 * 1e18).toString(),
+        sentCount: Math.floor(Math.random() * 50),
+        receivedCount: Math.floor(Math.random() * 50),
+        sentVolume: (Math.random() * 500 * 1e18).toString(),
+        receivedVolume: (Math.random() * 500 * 1e18).toString(),
+        avgAnomalyScore: Math.random() * 0.5,
       })),
     };
   };

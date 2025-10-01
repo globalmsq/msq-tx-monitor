@@ -1,4 +1,4 @@
-import { Prisma } from '@msq-tx-monitor/database';
+import { Prisma } from '@prisma/client';
 import prisma from '../lib/prisma';
 import {
   AddressRanking,
@@ -1334,5 +1334,167 @@ export class AddressService {
       apiLogger.warn('Failed to calculate address rank', error);
       return 1; // Default to top rank
     }
+  }
+
+
+  /**
+   * Get address transaction trends over time
+   * Returns hourly or daily aggregated transaction data for an address
+   */
+  async getAddressTrends(
+    address: string,
+    hours: number = 24,
+    tokenSymbol?: string,
+    interval: 'hourly' | 'daily' = 'hourly'
+  ): Promise<{
+    trends: Array<{
+      timestamp: string;
+      transactionCount: number;
+      volume: string;
+      sentCount: number;
+      receivedCount: number;
+      sentVolume: string;
+      receivedVolume: string;
+      avgAnomalyScore: number;
+    }>;
+    summary: {
+      totalTransactions: number;
+      totalVolume: string;
+      peakHour: string;
+      avgTransactionsPerHour: number;
+      growthRate: number;
+    };
+  }> {
+    const cacheKey = `address_trends:${address}:${hours}:${tokenSymbol || 'all'}:${interval}`;
+
+    // Try to get from cache first
+    try {
+      const cached = await RedisConnection.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      apiLogger.warn('Cache miss for address trends', error);
+    }
+
+    const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+    // Determine date format based on interval
+    const dateFormat =
+      interval === 'hourly'
+        ? '%Y-%m-%d %H:00:00'
+        : '%Y-%m-%d 00:00:00';
+
+    // Build the DATE_FORMAT expression
+    const dateFormatExpression = `DATE_FORMAT(timestamp, '${dateFormat}')`;
+
+    // Build query with Prisma.$queryRaw to avoid SQL injection
+    const trends = tokenSymbol
+      ? await prisma.$queryRaw<any[]>`
+          SELECT
+            ${Prisma.raw(dateFormatExpression)} as hour,
+            COUNT(*) as transactionCount,
+            CAST(SUM(value) AS CHAR) as volume,
+            SUM(CASE WHEN fromAddress = ${address} THEN 1 ELSE 0 END) as sentCount,
+            SUM(CASE WHEN toAddress = ${address} THEN 1 ELSE 0 END) as receivedCount,
+            CAST(SUM(CASE WHEN fromAddress = ${address} THEN value ELSE 0 END) AS CHAR) as sentVolume,
+            CAST(SUM(CASE WHEN toAddress = ${address} THEN value ELSE 0 END) AS CHAR) as receivedVolume,
+            AVG(anomalyScore) as avgAnomalyScore
+          FROM transactions
+          WHERE (fromAddress = ${address} OR toAddress = ${address})
+            AND timestamp >= ${cutoffDate}
+            AND tokenSymbol = ${tokenSymbol}
+          GROUP BY hour
+          ORDER BY hour ASC
+        `
+      : await prisma.$queryRaw<any[]>`
+          SELECT
+            ${Prisma.raw(dateFormatExpression)} as hour,
+            COUNT(*) as transactionCount,
+            CAST(SUM(value) AS CHAR) as volume,
+            SUM(CASE WHEN fromAddress = ${address} THEN 1 ELSE 0 END) as sentCount,
+            SUM(CASE WHEN toAddress = ${address} THEN 1 ELSE 0 END) as receivedCount,
+            CAST(SUM(CASE WHEN fromAddress = ${address} THEN value ELSE 0 END) AS CHAR) as sentVolume,
+            CAST(SUM(CASE WHEN toAddress = ${address} THEN value ELSE 0 END) AS CHAR) as receivedVolume,
+            AVG(anomalyScore) as avgAnomalyScore
+          FROM transactions
+          WHERE (fromAddress = ${address} OR toAddress = ${address})
+            AND timestamp >= ${cutoffDate}
+          GROUP BY hour
+          ORDER BY hour ASC
+        `;
+
+    // Transform trends data
+    const trendsData = trends.map(row => ({
+      timestamp: `${row.hour}Z`, // Add UTC timezone indicator
+      transactionCount: parseInt(row.transactionCount.toString()),
+      volume: row.volume.toString(),
+      sentCount: parseInt(row.sentCount.toString()),
+      receivedCount: parseInt(row.receivedCount.toString()),
+      sentVolume: row.sentVolume.toString(),
+      receivedVolume: row.receivedVolume.toString(),
+      avgAnomalyScore: parseFloat(row.avgAnomalyScore?.toString() || '0'),
+    }));
+
+    // Calculate summary statistics
+    const totalTransactions = trendsData.reduce(
+      (sum, t) => sum + t.transactionCount,
+      0
+    );
+    const totalVolume = trendsData
+      .reduce((sum, t) => sum + BigInt(t.volume || 0), BigInt(0))
+      .toString();
+
+    // Find peak hour (highest transaction count)
+    const peakHour =
+      trendsData.length > 0
+        ? trendsData.reduce((peak, current) =>
+            current.transactionCount > peak.transactionCount ? current : peak
+          ).timestamp
+        : '';
+
+    // Calculate average transactions per hour
+    const avgTransactionsPerHour =
+      trendsData.length > 0 ? totalTransactions / trendsData.length : 0;
+
+    // Calculate growth rate (comparing last 25% vs first 25% of data)
+    let growthRate = 0;
+    if (trendsData.length >= 4) {
+      const quarterSize = Math.floor(trendsData.length / 4);
+      const firstQuarter = trendsData.slice(0, quarterSize);
+      const lastQuarter = trendsData.slice(-quarterSize);
+
+      const firstQuarterAvg =
+        firstQuarter.reduce((sum, t) => sum + t.transactionCount, 0) /
+        firstQuarter.length;
+      const lastQuarterAvg =
+        lastQuarter.reduce((sum, t) => sum + t.transactionCount, 0) /
+        lastQuarter.length;
+
+      if (firstQuarterAvg > 0) {
+        growthRate =
+          ((lastQuarterAvg - firstQuarterAvg) / firstQuarterAvg) * 100;
+      }
+    }
+
+    const result = {
+      trends: trendsData,
+      summary: {
+        totalTransactions,
+        totalVolume,
+        peakHour,
+        avgTransactionsPerHour: parseFloat(avgTransactionsPerHour.toFixed(2)),
+        growthRate: parseFloat(growthRate.toFixed(2)),
+      },
+    };
+
+    // Cache for 5 minutes
+    try {
+      await RedisConnection.set(cacheKey, JSON.stringify(result), 300);
+    } catch (error) {
+      apiLogger.warn('Failed to cache address trends', error);
+    }
+
+    return result;
   }
 }

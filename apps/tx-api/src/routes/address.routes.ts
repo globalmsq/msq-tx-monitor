@@ -85,3 +85,14 @@ addressRoutes.get('/active-traders', addressController.getActiveTraders);
  * @returns {AddressListResponse<AddressProfile>} List of suspicious addresses
  */
 addressRoutes.get('/suspicious', addressController.getSuspiciousAddresses);
+
+/**
+ * @route GET /api/v1/addresses/:address/trends
+ * @description Get transaction trends for a specific address
+ * @param {string} address - Ethereum address (0x prefixed 40-char hex)
+ * @query {number} [hours=24] - Number of hours to look back (1-720)
+ * @query {string} [tokenSymbol] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
+ * @query {string} [interval=hourly] - Time interval (hourly, daily)
+ * @returns {AddressTrendData} Time-series transaction trends with summary statistics
+ */
+addressRoutes.get('/:address/trends', addressController.getAddressTrends);

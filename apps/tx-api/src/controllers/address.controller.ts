@@ -883,4 +883,192 @@ export class AddressController {
       next(error);
     }
   };
+
+  /**
+   * @swagger
+   * /addresses/{address}/trends:
+   *   get:
+   *     summary: Get transaction trends for a specific address
+   *     description: Retrieve time-series data showing transaction activity trends for an address
+   *     tags: [Addresses]
+   *     parameters:
+   *       - name: address
+   *         in: path
+   *         required: true
+   *         description: Ethereum address (0x prefixed 40-character hex string)
+   *         schema:
+   *           type: string
+   *           pattern: '^0x[a-fA-F0-9]{40}$'
+   *       - name: hours
+   *         in: query
+   *         description: Number of hours to look back (1-720)
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 720
+   *           default: 24
+   *       - name: tokenSymbol
+   *         in: query
+   *         description: Filter by specific token symbol (MSQ, SUT, KWT, P2UC)
+   *         schema:
+   *           type: string
+   *           enum: [MSQ, SUT, KWT, P2UC]
+   *       - name: interval
+   *         in: query
+   *         description: Time interval for aggregation
+   *         schema:
+   *           type: string
+   *           enum: [hourly, daily]
+   *           default: hourly
+   *     responses:
+   *       200:
+   *         description: Successfully retrieved address trends
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     trends:
+   *                       type: array
+   *                       items:
+   *                         type: object
+   *                         properties:
+   *                           timestamp:
+   *                             type: string
+   *                             format: date-time
+   *                           transactionCount:
+   *                             type: integer
+   *                           volume:
+   *                             type: string
+   *                           sentCount:
+   *                             type: integer
+   *                           receivedCount:
+   *                             type: integer
+   *                           sentVolume:
+   *                             type: string
+   *                           receivedVolume:
+   *                             type: string
+   *                           avgAnomalyScore:
+   *                             type: number
+   *                     summary:
+   *                       type: object
+   *                       properties:
+   *                         totalTransactions:
+   *                           type: integer
+   *                         totalVolume:
+   *                           type: string
+   *                         peakHour:
+   *                           type: string
+   *                           format: date-time
+   *                         avgTransactionsPerHour:
+   *                           type: number
+   *                         growthRate:
+   *                           type: number
+   *                 timestamp:
+   *                   type: string
+   *                   format: date-time
+   *       400:
+   *         $ref: '#/components/schemas/Error'
+   *       404:
+   *         $ref: '#/components/schemas/Error'
+   *       500:
+   *         $ref: '#/components/schemas/Error'
+   */
+  getAddressTrends = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { address } = req.params;
+      const { hours, tokenSymbol, interval } = req.query;
+
+      // Validate address format
+      if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        res.status(400).json({
+          error: {
+            code: 400,
+            message: 'Invalid address format',
+            details:
+              'Address must be a valid 40-character hex string with 0x prefix',
+            timestamp: new Date().toISOString(),
+          },
+        });
+        return;
+      }
+
+      // Parse and validate hours parameter
+      const hoursParam = hours ? parseInt(hours as string) : 24;
+      if (hoursParam < 1 || hoursParam > 720) {
+        res.status(400).json({
+          error: {
+            code: 400,
+            message: 'Invalid hours parameter',
+            details: 'Hours must be between 1 and 720',
+            timestamp: new Date().toISOString(),
+          },
+        });
+        return;
+      }
+
+      // Validate tokenSymbol if provided
+      if (
+        tokenSymbol &&
+        !['MSQ', 'SUT', 'KWT', 'P2UC'].includes(tokenSymbol as string)
+      ) {
+        res.status(400).json({
+          error: {
+            code: 400,
+            message: 'Invalid token symbol',
+            details: 'Token symbol must be one of: MSQ, SUT, KWT, P2UC',
+            timestamp: new Date().toISOString(),
+          },
+        });
+        return;
+      }
+
+      // Validate interval if provided
+      const intervalParam = (interval as 'hourly' | 'daily') || 'hourly';
+      if (!['hourly', 'daily'].includes(intervalParam)) {
+        res.status(400).json({
+          error: {
+            code: 400,
+            message: 'Invalid interval parameter',
+            details: 'Interval must be either hourly or daily',
+            timestamp: new Date().toISOString(),
+          },
+        });
+        return;
+      }
+
+      const trends = await this.addressService.getAddressTrends(
+        address,
+        hoursParam,
+        tokenSymbol as string,
+        intervalParam
+      );
+
+      if (!trends || trends.trends.length === 0) {
+        res.status(404).json({
+          error: {
+            code: 404,
+            message: 'No trend data found',
+            details: `No transaction trends found for address: ${address}`,
+            timestamp: new Date().toISOString(),
+          },
+        });
+        return;
+      }
+
+      res.json({
+        data: trends,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

@@ -16,6 +16,7 @@ import {
 import { cn } from '../utils/cn';
 import { formatVolume, formatAddress } from '@msq-tx-monitor/msq-common';
 import { VolumeWithTooltip } from './VolumeWithTooltip';
+import { TrendChart } from './TrendChart';
 
 export interface DetailedData {
   type: 'address' | 'token' | 'timeperiod' | 'anomaly';
@@ -57,8 +58,13 @@ interface DetailedTransaction {
 
 interface TrendDataPoint {
   timestamp: string;
-  value: number;
+  transactionCount: number;
   volume: string;
+  sentCount: number;
+  receivedCount: number;
+  sentVolume: string;
+  receivedVolume: string;
+  avgAnomalyScore: number;
 }
 
 interface DetailedAnalysisModalProps {
@@ -951,13 +957,88 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
 
           {activeView === 'trends' && (
             <div className='space-y-4'>
-              <div className='text-center text-white/60 py-12'>
-                <TrendingUp className='w-12 h-12 mx-auto mb-4 opacity-50' />
-                <p>Trend analysis visualization coming soon</p>
-                <p className='text-sm mt-2'>
-                  This will show time-series data for the selected {data.type}
-                </p>
-              </div>
+              {data.trends && data.trends.length > 0 ? (
+                <>
+                  {/* Summary Statistics */}
+                  <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-6'>
+                    <div className='bg-gray-800/50 rounded-lg p-4'>
+                      <div className='text-white/60 text-xs mb-1'>
+                        Total Transactions
+                      </div>
+                      <div className='text-white text-lg font-semibold'>
+                        {data.trends
+                          .reduce((sum, t) => sum + t.transactionCount, 0)
+                          .toLocaleString()}
+                      </div>
+                    </div>
+                    <div className='bg-gray-800/50 rounded-lg p-4'>
+                      <div className='text-white/60 text-xs mb-1'>
+                        Total Volume
+                      </div>
+                      <div className='text-white text-lg font-semibold'>
+                        {(() => {
+                          const totalVol = data.trends
+                            .reduce(
+                              (sum, t) => sum + BigInt(t.volume || 0),
+                              BigInt(0)
+                            )
+                            .toString();
+                          return (
+                            <VolumeWithTooltip
+                              formattedValue={formatVolumeHelper(
+                                totalVol,
+                                data.summary.tokenSymbol || 'MSQ'
+                              )}
+                              rawValue={totalVol}
+                              tokenSymbol={data.summary.tokenSymbol || 'MSQ'}
+                            />
+                          );
+                        })()}
+                      </div>
+                    </div>
+                    <div className='bg-gray-800/50 rounded-lg p-4'>
+                      <div className='text-white/60 text-xs mb-1'>
+                        Avg Tx/Period
+                      </div>
+                      <div className='text-white text-lg font-semibold'>
+                        {(
+                          data.trends.reduce(
+                            (sum, t) => sum + t.transactionCount,
+                            0
+                          ) / data.trends.length
+                        ).toFixed(1)}
+                      </div>
+                    </div>
+                    <div className='bg-gray-800/50 rounded-lg p-4'>
+                      <div className='text-white/60 text-xs mb-1'>
+                        Avg Risk Score
+                      </div>
+                      <div className='text-white text-lg font-semibold'>
+                        {(
+                          data.trends.reduce(
+                            (sum, t) => sum + t.avgAnomalyScore,
+                            0
+                          ) / data.trends.length
+                        ).toFixed(3)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trend Charts */}
+                  <TrendChart
+                    data={data.trends}
+                    tokenSymbol={data.summary.tokenSymbol || 'MSQ'}
+                  />
+                </>
+              ) : (
+                <div className='text-center text-white/60 py-12'>
+                  <TrendingUp className='w-12 h-12 mx-auto mb-4 opacity-50' />
+                  <p>No trend data available for this time period</p>
+                  <p className='text-sm mt-2'>
+                    Try selecting a longer time range to see trends
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

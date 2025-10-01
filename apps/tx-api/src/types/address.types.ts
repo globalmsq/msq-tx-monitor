@@ -118,3 +118,28 @@ export interface AddressListResponse<T> {
   };
   timestamp: Date;
 }
+
+// Address trend analysis interfaces
+export interface AddressTrendPoint {
+  timestamp: string;
+  transactionCount: number;
+  volume: string;
+  sentCount: number;
+  receivedCount: number;
+  sentVolume: string;
+  receivedVolume: string;
+  avgAnomalyScore: number;
+}
+
+export interface AddressTrendSummary {
+  totalTransactions: number;
+  totalVolume: string;
+  peakHour: string;
+  avgTransactionsPerHour: number;
+  growthRate: number;
+}
+
+export interface AddressTrendData {
+  trends: AddressTrendPoint[];
+  summary: AddressTrendSummary;
+}
