@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Search,
   TrendingUp,
@@ -7,6 +7,8 @@ import {
   Wallet,
   Copy,
   Check,
+  X,
+  Calendar,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import {
@@ -22,7 +24,7 @@ import {
 
 const ADDRESSES_BASE_URL = 'http://localhost:8000/api/v1/addresses';
 
-type TimeRange = 'day' | 'week' | 'month' | 'all';
+type TimeRange = '1h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
 type CategoryTab = 'rankings' | 'whales' | 'active' | 'suspicious';
 
 interface AddressRanking {
@@ -36,21 +38,11 @@ interface AddressRanking {
   rank: number;
 }
 
-interface AddressSearchResult {
-  address: string;
-  transaction_count: number;
-  total_volume: string;
-  last_activity: string;
-  label?: string;
-}
-
 export function Addresses() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<AddressSearchResult[]>([]);
-  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
 
   const [selectedToken, setSelectedToken] = useState<string>('MSQ');
-  const [timeRange, setTimeRange] = useState<TimeRange>('week');
+  const [timeRange, setTimeRange] = useState<TimeRange>('7d');
   const [activeCategory, setActiveCategory] = useState<CategoryTab>('rankings');
 
   const [addresses, setAddresses] = useState<AddressRanking[]>([]);
@@ -69,6 +61,30 @@ export function Addresses() {
   const tokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
   const limit = 50;
 
+  // Convert timeRange to hours for API calls
+  const getHoursFromTimeRange = (range: TimeRange): number | undefined => {
+    switch (range) {
+      case '1h':
+        return 1;
+      case '24h':
+        return 24;
+      case '7d':
+        return 168; // 7 * 24
+      case '30d':
+        return 720; // 30 * 24
+      case '3m':
+        return 2160; // 90 * 24
+      case '6m':
+        return 4320; // 180 * 24
+      case '1y':
+        return 8760; // 365 * 24
+      case 'all':
+        return undefined; // No time filter
+      default:
+        return 168;
+    }
+  };
+
   // Fetch addresses based on category and filters
   const fetchAddresses = useCallback(async () => {
     setIsLoading(true);
@@ -77,9 +93,13 @@ export function Addresses() {
       const params = new URLSearchParams();
 
       params.append('token', selectedToken);
-      if (activeCategory === 'rankings') {
-        params.append('time_period', timeRange);
+
+      // Add hours filter based on time range
+      const hours = getHoursFromTimeRange(timeRange);
+      if (hours !== undefined) {
+        params.append('hours', hours.toString());
       }
+
       params.append('limit', limit.toString());
 
       switch (activeCategory) {
@@ -116,32 +136,6 @@ export function Addresses() {
     }
   }, [selectedToken, timeRange, activeCategory]);
 
-  // Search addresses with debounce
-  useEffect(() => {
-    if (searchQuery.length < 5) {
-      setSearchResults([]);
-      setShowSearchDropdown(false);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      try {
-        const response = await fetch(
-          `${ADDRESSES_BASE_URL}/search?q=${encodeURIComponent(searchQuery)}&limit=10`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setSearchResults(data.data || []);
-          setShowSearchDropdown(true);
-        }
-      } catch (error) {
-        logger.error('Search failed:', error);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
   // Fetch addresses when filters change
   useEffect(() => {
     fetchAddresses();
@@ -151,12 +145,15 @@ export function Addresses() {
   const handleAddressClick = useCallback(
     async (address: string) => {
       setIsModalLoading(true);
-      setShowSearchDropdown(false);
 
       try {
+        // Get hours for current time range
+        const hours = getHoursFromTimeRange(timeRange);
+        const hoursParam = hours !== undefined ? `&hours=${hours}` : '';
+
         // Fetch address statistics
         const statsResponse = await fetch(
-          `${ADDRESSES_BASE_URL}/stats/${address}`
+          `${ADDRESSES_BASE_URL}/stats/${address}?token=${selectedToken}${hoursParam}`
         );
         if (!statsResponse.ok) {
           throw new Error('Failed to fetch address stats');
@@ -165,7 +162,7 @@ export function Addresses() {
 
         // Fetch trends data
         const trendsResponse = await fetch(
-          `${ADDRESSES_BASE_URL}/${address}/trends?hours=168&interval=daily`
+          `${ADDRESSES_BASE_URL}/${address}/trends?token=${selectedToken}${hoursParam}&interval=daily`
         );
         let trendsData = [];
         if (trendsResponse.ok) {
@@ -175,7 +172,7 @@ export function Addresses() {
 
         // Fetch recent transactions
         const txResponse = await fetch(
-          `http://localhost:8000/api/v1/transactions/address/${address}?limit=10`
+          `http://localhost:8000/api/v1/transactions/address/${address}?token=${selectedToken}${hoursParam}&limit=10`
         );
         let transactions = [];
         if (txResponse.ok) {
@@ -228,7 +225,7 @@ export function Addresses() {
         setIsModalLoading(false);
       }
     },
-    [selectedToken]
+    [selectedToken, timeRange]
   );
 
   const closeModal = useCallback(() => {
@@ -247,8 +244,31 @@ export function Addresses() {
     []
   );
 
+  // Filter addresses based on search query
+  const filteredAddresses = useMemo(() => {
+    if (!searchQuery || searchQuery.length < 3) {
+      return addresses;
+    }
+    return addresses.filter(addr =>
+      addr.address.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [addresses, searchQuery]);
+
+  // Update total pages based on filtered results
+  useEffect(() => {
+    const totalCount = filteredAddresses.length;
+    setTotalPages(Math.ceil(totalCount / 10));
+  }, [filteredAddresses]);
+
+  // Reset to page 1 when search query changes
+  useEffect(() => {
+    if (searchQuery && searchQuery.length >= 3) {
+      setCurrentPage(1);
+    }
+  }, [searchQuery]);
+
   // Paginated addresses for current page
-  const paginatedAddresses = addresses.slice(
+  const paginatedAddresses = filteredAddresses.slice(
     (currentPage - 1) * 10,
     currentPage * 10
   );
@@ -267,105 +287,62 @@ export function Addresses() {
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className='glass rounded-2xl p-6'>
-        <div className='relative'>
-          <div className='relative'>
-            <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40' />
-            <input
-              type='text'
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder='Search address (0x...)...'
-              className='w-full bg-white/5 border border-white/10 rounded-lg pl-11 pr-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-primary-500 transition-colors'
-            />
+      {/* Time Range Selector */}
+      <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4'>
+        <div className='flex items-center gap-2'>
+          <Calendar className='w-4 h-4 text-white/60' />
+          <span className='text-sm text-white/60'>Time Range:</span>
+          <div className='flex gap-1 flex-wrap'>
+            {(
+              ['1h', '24h', '7d', '30d', '3m', '6m', '1y', 'all'] as TimeRange[]
+            ).map(range => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={cn(
+                  'px-3 py-1 rounded text-xs transition-colors',
+                  timeRange === range
+                    ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                )}
+              >
+                {range === '1h'
+                  ? '1 Hour'
+                  : range === '24h'
+                    ? '24 Hours'
+                    : range === '7d'
+                      ? '7 Days'
+                      : range === '30d'
+                        ? '30 Days'
+                        : range === '3m'
+                          ? '3 Months'
+                          : range === '6m'
+                            ? '6 Months'
+                            : range === '1y'
+                              ? '1 Year'
+                              : 'All Time'}
+              </button>
+            ))}
           </div>
-
-          {/* Search Dropdown */}
-          {showSearchDropdown && searchResults.length > 0 && (
-            <div className='absolute z-50 w-full mt-2 bg-gray-900 border border-white/10 rounded-lg shadow-xl max-h-96 overflow-y-auto'>
-              {searchResults.map(result => (
-                <button
-                  key={result.address}
-                  onClick={() => {
-                    setSearchQuery(result.address);
-                    handleAddressClick(result.address);
-                  }}
-                  className='w-full px-4 py-3 text-left hover:bg-white/5 border-b border-white/5 last:border-b-0 transition-colors'
-                >
-                  <div className='flex items-center justify-between'>
-                    <div className='flex-1 min-w-0'>
-                      <div className='text-white font-mono text-sm truncate'>
-                        {result.address}
-                      </div>
-                      {result.label && (
-                        <div className='text-xs text-primary-400 mt-1'>
-                          {result.label}
-                        </div>
-                      )}
-                    </div>
-                    <div className='ml-4 text-right'>
-                      <div className='text-white/60 text-xs'>
-                        {result.transaction_count.toLocaleString()} txs
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Filters */}
-      <div className='glass rounded-2xl p-6'>
-        <div className='flex flex-col lg:flex-row gap-4'>
-          {/* Token Filter */}
-          <div className='flex-1'>
-            <label className='block text-white/60 text-sm mb-2'>Token</label>
-            <div className='flex flex-wrap gap-2'>
-              {tokens.map(token => (
-                <button
-                  key={token}
-                  onClick={() => setSelectedToken(token)}
-                  className={cn(
-                    'px-4 py-2 rounded-lg text-sm font-medium transition-all',
-                    selectedToken === token
-                      ? 'bg-primary-500 text-white'
-                      : 'bg-white/5 text-white/60 hover:bg-white/10'
-                  )}
-                >
-                  {token}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Time Range Filter - Only for rankings */}
-          {activeCategory === 'rankings' && (
-            <div className='flex-1'>
-              <label className='block text-white/60 text-sm mb-2'>
-                Time Range
-              </label>
-              <div className='flex flex-wrap gap-2'>
-                {(['day', 'week', 'month', 'all'] as TimeRange[]).map(range => (
-                  <button
-                    key={range}
-                    onClick={() => setTimeRange(range)}
-                    className={cn(
-                      'px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize',
-                      timeRange === range
-                        ? 'bg-primary-500 text-white'
-                        : 'bg-white/5 text-white/60 hover:bg-white/10'
-                    )}
-                  >
-                    {range}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Token Selection */}
+      <div className='flex flex-wrap gap-2'>
+        {tokens.map(token => (
+          <button
+            key={token}
+            onClick={() => setSelectedToken(token)}
+            className={cn(
+              'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+              selectedToken === token
+                ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                : 'text-white/70 hover:text-white hover:bg-white/5'
+            )}
+          >
+            {token}
+          </button>
+        ))}
       </div>
 
       {/* Category Tabs */}
@@ -422,8 +399,30 @@ export function Addresses() {
         </div>
       </div>
 
-      {/* Address Table */}
-      <div className='glass rounded-2xl overflow-hidden'>
+      {/* Address List */}
+      <div className='glass rounded-2xl p-6'>
+        <h2 className='text-xl font-bold text-white mb-6'>Address List</h2>
+
+        {/* Address Search */}
+        <div className='relative mb-6'>
+          <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40' />
+          <input
+            type='text'
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder='Search address (0x...)...'
+            className='w-full bg-white/5 border border-white/10 rounded-lg pl-11 pr-10 py-3 text-white placeholder-white/40 focus:outline-none focus:border-primary-500 transition-colors'
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className='absolute right-3 top-1/2 -translate-y-1/2 p-1 text-white/40 hover:text-white/70 transition-colors'
+            >
+              <X className='w-4 h-4' />
+            </button>
+          )}
+        </div>
+
         {isLoading ? (
           <div className='text-center py-12'>
             <div className='inline-block w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin'></div>
@@ -576,7 +575,7 @@ export function Addresses() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className='flex items-center justify-center space-x-2 mt-6 px-6 pb-6'>
+              <div className='flex items-center justify-center space-x-2 mt-6'>
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}

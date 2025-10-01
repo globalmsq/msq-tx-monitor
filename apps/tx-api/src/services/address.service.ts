@@ -688,7 +688,9 @@ export class AddressService {
       total_transactions: totalTransactions,
       total_sent: stat.total_sent.toString(),
       total_received: stat.total_received.toString(),
-      total_volume: (stat.total_sent + stat.total_received).toString(),
+      total_volume: (
+        BigInt(stat.total_sent) + BigInt(stat.total_received)
+      ).toString(),
       total_sent_transactions: Number(stat.total_sent_transactions),
       total_received_transactions: Number(stat.total_received_transactions),
       first_transaction_date: stat.first_transaction_date
