@@ -15,3 +15,5 @@
 11. Address Detail에서 Trend 구현
 12. depcheck 문제
 13. [done] 실제 DB에 저장된 tx와 dashboard와 다른 이유
+14. API Cache 문제
+15. Transaction 주소 검색후 More Transaction 문제
