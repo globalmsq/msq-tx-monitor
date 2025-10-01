@@ -1,6 +1,8 @@
 export interface AddressRanking {
   address: string;
   total_volume: string;
+  total_sent: string;
+  total_received: string;
   transaction_count: number;
   first_seen: Date;
   last_seen: Date;

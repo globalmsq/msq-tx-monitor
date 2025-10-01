@@ -282,3 +282,59 @@ export function parseFormattedVolume(
 
   return Math.floor(rawValueInSmallestUnit).toString();
 }
+
+/**
+ * Format a date as relative time (e.g., "10 secs ago", "5 mins ago")
+ * @param date - Date object or ISO string
+ * @returns Formatted relative time string
+ */
+export function formatRelativeTime(date: Date | string): string {
+  const now = new Date();
+  const target = typeof date === 'string' ? new Date(date) : date;
+  const diffMs = now.getTime() - target.getTime();
+  const diffSecs = Math.floor(diffMs / 1000);
+
+  if (diffSecs < 60) {
+    return `${diffSecs} sec${diffSecs !== 1 ? 's' : ''} ago`;
+  }
+
+  const diffMins = Math.floor(diffSecs / 60);
+  if (diffMins < 60) {
+    return `${diffMins} min${diffMins !== 1 ? 's' : ''} ago`;
+  }
+
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) {
+    return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) {
+    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+  }
+
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 4) {
+    return `${diffWeeks} week${diffWeeks !== 1 ? 's' : ''} ago`;
+  }
+
+  const diffMonths = Math.floor(diffDays / 30);
+  return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`;
+}
+
+/**
+ * Format a date as full timestamp with time (e.g., "2024-01-15 14:30:25")
+ * @param date - Date object or ISO string
+ * @returns Formatted timestamp string
+ */
+export function formatFullTimestamp(date: Date | string): string {
+  const target = typeof date === 'string' ? new Date(date) : date;
+  const year = target.getFullYear();
+  const month = String(target.getMonth() + 1).padStart(2, '0');
+  const day = String(target.getDate()).padStart(2, '0');
+  const hours = String(target.getHours()).padStart(2, '0');
+  const minutes = String(target.getMinutes()).padStart(2, '0');
+  const seconds = String(target.getSeconds()).padStart(2, '0');
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}

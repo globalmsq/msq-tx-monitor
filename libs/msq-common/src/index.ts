@@ -229,6 +229,8 @@ export {
   formatExactNumber,
   getTokenDecimals,
   parseFormattedVolume,
+  formatRelativeTime,
+  formatFullTimestamp,
   type FormatOptions,
 } from './formatters';
 

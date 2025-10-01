@@ -7,6 +7,7 @@ import { TransactionDetailModal } from '../components/TransactionDetailModal';
 import { TransactionTable } from '../components/TransactionTable';
 import { TransactionSearchInput } from '../components/filters/TransactionSearchInput';
 import { Analytics } from '../pages/Analytics';
+import { Addresses } from '../pages/Addresses';
 import {
   InitialLoadingSkeleton,
   LoadMoreButton,
@@ -523,7 +524,7 @@ function DashboardContent() {
       </header>
 
       {/* Main Content - Now full width */}
-      <main className='p-4 lg:p-6 overflow-x-hidden'>
+      <main className='p-4 lg:p-6'>
         <Routes>
           <Route
             path='/'
@@ -535,6 +536,7 @@ function DashboardContent() {
             }
           />
           <Route path='/analytics' element={<Analytics />} />
+          <Route path='/addresses' element={<Addresses />} />
         </Routes>
       </main>
 

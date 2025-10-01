@@ -18,10 +18,12 @@ import { apiLogger } from '@msq-tx-monitor/msq-common';
 interface AddressRankingQueryResult {
   address: string;
   total_volume: bigint;
+  total_sent: bigint;
+  total_received: bigint;
   transaction_count: bigint;
   first_seen: Date;
   last_seen: Date;
-  rank: bigint;
+  address_rank: bigint;
 }
 
 interface AddressSearchQueryResult {
@@ -83,19 +85,23 @@ export class AddressService {
       SELECT
         address,
         SUM(total_volume) as total_volume,
+        SUM(total_sent) as total_sent,
+        SUM(total_received) as total_received,
         SUM(transaction_count) as transaction_count,
         MIN(first_seen) as first_seen,
         MAX(last_seen) as last_seen,
-        ROW_NUMBER() OVER (ORDER BY SUM(total_volume) DESC) as rank
+        ROW_NUMBER() OVER (ORDER BY SUM(total_volume) DESC) as address_rank
       FROM (
         SELECT
           fromAddress as address,
           SUM(value) as total_volume,
+          SUM(value) as total_sent,
+          0 as total_received,
           COUNT(*) as transaction_count,
           MIN(timestamp) as first_seen,
           MAX(timestamp) as last_seen
         FROM transactions
-        WHERE ${this.buildSqlWhere(where)}
+        WHERE ${Prisma.raw(this.buildSqlWhere(where))}
         GROUP BY fromAddress
 
         UNION ALL
@@ -103,11 +109,13 @@ export class AddressService {
         SELECT
           toAddress as address,
           SUM(value) as total_volume,
+          0 as total_sent,
+          SUM(value) as total_received,
           COUNT(*) as transaction_count,
           MIN(timestamp) as first_seen,
           MAX(timestamp) as last_seen
         FROM transactions
-        WHERE ${this.buildSqlWhere(where)}
+        WHERE ${Prisma.raw(this.buildSqlWhere(where))}
         GROUP BY toAddress
       ) as combined_transactions
       WHERE address IS NOT NULL
@@ -121,6 +129,8 @@ export class AddressService {
     const formattedRankings = rankings.map((row, index) => ({
       address: row.address,
       total_volume: row.total_volume.toString(),
+      total_sent: row.total_sent.toString(),
+      total_received: row.total_received.toString(),
       transaction_count: Number(row.transaction_count),
       first_seen: new Date(row.first_seen),
       last_seen: new Date(row.last_seen),
@@ -254,18 +264,23 @@ export class AddressService {
       SELECT
         address,
         SUM(total_volume) as total_volume,
+        SUM(total_sent) as total_sent,
+        SUM(total_received) as total_received,
         SUM(transaction_count) as transaction_count,
         MIN(first_seen) as first_seen,
-        MAX(last_seen) as last_seen
+        MAX(last_seen) as last_seen,
+        ROW_NUMBER() OVER (ORDER BY SUM(transaction_count) DESC, SUM(total_volume) DESC) as address_rank
       FROM (
         SELECT
           fromAddress as address,
           SUM(value) as total_volume,
+          SUM(value) as total_sent,
+          0 as total_received,
           COUNT(*) as transaction_count,
           MIN(timestamp) as first_seen,
           MAX(timestamp) as last_seen
         FROM transactions
-        WHERE ${this.buildSqlWhere(where)}
+        WHERE ${Prisma.raw(this.buildSqlWhere(where))}
         GROUP BY fromAddress
 
         UNION ALL
@@ -273,11 +288,13 @@ export class AddressService {
         SELECT
           toAddress as address,
           SUM(value) as total_volume,
+          0 as total_sent,
+          SUM(value) as total_received,
           COUNT(*) as transaction_count,
           MIN(timestamp) as first_seen,
           MAX(timestamp) as last_seen
         FROM transactions
-        WHERE ${this.buildSqlWhere(where)}
+        WHERE ${Prisma.raw(this.buildSqlWhere(where))}
         GROUP BY toAddress
       ) as combined_transactions
       WHERE address IS NOT NULL
@@ -291,6 +308,8 @@ export class AddressService {
     const formattedRankings = rankings.map((row, index) => ({
       address: row.address,
       total_volume: row.total_volume.toString(),
+      total_sent: row.total_sent.toString(),
+      total_received: row.total_received.toString(),
       transaction_count: Number(row.transaction_count),
       first_seen: new Date(row.first_seen),
       last_seen: new Date(row.last_seen),
