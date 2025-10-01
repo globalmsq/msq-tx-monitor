@@ -685,7 +685,7 @@ export class AnalyticsController {
    *         schema:
    *           type: integer
    *           minimum: 1
-   *           maximum: 168
+   *           maximum: 720
    *           default: 24
    *       - name: token
    *         in: query
@@ -699,7 +699,7 @@ export class AnalyticsController {
    *         schema:
    *           type: integer
    *           minimum: 1
-   *           maximum: 168
+   *           maximum: 720
    *           default: 24
    *     responses:
    *       200:
@@ -716,24 +716,24 @@ export class AnalyticsController {
       const limit = parseInt(req.query.limit as string) || 24;
 
       // Validate hours parameter
-      if (hours < 1 || hours > 168) {
+      if (hours < 1 || hours > 720) {
         res.status(400).json({
           success: false,
           error: {
             code: 400,
-            message: 'Hours parameter must be between 1 and 168',
+            message: 'Hours parameter must be between 1 and 720',
           },
         });
         return;
       }
 
       // Validate limit parameter
-      if (limit < 1 || limit > 168) {
+      if (limit < 1 || limit > 720) {
         res.status(400).json({
           success: false,
           error: {
             code: 400,
-            message: 'Limit parameter must be between 1 and 168',
+            message: 'Limit parameter must be between 1 and 720',
           },
         });
         return;
