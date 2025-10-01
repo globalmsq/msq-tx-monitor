@@ -171,7 +171,18 @@ export class WebSocketService {
     };
 
     this.ws.onerror = error => {
-      logger.error('WebSocket error', error);
+      // 재연결 가능한 경우 warn, 최대 재시도 초과 시 error
+      if (this.reconnectAttempts < this.config.maxReconnectAttempts) {
+        logger.warn('WebSocket connection failed, will retry...', {
+          attempt: this.reconnectAttempts + 1,
+          maxAttempts: this.config.maxReconnectAttempts,
+        });
+      } else {
+        logger.error(
+          'WebSocket error: Max reconnection attempts reached',
+          error
+        );
+      }
       this.setConnectionState(ConnectionState.ERROR);
     };
   }

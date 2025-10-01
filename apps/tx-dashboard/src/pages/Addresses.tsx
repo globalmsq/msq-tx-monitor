@@ -148,95 +148,104 @@ export function Addresses() {
   }, [fetchAddresses]);
 
   // Handle address click to show details
-  const handleAddressClick = useCallback(async (address: string) => {
-    setIsModalLoading(true);
-    setShowSearchDropdown(false);
+  const handleAddressClick = useCallback(
+    async (address: string) => {
+      setIsModalLoading(true);
+      setShowSearchDropdown(false);
 
-    try {
-      // Fetch address statistics
-      const statsResponse = await fetch(
-        `${ADDRESSES_BASE_URL}/stats/${address}`
-      );
-      if (!statsResponse.ok) {
-        throw new Error('Failed to fetch address stats');
+      try {
+        // Fetch address statistics
+        const statsResponse = await fetch(
+          `${ADDRESSES_BASE_URL}/stats/${address}`
+        );
+        if (!statsResponse.ok) {
+          throw new Error('Failed to fetch address stats');
+        }
+        const statsData = await statsResponse.json();
+
+        // Fetch trends data
+        const trendsResponse = await fetch(
+          `${ADDRESSES_BASE_URL}/${address}/trends?hours=168&interval=daily`
+        );
+        let trendsData = [];
+        if (trendsResponse.ok) {
+          const trends = await trendsResponse.json();
+          trendsData = trends?.data?.trends || [];
+        }
+
+        // Fetch recent transactions
+        const txResponse = await fetch(
+          `http://localhost:8000/api/v1/transactions/address/${address}?limit=10`
+        );
+        let transactions = [];
+        if (txResponse.ok) {
+          const txData = await txResponse.json();
+          transactions =
+            txData?.data?.map((tx: any) => ({
+              hash: tx.hash || tx.transaction_hash,
+              timestamp: tx.timestamp || tx.blockTimestamp,
+              from: tx.from_address || tx.from || tx.fromAddress,
+              to: tx.to_address || tx.to || tx.toAddress,
+              value: tx.amount || tx.value || '0',
+              tokenSymbol: tx.token_symbol || tx.tokenSymbol || 'MSQ',
+              gasUsed: tx.gas_used || tx.gasUsed || '0',
+              gasPrice: tx.gas_price || tx.gasPrice || '0',
+              status:
+                tx.status === 1 || tx.status === 'success'
+                  ? 'success'
+                  : 'failed',
+              riskScore:
+                tx.anomaly_score || tx.riskScore || tx.anomalyScore || 0,
+            })) || [];
+        }
+
+        const detailedData: DetailedData = {
+          type: 'address',
+          title: `Address Detail`,
+          identifier: address,
+          timeRange: {
+            start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+            end: new Date().toISOString(),
+          },
+          summary: {
+            totalVolume: statsData.data?.total_volume || '0',
+            transactionCount: statsData.data?.total_transactions || 0,
+            uniqueAddresses:
+              (statsData.data?.total_sent_transactions || 0) +
+              (statsData.data?.total_received_transactions || 0),
+            riskScore:
+              statsData.data?.anomaly_statistics?.avg_anomaly_score || 0,
+            tokenSymbol: selectedToken,
+          },
+          transactions,
+          trends: trendsData,
+        };
+
+        setSelectedAddressData(detailedData);
+      } catch (error) {
+        logger.error('Failed to fetch address details:', error);
+      } finally {
+        setIsModalLoading(false);
       }
-      const statsData = await statsResponse.json();
-
-      // Fetch trends data
-      const trendsResponse = await fetch(
-        `${ADDRESSES_BASE_URL}/${address}/trends?hours=168&interval=daily`
-      );
-      let trendsData = [];
-      if (trendsResponse.ok) {
-        const trends = await trendsResponse.json();
-        trendsData = trends?.data?.trends || [];
-      }
-
-      // Fetch recent transactions
-      const txResponse = await fetch(
-        `http://localhost:8000/api/v1/transactions/address/${address}?limit=10`
-      );
-      let transactions = [];
-      if (txResponse.ok) {
-        const txData = await txResponse.json();
-        transactions =
-          txData?.data?.map((tx: any) => ({
-            hash: tx.hash || tx.transaction_hash,
-            timestamp: tx.timestamp || tx.blockTimestamp,
-            from: tx.from_address || tx.from || tx.fromAddress,
-            to: tx.to_address || tx.to || tx.toAddress,
-            value: tx.amount || tx.value || '0',
-            tokenSymbol: tx.token_symbol || tx.tokenSymbol || 'MSQ',
-            gasUsed: tx.gas_used || tx.gasUsed || '0',
-            gasPrice: tx.gas_price || tx.gasPrice || '0',
-            status:
-              tx.status === 1 || tx.status === 'success' ? 'success' : 'failed',
-            riskScore: tx.anomaly_score || tx.riskScore || tx.anomalyScore || 0,
-          })) || [];
-      }
-
-      const detailedData: DetailedData = {
-        type: 'address',
-        title: `Address Detail`,
-        identifier: address,
-        timeRange: {
-          start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          end: new Date().toISOString(),
-        },
-        summary: {
-          totalVolume: statsData.data?.total_volume || '0',
-          transactionCount: statsData.data?.total_transactions || 0,
-          uniqueAddresses:
-            (statsData.data?.total_sent_transactions || 0) +
-            (statsData.data?.total_received_transactions || 0),
-          riskScore:
-            statsData.data?.anomaly_statistics?.avg_anomaly_score || 0,
-          tokenSymbol: selectedToken,
-        },
-        transactions,
-        trends: trendsData,
-      };
-
-      setSelectedAddressData(detailedData);
-    } catch (error) {
-      logger.error('Failed to fetch address details:', error);
-    } finally {
-      setIsModalLoading(false);
-    }
-  }, [selectedToken]);
+    },
+    [selectedToken]
+  );
 
   const closeModal = useCallback(() => {
     setSelectedAddressData(null);
   }, []);
 
   // Handle copy address to clipboard
-  const handleCopyAddress = useCallback((address: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent row click event
-    navigator.clipboard.writeText(address).then(() => {
-      setCopiedAddress(address);
-      setTimeout(() => setCopiedAddress(null), 2000);
-    });
-  }, []);
+  const handleCopyAddress = useCallback(
+    (address: string, e: React.MouseEvent) => {
+      e.stopPropagation(); // Prevent row click event
+      navigator.clipboard.writeText(address).then(() => {
+        setCopiedAddress(address);
+        setTimeout(() => setCopiedAddress(null), 2000);
+      });
+    },
+    []
+  );
 
   // Paginated addresses for current page
   const paginatedAddresses = addresses.slice(
@@ -468,18 +477,22 @@ export function Addresses() {
                         <div className='flex items-center gap-2'>
                           {/* Full address - responsive truncation */}
                           <span className='text-white font-mono text-sm truncate min-w-0'>
-                            <span className='hidden xl:inline'>{addr.address}</span>
+                            <span className='hidden xl:inline'>
+                              {addr.address}
+                            </span>
                             <span className='hidden md:inline xl:hidden'>
-                              {addr.address.slice(0, 16)}...{addr.address.slice(-14)}
+                              {addr.address.slice(0, 16)}...
+                              {addr.address.slice(-14)}
                             </span>
                             <span className='inline md:hidden'>
-                              {addr.address.slice(0, 10)}...{addr.address.slice(-8)}
+                              {addr.address.slice(0, 10)}...
+                              {addr.address.slice(-8)}
                             </span>
                           </span>
 
                           {/* Copy button - always visible */}
                           <button
-                            onClick={(e) => handleCopyAddress(addr.address, e)}
+                            onClick={e => handleCopyAddress(addr.address, e)}
                             className='flex-shrink-0 p-1 rounded-md hover:bg-white/10 transition-colors'
                             title='Copy address'
                           >
@@ -575,7 +588,9 @@ export function Addresses() {
                   Page {currentPage} of {totalPages}
                 </span>
                 <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  onClick={() =>
+                    setCurrentPage(p => Math.min(totalPages, p + 1))
+                  }
                   disabled={currentPage === totalPages}
                   className='px-4 py-2 bg-white/5 text-white rounded-lg hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
                 >

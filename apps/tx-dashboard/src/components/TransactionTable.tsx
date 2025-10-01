@@ -2,13 +2,13 @@ import React from 'react';
 import { cn } from '../utils/cn';
 import { TrendingUp, ExternalLink, Copy } from 'lucide-react';
 import { Transaction } from '../types/transaction';
-import {
-  getRelativeTime,
-  truncateHash,
-  truncateAddress,
-} from '../utils/dateUtils';
+import { truncateHash, truncateAddress } from '../utils/dateUtils';
 import { VolumeWithTooltip } from './VolumeWithTooltip';
-import { formatAmount } from '@msq-tx-monitor/msq-common';
+import {
+  formatAmount,
+  formatRelativeTime,
+  formatFullTimestamp,
+} from '@msq-tx-monitor/msq-common';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -84,12 +84,15 @@ function TableRow({ transaction, onClick, isEven }: TableRowProps) {
 
       {/* Age */}
       <td className='px-4 py-3 whitespace-nowrap'>
-        <span
-          className='text-white/70 text-sm'
-          title={new Date(transaction.timestamp).toLocaleString()}
-        >
-          {getRelativeTime(transaction.timestamp)}
-        </span>
+        <div className='relative inline-block group'>
+          <span className='text-white/70 text-sm cursor-help whitespace-nowrap'>
+            {formatRelativeTime(transaction.timestamp)}
+          </span>
+          <div className='absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-white/10'>
+            {formatFullTimestamp(transaction.timestamp)}
+            <div className='absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900'></div>
+          </div>
+        </div>
       </td>
 
       {/* From */}

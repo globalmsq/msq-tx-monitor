@@ -110,7 +110,7 @@ export class AnalyticsService {
         hours,
         tokenSymbol,
         limit,
-        cutoffDate: new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
+        cutoffDate: new Date(Date.now() - hours * 60 * 60 * 1000).toISOString(),
       });
       throw error;
     }
@@ -625,7 +625,7 @@ export class AnalyticsService {
         hours,
         tokenSymbol,
         limit,
-        cutoffDate: new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
+        cutoffDate: new Date(Date.now() - hours * 60 * 60 * 1000).toISOString(),
       });
       throw error;
     }

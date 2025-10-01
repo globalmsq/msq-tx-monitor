@@ -52,7 +52,7 @@ class ChainScanner {
         this.websocketServer.broadcast({
           type: EVENT_TYPES.NEW_TRANSACTION,
           data: transactionData,
-          timestamp: new Date(),
+          timestamp: transactionData.timestamp,
         });
       }
     );

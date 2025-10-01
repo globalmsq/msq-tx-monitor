@@ -1355,7 +1355,6 @@ export class AddressService {
     }
   }
 
-
   /**
    * Get address transaction trends over time
    * Returns hourly or daily aggregated transaction data for an address
@@ -1400,9 +1399,7 @@ export class AddressService {
 
     // Determine date format based on interval
     const dateFormat =
-      interval === 'hourly'
-        ? '%Y-%m-%d %H:00:00'
-        : '%Y-%m-%d 00:00:00';
+      interval === 'hourly' ? '%Y-%m-%d %H:00:00' : '%Y-%m-%d 00:00:00';
 
     // Build the DATE_FORMAT expression
     const dateFormatExpression = `DATE_FORMAT(timestamp, '${dateFormat}')`;

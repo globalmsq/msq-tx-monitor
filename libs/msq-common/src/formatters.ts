@@ -285,12 +285,17 @@ export function parseFormattedVolume(
 
 /**
  * Format a date as relative time (e.g., "10 secs ago", "5 mins ago")
- * @param date - Date object or ISO string
+ * @param date - Date object, ISO string, or timestamp in milliseconds
  * @returns Formatted relative time string
  */
-export function formatRelativeTime(date: Date | string): string {
+export function formatRelativeTime(date: Date | string | number): string {
   const now = new Date();
-  const target = typeof date === 'string' ? new Date(date) : date;
+  const target =
+    typeof date === 'string'
+      ? new Date(date)
+      : typeof date === 'number'
+        ? new Date(date)
+        : date;
   const diffMs = now.getTime() - target.getTime();
   const diffSecs = Math.floor(diffMs / 1000);
 
@@ -324,11 +329,16 @@ export function formatRelativeTime(date: Date | string): string {
 
 /**
  * Format a date as full timestamp with time (e.g., "2024-01-15 14:30:25")
- * @param date - Date object or ISO string
+ * @param date - Date object, ISO string, or timestamp in milliseconds
  * @returns Formatted timestamp string
  */
-export function formatFullTimestamp(date: Date | string): string {
-  const target = typeof date === 'string' ? new Date(date) : date;
+export function formatFullTimestamp(date: Date | string | number): string {
+  const target =
+    typeof date === 'string'
+      ? new Date(date)
+      : typeof date === 'number'
+        ? new Date(date)
+        : date;
   const year = target.getFullYear();
   const month = String(target.getMonth() + 1).padStart(2, '0');
   const day = String(target.getDate()).padStart(2, '0');

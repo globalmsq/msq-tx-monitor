@@ -34,40 +34,42 @@ export const TrendChart: React.FC<TrendChartProps> = ({
   tokenSymbol = 'MSQ',
 }) => {
   // Transform data for chart
-  const chartData = data.map((point) => ({
+  const chartData = data.map(point => ({
     time: new Date(point.timestamp).toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
     }),
     transactions: point.transactionCount,
-    volume: parseFloat(formatVolume(point.volume, tokenSymbol).replace(/,/g, '')),
+    volume: parseFloat(
+      formatVolume(point.volume, tokenSymbol).replace(/,/g, '')
+    ),
     sent: point.sentCount,
     received: point.receivedCount,
     anomalyScore: point.avgAnomalyScore,
   }));
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       {/* Transaction Count and Volume Chart */}
-      <div className="bg-gray-800/50 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-white/80 mb-4">
+      <div className='bg-gray-800/50 rounded-lg p-4'>
+        <h3 className='text-sm font-medium text-white/80 mb-4'>
           Transaction Activity
         </h3>
-        <ResponsiveContainer width="100%" height={250}>
+        <ResponsiveContainer width='100%' height={250}>
           <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+            <CartesianGrid strokeDasharray='3 3' stroke='#374151' />
             <XAxis
-              dataKey="time"
-              stroke="#9CA3AF"
+              dataKey='time'
+              stroke='#9CA3AF'
               fontSize={12}
               angle={-45}
-              textAnchor="end"
+              textAnchor='end'
               height={80}
             />
             <YAxis
-              yAxisId="left"
-              stroke="#3B82F6"
+              yAxisId='left'
+              stroke='#3B82F6'
               fontSize={12}
               label={{
                 value: 'Transactions',
@@ -77,9 +79,9 @@ export const TrendChart: React.FC<TrendChartProps> = ({
               }}
             />
             <YAxis
-              yAxisId="right"
-              orientation="right"
-              stroke="#10B981"
+              yAxisId='right'
+              orientation='right'
+              stroke='#10B981'
               fontSize={12}
               label={{
                 value: `Volume (${tokenSymbol})`,
@@ -104,44 +106,44 @@ export const TrendChart: React.FC<TrendChartProps> = ({
             />
             <Legend />
             <Line
-              yAxisId="left"
-              type="monotone"
-              dataKey="transactions"
-              stroke="#3B82F6"
+              yAxisId='left'
+              type='monotone'
+              dataKey='transactions'
+              stroke='#3B82F6'
               strokeWidth={2}
               dot={false}
-              name="Transactions"
+              name='Transactions'
             />
             <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="volume"
-              stroke="#10B981"
+              yAxisId='right'
+              type='monotone'
+              dataKey='volume'
+              stroke='#10B981'
               strokeWidth={2}
               dot={false}
-              name="Volume"
+              name='Volume'
             />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       {/* Sent vs Received Chart */}
-      <div className="bg-gray-800/50 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-white/80 mb-4">
+      <div className='bg-gray-800/50 rounded-lg p-4'>
+        <h3 className='text-sm font-medium text-white/80 mb-4'>
           Sent vs Received
         </h3>
-        <ResponsiveContainer width="100%" height={200}>
+        <ResponsiveContainer width='100%' height={200}>
           <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+            <CartesianGrid strokeDasharray='3 3' stroke='#374151' />
             <XAxis
-              dataKey="time"
-              stroke="#9CA3AF"
+              dataKey='time'
+              stroke='#9CA3AF'
               fontSize={12}
               angle={-45}
-              textAnchor="end"
+              textAnchor='end'
               height={80}
             />
-            <YAxis stroke="#9CA3AF" fontSize={12} />
+            <YAxis stroke='#9CA3AF' fontSize={12} />
             <Tooltip
               contentStyle={{
                 backgroundColor: '#1F2937',
@@ -151,34 +153,34 @@ export const TrendChart: React.FC<TrendChartProps> = ({
               }}
             />
             <Legend />
-            <Bar dataKey="sent" fill="#EF4444" name="Sent" />
-            <Bar dataKey="received" fill="#3B82F6" name="Received" />
+            <Bar dataKey='sent' fill='#EF4444' name='Sent' />
+            <Bar dataKey='received' fill='#3B82F6' name='Received' />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
       {/* Anomaly Score Trend */}
-      {chartData.some((d) => d.anomalyScore > 0) && (
-        <div className="bg-gray-800/50 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-white/80 mb-4">
+      {chartData.some(d => d.anomalyScore > 0) && (
+        <div className='bg-gray-800/50 rounded-lg p-4'>
+          <h3 className='text-sm font-medium text-white/80 mb-4'>
             Risk Score Trend
           </h3>
-          <ResponsiveContainer width="100%" height={150}>
+          <ResponsiveContainer width='100%' height={150}>
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <CartesianGrid strokeDasharray='3 3' stroke='#374151' />
               <XAxis
-                dataKey="time"
-                stroke="#9CA3AF"
+                dataKey='time'
+                stroke='#9CA3AF'
                 fontSize={12}
                 angle={-45}
-                textAnchor="end"
+                textAnchor='end'
                 height={80}
               />
               <YAxis
-                stroke="#9CA3AF"
+                stroke='#9CA3AF'
                 fontSize={12}
                 domain={[0, 1]}
-                tickFormatter={(value) => value.toFixed(2)}
+                tickFormatter={value => value.toFixed(2)}
               />
               <Tooltip
                 contentStyle={{
@@ -187,18 +189,15 @@ export const TrendChart: React.FC<TrendChartProps> = ({
                   borderRadius: '0.5rem',
                   color: '#fff',
                 }}
-                formatter={(value: any) => [
-                  value.toFixed(3),
-                  'Avg Risk Score',
-                ]}
+                formatter={(value: any) => [value.toFixed(3), 'Avg Risk Score']}
               />
               <Line
-                type="monotone"
-                dataKey="anomalyScore"
-                stroke="#F59E0B"
+                type='monotone'
+                dataKey='anomalyScore'
+                stroke='#F59E0B'
                 strokeWidth={2}
                 dot={false}
-                name="Risk Score"
+                name='Risk Score'
               />
             </LineChart>
           </ResponsiveContainer>

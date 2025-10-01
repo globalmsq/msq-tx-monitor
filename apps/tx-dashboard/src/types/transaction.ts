@@ -89,9 +89,11 @@ export function adaptWebSocketTransactionForUI(
     timestamp:
       txData.timestamp instanceof Date
         ? txData.timestamp.getTime()
-        : typeof txData.timestamp === 'number'
-          ? txData.timestamp
-          : Date.now(),
+        : typeof txData.timestamp === 'string'
+          ? new Date(txData.timestamp).getTime()
+          : typeof txData.timestamp === 'number'
+            ? txData.timestamp
+            : Date.now(),
     blockNumber: (txData.blockNumber || 0) as number,
     gasUsed: txData.gasUsed?.toString() || '0',
     gasPrice: txData.gasPrice?.toString() || '0',
