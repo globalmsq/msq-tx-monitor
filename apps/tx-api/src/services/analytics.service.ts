@@ -294,158 +294,88 @@ export class AnalyticsService {
     hours?: number
   ): Promise<any[]> {
     try {
-      // Get token address from symbol if provided
-      let tokenAddress: string | undefined;
-      if (tokenSymbol) {
-        const token = await prisma.token.findFirst({
-          where: { symbol: tokenSymbol },
-          select: { address: true },
-        });
-        tokenAddress = token?.address;
-        if (!tokenAddress) {
-          apiLogger.warn(`Token not found for symbol: ${tokenSymbol}`);
-          return [];
-        }
-      }
+      // Use tokenSymbol directly for filtering - no token address lookup needed
+      const cutoffDate = hours
+        ? new Date(Date.now() - hours * 60 * 60 * 1000)
+        : undefined;
 
-      // If hours filter is provided, query transactions table directly
-      if (hours) {
-        const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-
-        // Query transactions table directly with UNION ALL pattern
-        const query = `
+      // Query transactions table directly with UNION ALL pattern
+      const query = `
+        SELECT
+          address,
+          CAST(SUM(totalSent) AS CHAR) as totalSent,
+          CAST(SUM(totalReceived) AS CHAR) as totalReceived,
+          SUM(transactionCountSent) as transactionCountSent,
+          SUM(transactionCountReceived) as transactionCountReceived
+        FROM (
+          -- Sent transactions
           SELECT
-            address,
-            CAST(SUM(totalSent) AS CHAR) as totalSent,
-            CAST(SUM(totalReceived) AS CHAR) as totalReceived,
-            SUM(transactionCountSent) as transactionCountSent,
-            SUM(transactionCountReceived) as transactionCountReceived
-          FROM (
-            -- Sent transactions
-            SELECT
-              fromAddress as address,
-              SUM(value) as totalSent,
-              0 as totalReceived,
-              COUNT(*) as transactionCountSent,
-              0 as transactionCountReceived
-            FROM transactions
-            WHERE timestamp >= ?
-              ${tokenAddress ? `AND tokenAddress = '${tokenAddress}'` : ''}
-            GROUP BY fromAddress
+            fromAddress as address,
+            SUM(value) as totalSent,
+            0 as totalReceived,
+            COUNT(*) as transactionCountSent,
+            0 as transactionCountReceived
+          FROM transactions
+          WHERE 1=1
+            ${cutoffDate ? `AND timestamp >= ?` : ''}
+            ${tokenSymbol ? `AND tokenSymbol = '${tokenSymbol}'` : ''}
+          GROUP BY fromAddress
 
-            UNION ALL
+          UNION ALL
 
-            -- Received transactions
-            SELECT
-              toAddress as address,
-              0 as totalSent,
-              SUM(value) as totalReceived,
-              0 as transactionCountSent,
-              COUNT(*) as transactionCountReceived
-            FROM transactions
-            WHERE timestamp >= ?
-              ${tokenAddress ? `AND tokenAddress = '${tokenAddress}'` : ''}
-            GROUP BY toAddress
-          ) as combined
-          GROUP BY address
-          ORDER BY ${metric === 'volume' ? '(SUM(totalSent) + SUM(totalReceived))' : '(SUM(transactionCountSent) + SUM(transactionCountReceived))'} DESC
-          LIMIT ?
-        `;
+          -- Received transactions
+          SELECT
+            toAddress as address,
+            0 as totalSent,
+            SUM(value) as totalReceived,
+            0 as transactionCountSent,
+            COUNT(*) as transactionCountReceived
+          FROM transactions
+          WHERE 1=1
+            ${cutoffDate ? `AND timestamp >= ?` : ''}
+            ${tokenSymbol ? `AND tokenSymbol = '${tokenSymbol}'` : ''}
+          GROUP BY toAddress
+        ) as combined
+        GROUP BY address
+        ORDER BY ${metric === 'volume' ? '(SUM(totalSent) + SUM(totalReceived))' : '(SUM(transactionCountSent) + SUM(transactionCountReceived))'} DESC
+        LIMIT ?
+      `;
 
-        const addresses = await prisma.$queryRawUnsafe<any[]>(
-          query,
-          cutoffDate,
-          cutoffDate,
-          limit
-        );
+      const addresses = cutoffDate
+        ? await prisma.$queryRawUnsafe<any[]>(
+            query,
+            cutoffDate,
+            cutoffDate,
+            limit
+          )
+        : await prisma.$queryRawUnsafe<any[]>(
+            query,
+            limit
+          );
 
-        // Process and format results
-        return addresses.map((addr, index) => {
-          const totalReceived = BigInt(addr.totalReceived || 0);
-          const totalSent = BigInt(addr.totalSent || 0);
-          const totalVolume = totalReceived + totalSent;
-          const transactionCount =
-            Number(addr.transactionCountReceived || 0) +
-            Number(addr.transactionCountSent || 0);
-
-          return {
-            rank: index + 1,
-            address: addr.address,
-            totalVolume: totalVolume.toString(),
-            totalReceived: totalReceived.toString(),
-            totalSent: totalSent.toString(),
-            transactionCount,
-            uniqueInteractions: 1,
-            metric:
-              metric === 'volume'
-                ? totalVolume.toString()
-                : transactionCount.toString(),
-          };
-        });
-      }
-
-      // If no time filter, use AddressStatistics (all-time data)
-      const whereClause: any = {
-        isActive: true,
-      };
-
-      if (tokenAddress) {
-        whereClause.tokenAddress = tokenAddress;
-      }
-
-      // Query AddressStatistics table
-      const addresses = await prisma.addressStatistics.findMany({
-        where: whereClause,
-        select: {
-          address: true,
-          totalReceived: true,
-          totalSent: true,
-          transactionCountReceived: true,
-          transactionCountSent: true,
-          tokenAddress: true,
-        },
-        take: limit * 3, // Get more to calculate totalVolume properly
-      });
-
-      // Calculate totalVolume and sort
-      const processedAddresses = addresses.map(addr => {
-        const totalReceived = BigInt(addr.totalReceived.toFixed(0));
-        const totalSent = BigInt(addr.totalSent.toFixed(0));
+      // Process and format results
+      return addresses.map((addr, index) => {
+        const totalReceived = BigInt(addr.totalReceived || 0);
+        const totalSent = BigInt(addr.totalSent || 0);
         const totalVolume = totalReceived + totalSent;
         const transactionCount =
-          addr.transactionCountReceived + addr.transactionCountSent;
+          Number(addr.transactionCountReceived || 0) +
+          Number(addr.transactionCountSent || 0);
 
         return {
+          rank: index + 1,
           address: addr.address,
           totalVolume: totalVolume.toString(),
           totalReceived: totalReceived.toString(),
           totalSent: totalSent.toString(),
           transactionCount,
-          uniqueInteractions: 1, // Since we're filtering by token
+          uniqueInteractions: 1,
+          metric:
+            metric === 'volume'
+              ? totalVolume.toString()
+              : transactionCount.toString(),
         };
       });
-
-      // Sort by metric
-      processedAddresses.sort((a, b) => {
-        if (metric === 'volume') {
-          return BigInt(b.totalVolume) > BigInt(a.totalVolume) ? 1 : -1;
-        } else {
-          return b.transactionCount - a.transactionCount;
-        }
-      });
-
-      // Take top N and add rank
-      return processedAddresses.slice(0, limit).map((addr, index) => ({
-        rank: index + 1,
-        address: addr.address,
-        totalVolume: addr.totalVolume,
-        totalReceived: addr.totalReceived,
-        totalSent: addr.totalSent,
-        transactionCount: addr.transactionCount,
-        uniqueInteractions: addr.uniqueInteractions,
-        metric:
-          metric === 'volume' ? addr.totalVolume : addr.transactionCount.toString(),
-      }));
     } catch (error) {
       apiLogger.error('Error fetching top addresses', error);
       throw new Error('Failed to fetch top addresses');
