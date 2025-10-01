@@ -2,8 +2,6 @@
 -- Prisma-compatible schema for transaction monitoring and analytics
 -- This matches the Prisma schema in apps/tx-api/prisma/schema.prisma
 
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-SET AUTOCOMMIT = 0;
 START TRANSACTION;
 SET time_zone = "+00:00";
 

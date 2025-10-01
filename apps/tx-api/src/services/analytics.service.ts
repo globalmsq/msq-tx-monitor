@@ -1,4 +1,5 @@
 import { prisma } from '@msq-tx-monitor/database';
+import { Prisma } from '@prisma/client';
 import { apiLogger } from '@msq-tx-monitor/msq-common';
 
 export interface HourlyVolumeData {
@@ -50,29 +51,43 @@ export class AnalyticsService {
           ? '%Y-%m-%d %H:%i:00' // 5-minute intervals: YYYY-MM-DD HH:MM:00
           : '%Y-%m-%d %H:00:00'; // Hourly intervals: YYYY-MM-DD HH:00:00
 
-      // Use Prisma raw query for complex aggregation
-      const whereClause = tokenSymbol
-        ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
-        : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
+      // Use Prisma.$queryRaw with proper SQL - dateFormat cannot be parameterized
+      // Use alias in GROUP BY which MySQL supports to satisfy ONLY_FULL_GROUP_BY
+      const maxResults = limit * 2;
 
-      const query = `
-        SELECT
-          CONCAT(DATE_FORMAT(timestamp, '${dateFormat}'), 'Z') as hour,
-          tokenSymbol,
-          SUM(value) as totalVolume,
-          COUNT(*) as transactionCount,
-          CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
-        FROM transactions
-        ${whereClause}
-        GROUP BY DATE_FORMAT(timestamp, '${dateFormat}'), tokenSymbol
-        ORDER BY hour DESC, tokenSymbol
-        LIMIT ${limit * 2}
-      `;
+      // Build the DATE_FORMAT expression (internally controlled, safe from SQL injection)
+      const dateFormatExpression = `DATE_FORMAT(timestamp, '${dateFormat}')`;
 
-      const rows = (await prisma.$queryRawUnsafe(query)) as any[];
+      const rows = tokenSymbol
+        ? await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateFormatExpression)} as hour,
+              tokenSymbol,
+              SUM(value) as totalVolume,
+              COUNT(*) as transactionCount,
+              CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+            FROM transactions
+            WHERE timestamp >= ${cutoffDate} AND tokenSymbol = ${tokenSymbol}
+            GROUP BY hour, tokenSymbol
+            ORDER BY hour DESC, tokenSymbol
+            LIMIT ${maxResults}
+          `
+        : await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateFormatExpression)} as hour,
+              tokenSymbol,
+              SUM(value) as totalVolume,
+              COUNT(*) as transactionCount,
+              CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+            FROM transactions
+            WHERE timestamp >= ${cutoffDate}
+            GROUP BY hour, tokenSymbol
+            ORDER BY hour DESC, tokenSymbol
+            LIMIT ${maxResults}
+          `;
 
       const rawData = rows.map(row => ({
-        hour: row.hour,
+        hour: `${row.hour}Z`, // Add UTC timezone indicator
         tokenSymbol: row.tokenSymbol,
         totalVolume: row.totalVolume.toString(),
         transactionCount: parseInt(row.transactionCount.toString()),
@@ -89,8 +104,15 @@ export class AnalyticsService {
 
       return filledData;
     } catch (error) {
-      apiLogger.error('Error fetching hourly volume data', error);
-      throw new Error('Failed to fetch hourly volume data');
+      apiLogger.error('Error fetching hourly volume data:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        hours,
+        tokenSymbol,
+        limit,
+        cutoffDate: new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
+      });
+      throw error;
     }
   }
 
@@ -538,15 +560,7 @@ export class AnalyticsService {
     limit: number = 24
   ): Promise<any[]> {
     try {
-      let whereClause = '';
-      if (tokenSymbol) {
-        whereClause = `WHERE tokenSymbol = '${tokenSymbol}'`;
-      }
-
       const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-      const timeWhere = whereClause
-        ? `${whereClause} AND timestamp >= '${cutoffDate.toISOString()}'`
-        : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
 
       // Determine interval based on time range
       const intervalMinutes = hours <= 1 ? 5 : 60;
@@ -555,26 +569,44 @@ export class AnalyticsService {
           ? '%Y-%m-%d %H:%i:00' // 5-minute intervals: YYYY-MM-DD HH:MM:00
           : '%Y-%m-%d %H:00:00'; // Hourly intervals: YYYY-MM-DD HH:00:00
 
-      const query = `
-        SELECT
-          CONCAT(DATE_FORMAT(timestamp, '${dateFormat}'), 'Z') as hour,
-          COUNT(*) as totalTransactions,
-          SUM(CASE WHEN isAnomaly = true THEN 1 ELSE 0 END) as anomalyCount,
-          AVG(anomalyScore) as averageScore,
-          SUM(CASE WHEN anomalyScore > 0.7 THEN 1 ELSE 0 END) as highRiskCount,
-          (SUM(CASE WHEN isAnomaly = true THEN 1 ELSE 0 END) / COUNT(*) * 100) as anomalyRate
-        FROM transactions
-        ${timeWhere}
-        GROUP BY DATE_FORMAT(timestamp, '${dateFormat}')
-        ORDER BY hour DESC
-        LIMIT ${limit * 2}
-      `;
+      // Use Prisma.$queryRaw with proper SQL - dateFormat cannot be parameterized
+      // Use alias in GROUP BY which MySQL supports to satisfy ONLY_FULL_GROUP_BY
+      const maxResults = limit * 2;
+      const dateFormatExpression = `DATE_FORMAT(timestamp, '${dateFormat}')`;
 
-      const rows = (await prisma.$queryRawUnsafe(query)) as any[];
+      const rows = tokenSymbol
+        ? await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateFormatExpression)} as hour,
+              COUNT(*) as totalTransactions,
+              SUM(CASE WHEN isAnomaly = true THEN 1 ELSE 0 END) as anomalyCount,
+              AVG(anomalyScore) as averageScore,
+              SUM(CASE WHEN anomalyScore > 0.7 THEN 1 ELSE 0 END) as highRiskCount,
+              (SUM(CASE WHEN isAnomaly = true THEN 1 ELSE 0 END) / COUNT(*) * 100) as anomalyRate
+            FROM transactions
+            WHERE timestamp >= ${cutoffDate} AND tokenSymbol = ${tokenSymbol}
+            GROUP BY hour
+            ORDER BY hour DESC
+            LIMIT ${maxResults}
+          `
+        : await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateFormatExpression)} as hour,
+              COUNT(*) as totalTransactions,
+              SUM(CASE WHEN isAnomaly = true THEN 1 ELSE 0 END) as anomalyCount,
+              AVG(anomalyScore) as averageScore,
+              SUM(CASE WHEN anomalyScore > 0.7 THEN 1 ELSE 0 END) as highRiskCount,
+              (SUM(CASE WHEN isAnomaly = true THEN 1 ELSE 0 END) / COUNT(*) * 100) as anomalyRate
+            FROM transactions
+            WHERE timestamp >= ${cutoffDate}
+            GROUP BY hour
+            ORDER BY hour DESC
+            LIMIT ${maxResults}
+          `;
 
       const rawData = rows.map(row => ({
-        timestamp: row.hour,
-        hour: row.hour,
+        timestamp: `${row.hour}Z`, // Add UTC timezone indicator
+        hour: `${row.hour}Z`,
         anomalyCount: parseInt(row.anomalyCount.toString()),
         averageScore: parseFloat(row.averageScore?.toString() || '0'),
         highRiskCount: parseInt(row.highRiskCount.toString()),
@@ -587,8 +619,15 @@ export class AnalyticsService {
 
       return filledData;
     } catch (error) {
-      apiLogger.error('Error fetching anomaly time series', error);
-      throw new Error('Failed to fetch anomaly time series');
+      apiLogger.error('Error fetching anomaly time series:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        hours,
+        tokenSymbol,
+        limit,
+        cutoffDate: new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
+      });
+      throw error;
     }
   }
 

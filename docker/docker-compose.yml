@@ -19,12 +19,11 @@ services:
       MYSQL_DATABASE: msq-tx-monitor
       MYSQL_USER: user
       MYSQL_PASSWORD: pass
-      TZ: Asia/Seoul
     ports:
       - 3306:3306
     volumes:
+      - msq-tx-mysql-data:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    command: ["--sql-mode=NO_ENGINE_SUBSTITUTION", "--default-time-zone=+09:00"]
     networks:
       - msq-tx-monitor-network
     healthcheck:
@@ -47,22 +46,22 @@ services:
       timeout: 10s
       retries: 5
 
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
-    container_name: phpmyadmin
-    restart: unless-stopped
-    environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
-      PMA_USER: user
-      PMA_PASSWORD: pass
-    ports:
-      - "8080:80"
-    networks:
-      - msq-tx-monitor-network
-    depends_on:
-      mysql:
-        condition: service_healthy
+  # phpmyadmin:
+  #   image: phpmyadmin/phpmyadmin:latest
+  #   container_name: phpmyadmin
+  #   restart: unless-stopped
+  #   environment:
+  #     PMA_HOST: mysql
+  #     PMA_PORT: 3306
+  #     PMA_USER: user
+  #     PMA_PASSWORD: pass
+  #   ports:
+  #     - "8080:80"
+  #   networks:
+  #     - msq-tx-monitor-network
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
 
   # tx-dashboard:
   #   build:
@@ -87,39 +86,39 @@ services:
   #     timeout: 10s
   #     retries: 5
 
-  tx-api:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.packages
-      target: tx-api
-    container_name: msq-tx-monitor-api
-    restart: unless-stopped
-    ports:
-      - 8000:8000
-    environment:
-      - NODE_ENV=development
-      - PORT=8000
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=msq-tx-monitor
-      - MYSQL_USERNAME=user
-      - MYSQL_PASSWORD=pass
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - CORS_ORIGIN=http://localhost:4200,http://localhost:3000
-      - RATE_LIMIT_MAX_REQUESTS=100
-      - ENABLE_QUERY_LOGS=false
-    networks:
-      - msq-tx-monitor-network
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      timeout: 10s
-      retries: 5
+  # tx-api:
+  #   build:
+  #     context: ..
+  #     dockerfile: docker/Dockerfile.packages
+  #     target: tx-api
+  #   container_name: msq-tx-monitor-api
+  #   restart: unless-stopped
+  #   ports:
+  #     - 8000:8000
+  #   environment:
+  #     - NODE_ENV=development
+  #     - PORT=8000
+  #     - MYSQL_HOST=mysql
+  #     - MYSQL_PORT=3306
+  #     - MYSQL_DATABASE=msq-tx-monitor
+  #     - MYSQL_USERNAME=user
+  #     - MYSQL_PASSWORD=pass
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - CORS_ORIGIN=http://localhost:4200,http://localhost:3000
+  #     - RATE_LIMIT_MAX_REQUESTS=100
+  #     - ENABLE_QUERY_LOGS=false
+  #   networks:
+  #     - msq-tx-monitor-network
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+  #     timeout: 10s
+  #     retries: 5
 
   # chain-scanner:
   #   build:
