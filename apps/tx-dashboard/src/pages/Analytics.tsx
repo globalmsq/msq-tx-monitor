@@ -9,6 +9,10 @@ import {
   RefreshCw,
   Coins,
   Calendar,
+  ArrowDown,
+  ArrowUp,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import {
@@ -26,7 +30,7 @@ import {
   DetailedData,
 } from '../components/DetailedAnalysisModal';
 import { TOKEN_CONFIG } from '../config/tokens';
-import { formatNumber, formatVolume, logger } from '@msq-tx-monitor/msq-common';
+import { formatNumber, formatVolume, logger, formatAddress } from '@msq-tx-monitor/msq-common';
 import { VolumeWithTooltip } from '../components/VolumeWithTooltip';
 
 // Analytics API service
@@ -43,6 +47,8 @@ interface TokenDistribution {
 interface TopAddress {
   address: string;
   totalVolume: string;
+  totalReceived: string;
+  totalSent: string;
   transactionCount: number;
   uniqueInteractions: number;
 }
@@ -232,6 +238,7 @@ export function Analytics() {
   const [autoRefresh] = useState(false);
   const [modalData, setModalData] = useState<DetailedData | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   // Convert timeRange to hours
   const getHoursFromTimeRange = (range: TimeRange): number => {
@@ -999,6 +1006,13 @@ export function Analytics() {
     return formatNumber(num, { precision: 0, compact: false });
   };
 
+  // Handle address copy to clipboard
+  const handleCopyAddress = (address: string) => {
+    navigator.clipboard.writeText(address);
+    setCopiedAddress(address);
+    setTimeout(() => setCopiedAddress(null), 2000);
+  };
+
   if (error) {
     return (
       <div className='glass rounded-2xl p-6'>
@@ -1222,8 +1236,23 @@ export function Analytics() {
                             handleChartClick('address', address.address)
                           }
                         >
-                          <div className='text-white font-mono text-sm hover:text-primary-400 transition-colors'>
-                            {address.address}
+                          <div className='text-white font-mono text-sm hover:text-primary-400 transition-colors flex items-center gap-2'>
+                            <span className='hidden lg:inline'>{address.address}</span>
+                            <span className='inline lg:hidden'>{formatAddress(address.address)}</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyAddress(address.address);
+                              }}
+                              className='text-white/60 hover:text-white transition-colors flex-shrink-0'
+                              title='Copy address'
+                            >
+                              {copiedAddress === address.address ? (
+                                <Check size={14} className='text-green-400' />
+                              ) : (
+                                <Copy size={14} />
+                              )}
+                            </button>
                           </div>
                           <div className='text-white/60 text-xs'>
                             {formatTransactionCount(address.transactionCount)}{' '}
@@ -1243,7 +1272,28 @@ export function Analytics() {
                             )}
                             rawValue={address.totalVolume}
                             tokenSymbol={activeTab}
+                            receivedValue={address.totalReceived}
+                            sentValue={address.totalSent}
+                            showBreakdown={true}
                           />
+                        </div>
+                        <div className='flex items-center justify-end gap-3 mt-1 text-xs text-white/60'>
+                          <div className='flex items-center gap-1'>
+                            <ArrowDown size={12} className='text-blue-400' />
+                            <span>
+                              {formatVolume(address.totalReceived, activeTab, {
+                                precision: 0,
+                              })}
+                            </span>
+                          </div>
+                          <div className='flex items-center gap-1'>
+                            <ArrowUp size={12} className='text-orange-400' />
+                            <span>
+                              {formatVolume(address.totalSent, activeTab, {
+                                precision: 0,
+                              })}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1273,14 +1323,29 @@ export function Analytics() {
                           {index + 1}
                         </div>
                         <div
-                          className='cursor-pointer'
+                          className='cursor-pointer flex items-center gap-2'
                           onClick={() =>
                             handleChartClick('address', address.address)
                           }
                         >
                           <div className='text-white font-mono text-sm hover:text-green-400 transition-colors'>
-                            {address.address}
+                            <span className='hidden lg:inline'>{address.address}</span>
+                            <span className='inline lg:hidden'>{formatAddress(address.address)}</span>
                           </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyAddress(address.address);
+                            }}
+                            className='text-white/60 hover:text-white transition-colors flex-shrink-0'
+                            title='Copy address'
+                          >
+                            {copiedAddress === address.address ? (
+                              <Check size={14} className='text-green-400' />
+                            ) : (
+                              <Copy size={14} />
+                            )}
+                          </button>
                         </div>
                       </div>
                       <div className='text-right'>
@@ -1318,14 +1383,29 @@ export function Analytics() {
                           {index + 1}
                         </div>
                         <div
-                          className='cursor-pointer'
+                          className='cursor-pointer flex items-center gap-2'
                           onClick={() =>
                             handleChartClick('address', address.address)
                           }
                         >
                           <div className='text-white font-mono text-sm hover:text-orange-400 transition-colors'>
-                            {address.address}
+                            <span className='hidden lg:inline'>{address.address}</span>
+                            <span className='inline lg:hidden'>{formatAddress(address.address)}</span>
                           </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyAddress(address.address);
+                            }}
+                            className='text-white/60 hover:text-white transition-colors flex-shrink-0'
+                            title='Copy address'
+                          >
+                            {copiedAddress === address.address ? (
+                              <Check size={14} className='text-green-400' />
+                            ) : (
+                              <Copy size={14} />
+                            )}
+                          </button>
                         </div>
                       </div>
                       <div className='text-right'>

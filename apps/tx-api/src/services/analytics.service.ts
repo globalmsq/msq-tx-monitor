@@ -285,7 +285,7 @@ export class AnalyticsService {
   }
 
   /**
-   * Get top addresses by volume
+   * Get top addresses by volume (now using AddressStatistics)
    */
   async getTopAddresses(
     metric: 'volume' | 'transactions' = 'volume',
@@ -293,94 +293,91 @@ export class AnalyticsService {
     tokenSymbol?: string,
     hours?: number
   ): Promise<any[]> {
-    let query = '';
     try {
-      let whereClause = '';
-      if (hours) {
-        const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-        whereClause = tokenSymbol
-          ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
-          : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
-      } else {
-        whereClause = tokenSymbol ? `WHERE tokenSymbol = '${tokenSymbol}'` : '';
+      // Get token address from symbol if provided
+      let tokenAddress: string | undefined;
+      if (tokenSymbol) {
+        const token = await prisma.token.findFirst({
+          where: { symbol: tokenSymbol },
+          select: { address: true },
+        });
+        tokenAddress = token?.address;
+        if (!tokenAddress) {
+          apiLogger.warn(`Token not found for symbol: ${tokenSymbol}`);
+          return [];
+        }
       }
 
-      // Create a union query to get both from and to addresses
-      query =
-        metric === 'volume'
-          ? `
-          SELECT
-            address,
-            SUM(volume) as totalVolume,
-            COUNT(DISTINCT hash) as transactionCount,
-            COUNT(DISTINCT token) as uniqueInteractions
-          FROM (
-            SELECT
-              fromAddress as address,
-              hash,
-              CAST(value AS DECIMAL(65, 0)) as volume,
-              tokenSymbol as token
-            FROM transactions
-            ${whereClause}
-            UNION ALL
-            SELECT
-              toAddress as address,
-              hash,
-              CAST(value AS DECIMAL(65, 0)) as volume,
-              tokenSymbol as token
-            FROM transactions
-            ${whereClause}
-          ) as combined_addresses
-          GROUP BY address
-          ORDER BY totalVolume DESC
-          LIMIT ${limit}
-        `
-          : `
-          SELECT
-            address,
-            COUNT(DISTINCT hash) as transactionCount,
-            SUM(CAST(volume AS DECIMAL(65, 0))) as totalVolume,
-            COUNT(DISTINCT tokenSymbol) as uniqueInteractions
-          FROM (
-            SELECT
-              fromAddress as address,
-              hash,
-              value as volume,
-              tokenSymbol
-            FROM transactions
-            ${whereClause}
-            UNION ALL
-            SELECT
-              toAddress as address,
-              hash,
-              value as volume,
-              tokenSymbol
-            FROM transactions
-            ${whereClause}
-          ) as combined_addresses
-          GROUP BY address
-          ORDER BY transactionCount DESC
-          LIMIT ${limit}
-        `;
+      // Build where clause
+      const whereClause: any = {
+        isActive: true,
+      };
 
-      apiLogger.debug('Executing getTopAddresses query...');
-      const rows = (await prisma.$queryRawUnsafe(query)) as any[];
-      apiLogger.debug('Query executed successfully, rows:', rows.length);
+      if (tokenAddress) {
+        whereClause.tokenAddress = tokenAddress;
+      }
 
-      return rows.map((row, index) => ({
+      // Add time filter if needed (using lastSeen)
+      if (hours) {
+        const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+        whereClause.lastSeen = { gte: cutoffDate };
+      }
+
+      // Query AddressStatistics table
+      const addresses = await prisma.addressStatistics.findMany({
+        where: whereClause,
+        select: {
+          address: true,
+          totalReceived: true,
+          totalSent: true,
+          transactionCountReceived: true,
+          transactionCountSent: true,
+          tokenAddress: true,
+        },
+        take: limit * 3, // Get more to calculate totalVolume properly
+      });
+
+      // Calculate totalVolume and sort
+      const processedAddresses = addresses.map(addr => {
+        const totalReceived = BigInt(addr.totalReceived.toString());
+        const totalSent = BigInt(addr.totalSent.toString());
+        const totalVolume = totalReceived + totalSent;
+        const transactionCount =
+          addr.transactionCountReceived + addr.transactionCountSent;
+
+        return {
+          address: addr.address,
+          totalVolume: totalVolume.toString(),
+          totalReceived: totalReceived.toString(),
+          totalSent: totalSent.toString(),
+          transactionCount,
+          uniqueInteractions: 1, // Since we're filtering by token
+        };
+      });
+
+      // Sort by metric
+      processedAddresses.sort((a, b) => {
+        if (metric === 'volume') {
+          return BigInt(b.totalVolume) > BigInt(a.totalVolume) ? 1 : -1;
+        } else {
+          return b.transactionCount - a.transactionCount;
+        }
+      });
+
+      // Take top N and add rank
+      return processedAddresses.slice(0, limit).map((addr, index) => ({
         rank: index + 1,
-        address: row.address,
-        totalVolume: row.totalVolume?.toString() || '0',
-        transactionCount: parseInt(row.transactionCount?.toString() || '0'),
-        uniqueInteractions: parseInt(row.uniqueInteractions?.toString() || '0'),
+        address: addr.address,
+        totalVolume: addr.totalVolume,
+        totalReceived: addr.totalReceived,
+        totalSent: addr.totalSent,
+        transactionCount: addr.transactionCount,
+        uniqueInteractions: addr.uniqueInteractions,
         metric:
-          metric === 'volume'
-            ? row.totalVolume?.toString() || '0'
-            : row.transactionCount?.toString() || '0',
+          metric === 'volume' ? addr.totalVolume : addr.transactionCount.toString(),
       }));
     } catch (error) {
       apiLogger.error('Error fetching top addresses', error);
-      apiLogger.error('Query was:', query);
       throw new Error('Failed to fetch top addresses');
     }
   }
