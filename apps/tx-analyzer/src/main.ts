@@ -1,6 +1,8 @@
 import 'dotenv/config';
+// import cron from 'node-cron';
 import { createApp } from './app';
 import { redisService } from './services/redis.service';
+// import { aggregationService } from './services/aggregation.service';
 import { config } from './config';
 import { logger } from '@msq-tx-monitor/msq-common';
 
@@ -20,6 +22,18 @@ async function startServer() {
       logger.info(`🔗 Health check: http://localhost:${PORT}/health`);
       logger.info(`📖 API docs: http://localhost:${PORT}/`);
     });
+
+    // Hourly aggregation cron job disabled - using direct queries instead
+    // cron.schedule('0 * * * *', async () => {
+    //   logger.info('⏰ Running hourly aggregation cron job');
+    //   try {
+    //     await aggregationService.aggregateLastHour();
+    //   } catch (error) {
+    //     logger.error('Error in hourly aggregation cron job:', error);
+    //   }
+    // });
+
+    // logger.info('⏰ Hourly aggregation cron job scheduled');
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);

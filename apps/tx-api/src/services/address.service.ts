@@ -343,7 +343,8 @@ export class AddressService {
    */
   async getAddressStatistics(
     address: string,
-    hours?: number
+    hours?: number,
+    tokenSymbol?: string
   ): Promise<{
     address: string;
     total_transactions: number;
@@ -370,7 +371,7 @@ export class AddressService {
     };
     calculation_method: string;
   } | null> {
-    const cacheKey = `address_stats:${address}:${hours || 'all'}`;
+    const cacheKey = `address_stats:${address}:${hours || 'all'}:${tokenSymbol || 'all'}`;
 
     // Try to get from cache first
     try {
@@ -543,6 +544,22 @@ export class AddressService {
     }
 
     // Fallback: calculate statistics from transaction table directly
+    // Get token address from symbol if provided (consistent with Analytics API)
+    let tokenAddress: string | undefined;
+    if (tokenSymbol) {
+      const token = await prisma.token.findFirst({
+        where: { symbol: tokenSymbol },
+        select: { address: true },
+      });
+      tokenAddress = token?.address;
+      if (!tokenAddress) {
+        apiLogger.warn(
+          `Token not found for symbol: ${tokenSymbol} in getAddressStatistics`
+        );
+        return null;
+      }
+    }
+
     // Build time filter if hours is provided
     const cutoffDate = hours
       ? new Date(Date.now() - hours * 60 * 60 * 1000)
@@ -561,6 +578,7 @@ export class AddressService {
         FROM transactions
         WHERE (fromAddress = '${address}' OR toAddress = '${address}')
           AND timestamp >= '${cutoffDate.toISOString()}'
+          ${tokenAddress ? `AND tokenAddress = '${tokenAddress}'` : ''}
       `
       : `
         SELECT
@@ -572,7 +590,8 @@ export class AddressService {
           MIN(timestamp) as first_transaction_date,
           MAX(timestamp) as last_transaction_date
         FROM transactions
-        WHERE fromAddress = '${address}' OR toAddress = '${address}'
+        WHERE (fromAddress = '${address}' OR toAddress = '${address}')
+          ${tokenAddress ? `AND tokenAddress = '${tokenAddress}'` : ''}
       `;
 
     const stats =
@@ -604,6 +623,7 @@ export class AddressService {
         FROM transactions
         WHERE (fromAddress = '${address}' OR toAddress = '${address}')
           AND timestamp >= '${cutoffDate.toISOString()}'
+          ${tokenAddress ? `AND tokenAddress = '${tokenAddress}'` : ''}
         GROUP BY tokenSymbol
       `
       : `
@@ -614,7 +634,8 @@ export class AddressService {
           SUM(CASE WHEN fromAddress = '${address}' THEN 1 ELSE 0 END) as sent_count,
           SUM(CASE WHEN toAddress = '${address}' THEN 1 ELSE 0 END) as received_count
         FROM transactions
-        WHERE fromAddress = '${address}' OR toAddress = '${address}'
+        WHERE (fromAddress = '${address}' OR toAddress = '${address}')
+          ${tokenAddress ? `AND tokenAddress = '${tokenAddress}'` : ''}
         GROUP BY tokenSymbol
       `;
 
@@ -649,6 +670,10 @@ export class AddressService {
     if (hours) {
       const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
       anomalyWhere.timestamp = { gte: cutoffDate };
+    }
+
+    if (tokenSymbol) {
+      anomalyWhere.tokenSymbol = tokenSymbol;
     }
 
     const anomalyStats = await prisma.transaction.aggregate({

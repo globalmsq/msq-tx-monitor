@@ -440,7 +440,7 @@ export class AddressController {
   ): Promise<void> => {
     try {
       const { address } = req.params;
-      const { hours } = req.query;
+      const { hours, token } = req.query;
 
       // Validate Ethereum address format
       if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
@@ -461,7 +461,8 @@ export class AddressController {
 
       const statistics = await this.addressService.getAddressStatistics(
         address,
-        hoursParam
+        hoursParam,
+        token as string
       );
 
       if (!statistics) {

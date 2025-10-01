@@ -308,19 +308,89 @@ export class AnalyticsService {
         }
       }
 
-      // Build where clause
+      // If hours filter is provided, query transactions table directly
+      if (hours) {
+        const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+        // Query transactions table directly with UNION ALL pattern
+        const query = `
+          SELECT
+            address,
+            CAST(SUM(totalSent) AS CHAR) as totalSent,
+            CAST(SUM(totalReceived) AS CHAR) as totalReceived,
+            SUM(transactionCountSent) as transactionCountSent,
+            SUM(transactionCountReceived) as transactionCountReceived
+          FROM (
+            -- Sent transactions
+            SELECT
+              fromAddress as address,
+              SUM(value) as totalSent,
+              0 as totalReceived,
+              COUNT(*) as transactionCountSent,
+              0 as transactionCountReceived
+            FROM transactions
+            WHERE timestamp >= ?
+              ${tokenAddress ? `AND tokenAddress = '${tokenAddress}'` : ''}
+            GROUP BY fromAddress
+
+            UNION ALL
+
+            -- Received transactions
+            SELECT
+              toAddress as address,
+              0 as totalSent,
+              SUM(value) as totalReceived,
+              0 as transactionCountSent,
+              COUNT(*) as transactionCountReceived
+            FROM transactions
+            WHERE timestamp >= ?
+              ${tokenAddress ? `AND tokenAddress = '${tokenAddress}'` : ''}
+            GROUP BY toAddress
+          ) as combined
+          GROUP BY address
+          ORDER BY ${metric === 'volume' ? '(SUM(totalSent) + SUM(totalReceived))' : '(SUM(transactionCountSent) + SUM(transactionCountReceived))'} DESC
+          LIMIT ?
+        `;
+
+        const addresses = await prisma.$queryRawUnsafe<any[]>(
+          query,
+          cutoffDate,
+          cutoffDate,
+          limit
+        );
+
+        // Process and format results
+        return addresses.map((addr, index) => {
+          const totalReceived = BigInt(addr.totalReceived || 0);
+          const totalSent = BigInt(addr.totalSent || 0);
+          const totalVolume = totalReceived + totalSent;
+          const transactionCount =
+            Number(addr.transactionCountReceived || 0) +
+            Number(addr.transactionCountSent || 0);
+
+          return {
+            rank: index + 1,
+            address: addr.address,
+            totalVolume: totalVolume.toString(),
+            totalReceived: totalReceived.toString(),
+            totalSent: totalSent.toString(),
+            transactionCount,
+            uniqueInteractions: 1,
+            metric:
+              metric === 'volume'
+                ? totalVolume.toString()
+                : transactionCount.toString(),
+          };
+        });
+      }
+
+      // If no time filter, use AddressStatistics (all-time data)
       const whereClause: any = {
         isActive: true,
       };
 
       if (tokenAddress) {
         whereClause.tokenAddress = tokenAddress;
-      }
-
-      // Add time filter if needed (using lastSeen)
-      if (hours) {
-        const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-        whereClause.lastSeen = { gte: cutoffDate };
       }
 
       // Query AddressStatistics table
@@ -339,8 +409,8 @@ export class AnalyticsService {
 
       // Calculate totalVolume and sort
       const processedAddresses = addresses.map(addr => {
-        const totalReceived = BigInt(addr.totalReceived.toString());
-        const totalSent = BigInt(addr.totalSent.toString());
+        const totalReceived = BigInt(addr.totalReceived.toFixed(0));
+        const totalSent = BigInt(addr.totalSent.toFixed(0));
         const totalVolume = totalReceived + totalSent;
         const transactionCount =
           addr.transactionCountReceived + addr.transactionCountSent;
