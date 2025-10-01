@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { Transaction } from '../types/transaction';
+import { formatFullTimestamp } from '@msq-tx-monitor/msq-common';
 
 interface TransactionDetailModalProps {
   transaction: Transaction | null;
@@ -274,8 +275,8 @@ export function TransactionDetailModal({
               Timestamp
             </label>
             <div className='bg-black/40 border border-white/10 rounded-lg p-3'>
-              <p className='text-white'>
-                {new Date(transaction.timestamp).toLocaleString()}
+              <p className='text-white font-mono'>
+                {formatFullTimestamp(transaction.timestamp)}
               </p>
             </div>
           </div>
