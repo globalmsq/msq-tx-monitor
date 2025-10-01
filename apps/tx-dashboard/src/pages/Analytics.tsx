@@ -226,7 +226,7 @@ function TabButton({ isActive, onClick, children }: TabButtonProps) {
   );
 }
 
-type TimeRange = '1h' | '24h' | '7d' | '30d' | 'custom';
+type TimeRange = '1h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
 
 export function Analytics() {
   const [activeTab, setActiveTab] = useState<keyof typeof TOKEN_CONFIG>('MSQ');
@@ -241,7 +241,7 @@ export function Analytics() {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   // Convert timeRange to hours
-  const getHoursFromTimeRange = (range: TimeRange): number => {
+  const getHoursFromTimeRange = (range: TimeRange): number | undefined => {
     switch (range) {
       case '1h':
         return 1;
@@ -251,8 +251,14 @@ export function Analytics() {
         return 168; // 7 * 24
       case '30d':
         return 720; // 30 * 24
-      case 'custom':
-        return 24; // Default fallback
+      case '3m':
+        return 2160; // 90 * 24
+      case '6m':
+        return 4320; // 180 * 24
+      case '1y':
+        return 8760; // 365 * 24
+      case 'all':
+        return undefined; // No time filter
       default:
         return 24;
     }
@@ -262,15 +268,21 @@ export function Analytics() {
   const getLimitFromTimeRange = (range: TimeRange): number => {
     switch (range) {
       case '1h':
-        return 12; // 5-minute intervals for 1 hour
+        return 12; // 5-minute intervals = 12 points
       case '24h':
-        return 24;
+        return 24; // Hourly = 24 points
       case '7d':
-        return 168; // Show all 7 days worth of hourly data
+        return 168; // Hourly = 168 points
       case '30d':
-        return 720; // Show all 30 days worth of hourly data
-      case 'custom':
-        return 24;
+        return 30; // Daily = 30 points
+      case '3m':
+        return 90; // Daily = 90 points
+      case '6m':
+        return 26; // Weekly = ~26 points
+      case '1y':
+        return 52; // Weekly = 52 points
+      case 'all':
+        return 24; // Monthly = 24 points (2 years)
       default:
         return 24;
     }
@@ -287,8 +299,14 @@ export function Analytics() {
         return '7d';
       case '30d':
         return '30d';
-      case 'custom':
-        return '24h'; // Fallback
+      case '3m':
+        return '3m';
+      case '6m':
+        return '6m';
+      case '1y':
+        return '1y';
+      case 'all':
+        return 'all';
       default:
         return '24h';
     }
@@ -304,17 +322,17 @@ export function Analytics() {
         const hours = getHoursFromTimeRange(timeRange);
         const limit = getLimitFromTimeRange(timeRange);
         const tokenParam = `&token=${token}`;
-        const hoursParam = `&hours=${hours}`;
+        const hoursParam = hours !== undefined ? `&hours=${hours}` : '';
 
         const endpoints = [
           `realtime?${tokenParam.slice(1)}${hoursParam}`,
-          `volume/hourly?hours=${hours}&limit=${limit}${tokenParam}`,
+          `volume/hourly?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`,
           `distribution/token?${tokenParam.slice(1)}${hoursParam}`,
           `addresses/top?metric=volume&limit=5${tokenParam}${hoursParam}`,
           `addresses/receivers?limit=5${tokenParam}${hoursParam}`,
           `addresses/senders?limit=5${tokenParam}${hoursParam}`,
           `anomalies?${tokenParam.slice(1)}${hoursParam}`,
-          `anomalies/timeseries?hours=${hours}&limit=${limit}${tokenParam}`,
+          `anomalies/timeseries?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`,
           `network?${tokenParam.slice(1)}${hoursParam}`,
         ];
 
@@ -1099,7 +1117,7 @@ export function Analytics() {
           <Calendar className='w-4 h-4 text-white/60' />
           <span className='text-sm text-white/60'>Time Range:</span>
           <div className='flex gap-1'>
-            {(['1h', '24h', '7d', '30d'] as TimeRange[]).map(range => (
+            {(['1h', '24h', '7d', '30d', '3m', '6m', '1y', 'all'] as TimeRange[]).map(range => (
               <button
                 key={range}
                 onClick={() => handleTimeRangeChange(range)}
@@ -1116,7 +1134,15 @@ export function Analytics() {
                     ? '24 Hours'
                     : range === '7d'
                       ? '7 Days'
-                      : '30 Days'}
+                      : range === '30d'
+                        ? '30 Days'
+                        : range === '3m'
+                          ? '3 Months'
+                          : range === '6m'
+                            ? '6 Months'
+                            : range === '1y'
+                              ? '1 Year'
+                              : 'All Time'}
               </button>
             ))}
           </div>

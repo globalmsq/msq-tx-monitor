@@ -44,12 +44,32 @@ export class AnalyticsService {
     try {
       const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
 
-      // Determine interval based on time range
-      const intervalMinutes = hours <= 1 ? 5 : 60;
-      const dateFormat =
-        intervalMinutes === 5
-          ? '%Y-%m-%d %H:%i:00' // 5-minute intervals: YYYY-MM-DD HH:MM:00
-          : '%Y-%m-%d %H:00:00'; // Hourly intervals: YYYY-MM-DD HH:00:00
+      // Determine interval type and format based on time range
+      let intervalType: 'minute' | 'hour' | 'day' | 'week' | 'month';
+      let dateFormat: string;
+      let intervalMinutes: number;
+
+      if (hours <= 1) {
+        intervalType = 'minute';
+        intervalMinutes = 5;
+        dateFormat = '%Y-%m-%d %H:%i:00'; // 5-minute intervals
+      } else if (hours <= 168) {
+        intervalType = 'hour';
+        intervalMinutes = 60;
+        dateFormat = '%Y-%m-%d %H:00:00'; // Hourly intervals
+      } else if (hours <= 2160) {
+        intervalType = 'day';
+        intervalMinutes = 1440; // 24 * 60
+        dateFormat = '%Y-%m-%d'; // Daily intervals
+      } else if (hours <= 8760) {
+        intervalType = 'week';
+        intervalMinutes = 10080; // 7 * 24 * 60
+        dateFormat = '%Y-%u'; // Year-Week format (ISO week)
+      } else {
+        intervalType = 'month';
+        intervalMinutes = 43200; // 30 * 24 * 60 (approximate)
+        dateFormat = '%Y-%m'; // Year-Month format
+      }
 
       // Use Prisma.$queryRaw with proper SQL - dateFormat cannot be parameterized
       // Use alias in GROUP BY which MySQL supports to satisfy ONLY_FULL_GROUP_BY
@@ -86,20 +106,29 @@ export class AnalyticsService {
             LIMIT ${maxResults}
           `;
 
-      const rawData = rows.map(row => ({
-        hour: `${row.hour}Z`, // Add UTC timezone indicator
-        tokenSymbol: row.tokenSymbol,
-        totalVolume: row.totalVolume.toString(),
-        transactionCount: parseInt(row.transactionCount.toString()),
-        averageVolume: row.averageVolume.toString(),
-      }));
+      const rawData = rows.map(row => {
+        // Only add 'Z' for datetime formats (minute/hour), not for date formats (day/week/month)
+        const hourValue = intervalType === 'minute' || intervalType === 'hour'
+          ? `${row.hour}Z`  // Add UTC timezone indicator for datetime
+          : row.hour;        // Keep as-is for date formats
+
+        return {
+          hour: hourValue,
+          tokenSymbol: row.tokenSymbol,
+          totalVolume: row.totalVolume.toString(),
+          transactionCount: parseInt(row.transactionCount.toString()),
+          averageVolume: row.averageVolume.toString(),
+        };
+      });
 
       // Fill missing data points with zeros to ensure consistent chart intervals
       const filledData = this.fillMissingHourlyData(
         rawData,
         hours,
         tokenSymbol,
-        limit
+        limit,
+        intervalType,
+        intervalMinutes
       );
 
       return filledData;
@@ -559,12 +588,32 @@ export class AnalyticsService {
     try {
       const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
 
-      // Determine interval based on time range
-      const intervalMinutes = hours <= 1 ? 5 : 60;
-      const dateFormat =
-        intervalMinutes === 5
-          ? '%Y-%m-%d %H:%i:00' // 5-minute intervals: YYYY-MM-DD HH:MM:00
-          : '%Y-%m-%d %H:00:00'; // Hourly intervals: YYYY-MM-DD HH:00:00
+      // Determine interval type and format based on time range
+      let intervalType: 'minute' | 'hour' | 'day' | 'week' | 'month';
+      let dateFormat: string;
+      let intervalMinutes: number;
+
+      if (hours <= 1) {
+        intervalType = 'minute';
+        intervalMinutes = 5;
+        dateFormat = '%Y-%m-%d %H:%i:00'; // 5-minute intervals
+      } else if (hours <= 168) {
+        intervalType = 'hour';
+        intervalMinutes = 60;
+        dateFormat = '%Y-%m-%d %H:00:00'; // Hourly intervals
+      } else if (hours <= 2160) {
+        intervalType = 'day';
+        intervalMinutes = 1440;
+        dateFormat = '%Y-%m-%d'; // Daily intervals
+      } else if (hours <= 8760) {
+        intervalType = 'week';
+        intervalMinutes = 10080;
+        dateFormat = '%Y-%u'; // Year-Week format (ISO week)
+      } else {
+        intervalType = 'month';
+        intervalMinutes = 43200;
+        dateFormat = '%Y-%m'; // Year-Month format
+      }
 
       // Use Prisma.$queryRaw with proper SQL - dateFormat cannot be parameterized
       // Use alias in GROUP BY which MySQL supports to satisfy ONLY_FULL_GROUP_BY
@@ -601,18 +650,31 @@ export class AnalyticsService {
             LIMIT ${maxResults}
           `;
 
-      const rawData = rows.map(row => ({
-        timestamp: `${row.hour}Z`, // Add UTC timezone indicator
-        hour: `${row.hour}Z`,
-        anomalyCount: parseInt(row.anomalyCount.toString()),
-        averageScore: parseFloat(row.averageScore?.toString() || '0'),
-        highRiskCount: parseInt(row.highRiskCount.toString()),
-        totalTransactions: parseInt(row.totalTransactions.toString()),
-        anomalyRate: parseFloat(row.anomalyRate?.toString() || '0'),
-      }));
+      const rawData = rows.map(row => {
+        // Only add 'Z' for datetime formats (minute/hour), not for date formats (day/week/month)
+        const hourValue = intervalType === 'minute' || intervalType === 'hour'
+          ? `${row.hour}Z`  // Add UTC timezone indicator for datetime
+          : row.hour;        // Keep as-is for date formats
+
+        return {
+          timestamp: hourValue,
+          hour: hourValue,
+          anomalyCount: parseInt(row.anomalyCount.toString()),
+          averageScore: parseFloat(row.averageScore?.toString() || '0'),
+          highRiskCount: parseInt(row.highRiskCount.toString()),
+          totalTransactions: parseInt(row.totalTransactions.toString()),
+          anomalyRate: parseFloat(row.anomalyRate?.toString() || '0'),
+        };
+      });
 
       // Fill missing data points with zeros to ensure consistent chart intervals
-      const filledData = this.fillMissingAnomalyData(rawData, hours, limit);
+      const filledData = this.fillMissingAnomalyData(
+        rawData,
+        hours,
+        limit,
+        intervalType,
+        intervalMinutes
+      );
 
       return filledData;
     } catch (error) {
@@ -633,23 +695,51 @@ export class AnalyticsService {
    */
   private generateTimeIntervals(
     hours: number,
-    intervalMinutes: number = 60
+    intervalMinutes: number = 60,
+    intervalType: 'minute' | 'hour' | 'day' | 'week' | 'month' = 'hour'
   ): Date[] {
     const intervals: Date[] = [];
     const endTime = new Date();
-    // Round down to the nearest interval
-    endTime.setMinutes(
-      Math.floor(endTime.getMinutes() / intervalMinutes) * intervalMinutes
-    );
-    endTime.setSeconds(0);
-    endTime.setMilliseconds(0);
+
+    // Round down based on interval type
+    if (intervalType === 'minute' || intervalType === 'hour') {
+      endTime.setMinutes(
+        Math.floor(endTime.getMinutes() / intervalMinutes) * intervalMinutes
+      );
+      endTime.setSeconds(0);
+      endTime.setMilliseconds(0);
+    } else if (intervalType === 'day') {
+      endTime.setHours(0, 0, 0, 0);
+      endTime.setDate(endTime.getDate() + 1); // Include today: move to tomorrow 00:00:00
+    } else if (intervalType === 'week') {
+      // Round to start of week (Monday)
+      const day = endTime.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      endTime.setDate(endTime.getDate() + diff);
+      endTime.setHours(0, 0, 0, 0);
+      endTime.setDate(endTime.getDate() + 7); // Include this week: move to next Monday
+    } else if (intervalType === 'month') {
+      endTime.setDate(1);
+      endTime.setHours(0, 0, 0, 0);
+      endTime.setMonth(endTime.getMonth() + 1); // Include this month: move to next month 1st
+    }
 
     const startTime = new Date(endTime.getTime() - hours * 60 * 60 * 1000);
 
     const currentTime = new Date(startTime);
     while (currentTime <= endTime) {
       intervals.push(new Date(currentTime));
-      currentTime.setMinutes(currentTime.getMinutes() + intervalMinutes);
+
+      // Increment based on interval type
+      if (intervalType === 'minute' || intervalType === 'hour') {
+        currentTime.setMinutes(currentTime.getMinutes() + intervalMinutes);
+      } else if (intervalType === 'day') {
+        currentTime.setDate(currentTime.getDate() + 1);
+      } else if (intervalType === 'week') {
+        currentTime.setDate(currentTime.getDate() + 7);
+      } else if (intervalType === 'month') {
+        currentTime.setMonth(currentTime.getMonth() + 1);
+      }
     }
 
     return intervals;
@@ -662,14 +752,18 @@ export class AnalyticsService {
     data: HourlyVolumeData[],
     hours: number,
     tokenSymbol?: string,
-    limit: number = 24
+    limit: number = 24,
+    intervalType: 'minute' | 'hour' | 'day' | 'week' | 'month' = 'hour',
+    intervalMinutes: number = 60
   ): HourlyVolumeData[] {
-    // Determine interval based on time range
-    const intervalMinutes = hours <= 1 ? 5 : 60; // 5 minutes for 1h, 60 minutes for others
     const expectedPoints = this.getExpectedDataPoints(hours, limit);
 
     // Generate all expected time intervals
-    const timeIntervals = this.generateTimeIntervals(hours, intervalMinutes);
+    const timeIntervals = this.generateTimeIntervals(
+      hours,
+      intervalMinutes,
+      intervalType
+    );
 
     // Take only the required number of points (latest ones)
     const requiredIntervals = timeIntervals.slice(-expectedPoints);
@@ -677,16 +771,13 @@ export class AnalyticsService {
     // Create a map of existing data for quick lookup
     const dataMap = new Map<string, HourlyVolumeData>();
     data.forEach(item => {
-      const hourKey = this.formatHourKey(item.hour, intervalMinutes);
+      const hourKey = this.formatHourKey(item.hour, intervalType);
       dataMap.set(hourKey, item);
     });
 
     // Fill missing data points
     const filledData: HourlyVolumeData[] = requiredIntervals.map(interval => {
-      const hourKey = this.formatHourKey(
-        interval.toISOString(),
-        intervalMinutes
-      );
+      const hourKey = this.formatHourKey(interval.toISOString(), intervalType);
       const existingData = dataMap.get(hourKey);
 
       if (existingData) {
@@ -694,7 +785,7 @@ export class AnalyticsService {
       } else {
         // Create zero data point for missing interval
         return {
-          hour: interval.toISOString().replace('T', ' ').substring(0, 19) + 'Z',
+          hour: this.formatIntervalString(interval, intervalType),
           tokenSymbol: tokenSymbol || 'UNKNOWN',
           totalVolume: '0',
           transactionCount: 0,
@@ -712,14 +803,18 @@ export class AnalyticsService {
   private fillMissingAnomalyData(
     data: any[],
     hours: number,
-    limit: number = 24
+    limit: number = 24,
+    intervalType: 'minute' | 'hour' | 'day' | 'week' | 'month' = 'hour',
+    intervalMinutes: number = 60
   ): any[] {
-    // Determine interval based on time range
-    const intervalMinutes = hours <= 1 ? 5 : 60; // 5 minutes for 1h, 60 minutes for others
     const expectedPoints = this.getExpectedDataPoints(hours, limit);
 
     // Generate all expected time intervals
-    const timeIntervals = this.generateTimeIntervals(hours, intervalMinutes);
+    const timeIntervals = this.generateTimeIntervals(
+      hours,
+      intervalMinutes,
+      intervalType
+    );
 
     // Take only the required number of points (latest ones)
     const requiredIntervals = timeIntervals.slice(-expectedPoints);
@@ -727,24 +822,20 @@ export class AnalyticsService {
     // Create a map of existing data for quick lookup
     const dataMap = new Map<string, any>();
     data.forEach(item => {
-      const hourKey = this.formatHourKey(item.hour, intervalMinutes);
+      const hourKey = this.formatHourKey(item.hour, intervalType);
       dataMap.set(hourKey, item);
     });
 
     // Fill missing data points
     const filledData = requiredIntervals.map(interval => {
-      const hourKey = this.formatHourKey(
-        interval.toISOString(),
-        intervalMinutes
-      );
+      const hourKey = this.formatHourKey(interval.toISOString(), intervalType);
       const existingData = dataMap.get(hourKey);
 
       if (existingData) {
         return existingData;
       } else {
         // Create zero data point for missing interval
-        const hourString =
-          interval.toISOString().replace('T', ' ').substring(0, 19) + 'Z';
+        const hourString = this.formatIntervalString(interval, intervalType);
         return {
           timestamp: hourString,
           hour: hourString,
@@ -764,31 +855,96 @@ export class AnalyticsService {
    * Get expected number of data points based on time range and limit
    */
   private getExpectedDataPoints(hours: number, limit: number): number {
-    if (hours <= 1) return 12; // 5-minute intervals for 1 hour
-    if (hours <= 24) return 24; // Hourly intervals for 24 hours
-    if (hours <= 168) return Math.min(168, limit); // Hourly for 7 days (max 168)
-    return Math.min(720, limit); // Hourly for 30 days (max 720)
+    if (hours <= 1) return 12; // 5-minute intervals = 12 points
+    if (hours <= 24) return 24; // Hourly = 24 points
+    if (hours <= 168) return Math.min(168, limit); // Hourly = 168 points max
+    if (hours <= 2160) return Math.min(90, limit); // Daily = 90 points max (3 months)
+    if (hours <= 8760) return Math.min(52, limit); // Weekly = 52 points max (1 year)
+    return Math.min(24, limit); // Monthly = 24 points max (2 years)
   }
 
   /**
    * Format hour key for consistent lookup
    */
-  private formatHourKey(hourString: string, intervalMinutes: number): string {
+  private formatHourKey(
+    hourString: string,
+    intervalType: 'minute' | 'hour' | 'day' | 'week' | 'month'
+  ): string {
+    if (intervalType === 'week') {
+      // Check if already in YYYY-WW format (e.g., "2025-40")
+      if (/^\d{4}-\d{2}$/.test(hourString)) {
+        return hourString;
+      }
+      // Parse ISO datetime and convert to YYYY-WW
+      const date = new Date(hourString);
+      const year = date.getFullYear();
+      const week = this.getISOWeek(date);
+      return `${year}-${week.toString().padStart(2, '0')}`;
+    } else if (intervalType === 'month') {
+      // Check if already in YYYY-MM format (e.g., "2025-10")
+      if (/^\d{4}-\d{2}$/.test(hourString)) {
+        return hourString;
+      }
+      // Parse ISO datetime and convert to YYYY-MM
+      const date = new Date(hourString);
+      return date.toISOString().substring(0, 7);
+    }
+
     const date = new Date(hourString);
 
-    if (intervalMinutes === 5) {
+    if (intervalType === 'minute') {
       // For 5-minute intervals, round to nearest 5 minutes
       const minutes = Math.floor(date.getMinutes() / 5) * 5;
       date.setMinutes(minutes);
       date.setSeconds(0);
       date.setMilliseconds(0);
       return date.toISOString().replace('T', ' ').substring(0, 16) + ':00';
-    } else {
+    } else if (intervalType === 'hour') {
       // For hourly intervals, round to hour
       date.setMinutes(0);
       date.setSeconds(0);
       date.setMilliseconds(0);
       return date.toISOString().replace('T', ' ').substring(0, 13) + ':00:00';
+    } else {
+      // For daily intervals, use YYYY-MM-DD
+      return date.toISOString().substring(0, 10);
+    }
+  }
+
+  /**
+   * Get ISO week number for a date
+   */
+  private getISOWeek(date: Date): number {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+    const yearStart = new Date(d.getFullYear(), 0, 1);
+    const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+    return weekNo;
+  }
+
+  /**
+   * Format interval string for display
+   */
+  private formatIntervalString(
+    date: Date,
+    intervalType: 'minute' | 'hour' | 'day' | 'week' | 'month'
+  ): string {
+    if (intervalType === 'minute') {
+      return date.toISOString().replace('T', ' ').substring(0, 16) + ':00Z';
+    } else if (intervalType === 'hour') {
+      return date.toISOString().replace('T', ' ').substring(0, 13) + ':00:00Z';
+    } else if (intervalType === 'day') {
+      // No 'Z' for date formats
+      return date.toISOString().substring(0, 10);
+    } else if (intervalType === 'week') {
+      // No 'Z' for week format (YYYY-WW)
+      const year = date.getFullYear();
+      const week = this.getISOWeek(date);
+      return `${year}-${week.toString().padStart(2, '0')}`;
+    } else {
+      // No 'Z' for month format (YYYY-MM)
+      return date.toISOString().substring(0, 7);
     }
   }
 

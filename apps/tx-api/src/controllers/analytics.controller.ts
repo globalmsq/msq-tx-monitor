@@ -22,7 +22,7 @@ export class AnalyticsController {
    *         schema:
    *           type: integer
    *           minimum: 1
-   *           maximum: 720
+   *           maximum: 10000
    *           default: 24
    *       - name: token
    *         in: query
@@ -36,7 +36,7 @@ export class AnalyticsController {
    *         schema:
    *           type: integer
    *           minimum: 1
-   *           maximum: 720
+   *           maximum: 10000
    *           default: 24
    *     responses:
    *       200:
@@ -76,12 +76,12 @@ export class AnalyticsController {
       const limit = parseInt(req.query.limit as string) || 24;
 
       // Validate hours parameter
-      if (hours < 1 || hours > 720) {
+      if (hours < 1 || hours > 10000) {
         res.status(400).json({
           success: false,
           error: {
             code: 400,
-            message: 'Hours parameter must be between 1 and 720',
+            message: 'Hours parameter must be between 1 and 10000',
           },
         });
         return;
@@ -153,7 +153,7 @@ export class AnalyticsController {
    *         schema:
    *           type: integer
    *           minimum: 1
-   *           maximum: 720
+   *           maximum: 10000
    *           default: 24
    *     responses:
    *       200:
@@ -169,12 +169,12 @@ export class AnalyticsController {
       const hours = parseInt(req.query.hours as string) || 24;
 
       // Validate hours parameter
-      if (hours < 1 || hours > 720) {
+      if (hours < 1 || hours > 10000) {
         res.status(400).json({
           success: false,
           error: {
             code: 400,
-            message: 'Hours parameter must be between 1 and 720',
+            message: 'Hours parameter must be between 1 and 10000',
           },
         });
         return;
@@ -227,7 +227,7 @@ export class AnalyticsController {
    *         schema:
    *           type: integer
    *           minimum: 1
-   *           maximum: 720
+   *           maximum: 10000
    *     responses:
    *       200:
    *         description: Token distribution data
@@ -244,12 +244,12 @@ export class AnalyticsController {
         : undefined;
 
       // Validate hours parameter if provided
-      if (hours !== undefined && (hours < 1 || hours > 720)) {
+      if (hours !== undefined && (hours < 1 || hours > 10000)) {
         res.status(400).json({
           success: false,
           error: {
             code: 400,
-            message: 'Hours parameter must be between 1 and 720',
+            message: 'Hours parameter must be between 1 and 10000',
           },
         });
         return;
@@ -329,12 +329,12 @@ export class AnalyticsController {
         : undefined;
 
       // Validate hours parameter if provided
-      if (hours !== undefined && (hours < 1 || hours > 720)) {
+      if (hours !== undefined && (hours < 1 || hours > 10000)) {
         res.status(400).json({
           success: false,
           error: {
             code: 400,
-            message: 'Hours parameter must be between 1 and 720',
+            message: 'Hours parameter must be between 1 and 10000',
           },
         });
         return;
@@ -427,7 +427,7 @@ export class AnalyticsController {
    *         schema:
    *           type: integer
    *           minimum: 1
-   *           maximum: 720
+   *           maximum: 10000
    *           default: 24
    *     responses:
    *       200:
@@ -456,12 +456,12 @@ export class AnalyticsController {
       }
 
       // Validate hours parameter
-      if (hours < 1 || hours > 720) {
+      if (hours < 1 || hours > 10000) {
         res.status(400).json({
           success: false,
           error: {
             code: 400,
-            message: 'Hours parameter must be between 1 and 720',
+            message: 'Hours parameter must be between 1 and 10000',
           },
         });
         return;
@@ -529,7 +529,7 @@ export class AnalyticsController {
    *         schema:
    *           type: integer
    *           minimum: 1
-   *           maximum: 720
+   *           maximum: 10000
    *           default: 24
    *     responses:
    *       200:
@@ -558,12 +558,12 @@ export class AnalyticsController {
       }
 
       // Validate hours parameter
-      if (hours < 1 || hours > 720) {
+      if (hours < 1 || hours > 10000) {
         res.status(400).json({
           success: false,
           error: {
             code: 400,
-            message: 'Hours parameter must be between 1 and 720',
+            message: 'Hours parameter must be between 1 and 10000',
           },
         });
         return;
@@ -633,12 +633,12 @@ export class AnalyticsController {
         : undefined;
 
       // Validate hours parameter if provided
-      if (hours !== undefined && (hours < 1 || hours > 720)) {
+      if (hours !== undefined && (hours < 1 || hours > 10000)) {
         res.status(400).json({
           success: false,
           error: {
             code: 400,
-            message: 'Hours parameter must be between 1 and 720',
+            message: 'Hours parameter must be between 1 and 10000',
           },
         });
         return;
@@ -685,7 +685,7 @@ export class AnalyticsController {
    *         schema:
    *           type: integer
    *           minimum: 1
-   *           maximum: 720
+   *           maximum: 10000
    *           default: 24
    *       - name: token
    *         in: query
@@ -699,7 +699,7 @@ export class AnalyticsController {
    *         schema:
    *           type: integer
    *           minimum: 1
-   *           maximum: 720
+   *           maximum: 10000
    *           default: 24
    *     responses:
    *       200:
@@ -716,12 +716,12 @@ export class AnalyticsController {
       const limit = parseInt(req.query.limit as string) || 24;
 
       // Validate hours parameter
-      if (hours < 1 || hours > 720) {
+      if (hours < 1 || hours > 10000) {
         res.status(400).json({
           success: false,
           error: {
             code: 400,
-            message: 'Hours parameter must be between 1 and 720',
+            message: 'Hours parameter must be between 1 and 10000',
           },
         });
         return;
@@ -803,12 +803,12 @@ export class AnalyticsController {
         : undefined;
 
       // Validate hours parameter if provided
-      if (hours !== undefined && (hours < 1 || hours > 720)) {
+      if (hours !== undefined && (hours < 1 || hours > 10000)) {
         res.status(400).json({
           success: false,
           error: {
             code: 400,
-            message: 'Hours parameter must be between 1 and 720',
+            message: 'Hours parameter must be between 1 and 10000',
           },
         });
         return;

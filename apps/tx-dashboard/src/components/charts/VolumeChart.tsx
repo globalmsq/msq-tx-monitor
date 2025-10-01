@@ -10,7 +10,6 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { formatDistanceToNow } from 'date-fns';
 import { formatVolume, getTokenDecimals } from '@msq-tx-monitor/msq-common';
 
 interface VolumeDataPoint {
@@ -42,9 +41,9 @@ function CustomTooltip({ active, payload }: TooltipProps) {
   if (active && payload && payload.length) {
     const data = payload[0].payload as VolumeDataPoint;
 
-    // Use hour field instead of timestamp, with error handling
+    // Format date for tooltip
     const dateStr = data.timestamp || data.hour;
-    const isValidDate = dateStr && !isNaN(new Date(dateStr).getTime());
+    const formattedDate = formatTooltipDate(dateStr);
 
     // Calculate average transaction size
     const avgTransactionSize =
@@ -58,9 +57,7 @@ function CustomTooltip({ active, payload }: TooltipProps) {
     return (
       <div className='bg-gray-900/95 backdrop-blur border border-white/20 rounded-lg p-3 shadow-xl'>
         <p className='text-white font-medium mb-2'>
-          {isValidDate
-            ? formatDistanceToNow(new Date(dateStr), { addSuffix: true })
-            : 'Time unavailable'}
+          {formattedDate}
         </p>
         <div className='space-y-1'>
           <div className='flex items-center justify-between gap-4'>
@@ -98,31 +95,112 @@ function formatVolumeHelper(volume: string, tokenSymbol?: string): string {
   return formatVolume(volume, tokenSymbol, { precision: 1, showSymbol: false });
 }
 
-// Format hour for X-axis based on data length
-function formatHour(hour: string, dataLength: number): string {
+// Convert ISO week number to date (Monday of that week)
+function getDateFromWeek(year: number, week: number): Date {
+  const simple = new Date(year, 0, 1 + (week - 1) * 7);
+  const dow = simple.getDay();
+  const ISOweekStart = simple;
+  if (dow <= 4) {
+    ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+  } else {
+    ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+  }
+  return ISOweekStart;
+}
+
+// Parse hour string to Date object
+function parseHourToDate(hour: string): Date | null {
+  // Check for week format (YYYY-WW)
+  const weekMatch = hour.match(/^(\d{4})-(\d{2})$/);
+  if (weekMatch) {
+    const week = parseInt(weekMatch[2]);
+    if (week > 12) {
+      // Week format
+      return getDateFromWeek(parseInt(weekMatch[1]), week);
+    } else {
+      // Month format (YYYY-MM)
+      return new Date(parseInt(weekMatch[1]), parseInt(weekMatch[2]) - 1, 1);
+    }
+  }
+
+  // Try parsing as regular datetime
   const date = new Date(hour);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+// Format date for tooltip based on hour format
+function formatTooltipDate(hour: string): string {
+  const date = parseHourToDate(hour);
+  if (!date) return 'Time unavailable';
+
+  // Check format type
+  const weekMatch = hour.match(/^(\d{4})-(\d{2})$/);
+  if (weekMatch) {
+    const num = parseInt(weekMatch[2]);
+    if (num > 12) {
+      // Week format: YYYY-MM-DD
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } else {
+      // Month format: YYYY-MM
+      return hour;
+    }
+  }
+
+  // Regular datetime format - check if it has time component
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  // Check if hour string contains time (has 'T' or space with time)
+  if (hour.includes('T') || /\d{2}:\d{2}/.test(hour)) {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  } else {
+    // Date only
+    return `${year}-${month}-${day}`;
+  }
+}
+
+// Format hour for X-axis based on data length and format type
+function formatHour(hour: string, dataLength: number): string {
+  const date = parseHourToDate(hour);
+  if (!date) return hour;
+
+  // Check format type
+  const weekMatch = hour.match(/^(\d{4})-(\d{2})$/);
+  if (weekMatch) {
+    const num = parseInt(weekMatch[2]);
+    if (num > 12) {
+      // Week format: YYYY-MM-DD
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } else {
+      // Month format: YYYY-MM
+      return hour;
+    }
+  }
+
+  // Regular datetime format
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
 
   if (dataLength <= 24) {
-    // 1h, 24h: 시간만 표시
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
+    // 1h, 24h: HH:MM
+    return `${hours}:${minutes}`;
   } else if (dataLength <= 168) {
-    // 7d: 월/일 시간 표시
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      hour12: false,
-    });
+    // 7d, 30d, 3m: MM-DD HH:MM
+    return `${month}-${day} ${hours}:${minutes}`;
   } else {
-    // 30d: 월/일만 표시
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
+    // Other ranges: MM-DD
+    return `${month}-${day}`;
   }
 }
 
@@ -148,9 +226,12 @@ export function VolumeChart({
   // Calculate appropriate interval based on data length
   const getXAxisInterval = (dataLength: number) => {
     if (dataLength <= 24) return 'preserveStartEnd'; // 1h, 24h: show all or start/end
+    if (dataLength <= 30) return 2; // 6m (26 weeks): show ~13 points
     if (dataLength <= 48) return 'preserveEnd'; // 2d: show end points
+    if (dataLength <= 52) return 4; // 1y (52 weeks): show ~13 points
+    if (dataLength <= 90) return Math.floor(dataLength / 10); // 30d-3m: show ~10 points
     if (dataLength <= 168) return 24; // 7d: show daily (every 24 hours)
-    return 168; // 30d: show weekly (every 7 days = 168 hours)
+    return 'preserveStartEnd'; // All time or others: show start/end
   };
 
   const xAxisInterval = getXAxisInterval(chartData.length);
