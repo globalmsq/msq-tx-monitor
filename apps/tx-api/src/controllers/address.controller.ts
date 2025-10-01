@@ -73,6 +73,11 @@ export class AddressController {
         100 // Max 100 addresses
       );
 
+      // Parse hours parameter (new) or time_period (legacy)
+      const hours = req.query.hours
+        ? parseInt(req.query.hours as string)
+        : undefined;
+
       // Parse filters
       const filters: AddressRankingFilters = {
         token: req.query.token as string,
@@ -83,7 +88,7 @@ export class AddressController {
           : undefined,
       };
 
-      // Validate time_period
+      // Validate time_period if provided
       if (
         filters.time_period &&
         !['day', 'week', 'month', 'all'].includes(filters.time_period)
@@ -106,7 +111,11 @@ export class AddressController {
           delete filters[key as keyof AddressRankingFilters]
       );
 
-      const result = await this.addressService.getTopAddresses(filters, limit);
+      const result = await this.addressService.getTopAddresses(
+        filters,
+        limit,
+        hours
+      );
 
       res.json(result);
     } catch (error) {
@@ -679,8 +688,11 @@ export class AddressController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { tokenAddress } = req.query;
+      const { tokenAddress, token } = req.query;
       const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+      const hours = req.query.hours
+        ? parseInt(req.query.hours as string)
+        : undefined;
 
       // Validate token address format if provided
       if (tokenAddress && !/^0x[a-fA-F0-9]{40}$/.test(tokenAddress as string)) {
@@ -698,7 +710,9 @@ export class AddressController {
 
       const result = await this.addressService.getWhaleAddresses(
         tokenAddress as string,
-        limit
+        token as string,
+        limit,
+        hours
       );
 
       res.json(result);
@@ -764,9 +778,12 @@ export class AddressController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { tokenAddress, minTransactions } = req.query;
+      const { tokenAddress, token, minTransactions } = req.query;
       const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
       const minTxCount = Math.max(parseInt(minTransactions as string) || 50, 1);
+      const hours = req.query.hours
+        ? parseInt(req.query.hours as string)
+        : undefined;
 
       // Validate token address format if provided
       if (tokenAddress && !/^0x[a-fA-F0-9]{40}$/.test(tokenAddress as string)) {
@@ -784,8 +801,10 @@ export class AddressController {
 
       const result = await this.addressService.getActiveTraders(
         tokenAddress as string,
+        token as string,
         limit,
-        minTxCount
+        minTxCount,
+        hours
       );
 
       res.json(result);
@@ -852,12 +871,15 @@ export class AddressController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { tokenAddress, minRiskScore } = req.query;
+      const { tokenAddress, token, minRiskScore } = req.query;
       const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
       const minRisk = Math.min(
         Math.max(parseFloat(minRiskScore as string) || 0.7, 0),
         1
       );
+      const hours = req.query.hours
+        ? parseInt(req.query.hours as string)
+        : undefined;
 
       // Validate token address format if provided
       if (tokenAddress && !/^0x[a-fA-F0-9]{40}$/.test(tokenAddress as string)) {
@@ -875,8 +897,10 @@ export class AddressController {
 
       const result = await this.addressService.getSuspiciousAddresses(
         tokenAddress as string,
+        token as string,
         limit,
-        minRisk
+        minRisk,
+        hours
       );
 
       res.json(result);

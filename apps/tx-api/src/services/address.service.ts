@@ -54,13 +54,67 @@ interface TokenBreakdownQueryResult {
 
 export class AddressService {
   /**
+   * Known token addresses mapping (for quick lookup)
+   */
+  private readonly KNOWN_TOKENS: Record<
+    string,
+    { address: string; symbol: string; decimals: number; name: string }
+  > = {
+    MSQ: {
+      address: '0x6A8Ec2d9BfBDD20A7F5A4E89D640F7E7cebA4499',
+      symbol: 'MSQ',
+      decimals: 18,
+      name: 'MSQUARE',
+    },
+    KWT: {
+      address: '0x435001Af7fC65B621B0043df99810B2f30860c5d',
+      symbol: 'KWT',
+      decimals: 6,
+      name: 'Korean Won Token',
+    },
+    SUT: {
+      address: '0x98965474EcBeC2F532F1f780ee37b0b05F77Ca55',
+      symbol: 'SUT',
+      decimals: 18,
+      name: 'SUPER TRUST',
+    },
+    P2UC: {
+      address: '0x8B3C6ff5911392dECB5B08611822280dEe0E4f64',
+      symbol: 'P2UC',
+      decimals: 18,
+      name: 'Point to You Coin',
+    },
+  };
+
+  /**
+   * Convert token symbol to token address
+   */
+  private async getTokenAddress(tokenSymbol?: string): Promise<string | undefined> {
+    if (!tokenSymbol) return undefined;
+
+    // Check known tokens first (fast path)
+    if (this.KNOWN_TOKENS[tokenSymbol.toUpperCase()]) {
+      return this.KNOWN_TOKENS[tokenSymbol.toUpperCase()].address;
+    }
+
+    // Fallback to database lookup
+    const token = await prisma.token.findFirst({
+      where: { symbol: tokenSymbol },
+      select: { address: true },
+    });
+
+    return token?.address;
+  }
+
+  /**
    * Get top addresses by volume or frequency
    */
   async getTopAddresses(
     filters: AddressRankingFilters = {},
-    limit: number = 50
+    limit: number = 50,
+    hours?: number
   ): Promise<TopAddressesResponse> {
-    const cacheKey = `top_addresses:${JSON.stringify({ filters, limit })}`;
+    const cacheKey = `top_addresses:${JSON.stringify({ filters, limit, hours })}`;
 
     // Try to get from cache first
     try {
@@ -72,10 +126,20 @@ export class AddressService {
       apiLogger.warn('Cache miss for top addresses', error);
     }
 
-    // Build time period filter
-    const { start_date, end_date } = this.getTimePeriod(
-      filters.time_period || 'all'
-    );
+    // Build time period filter - prioritize hours over time_period
+    let start_date: Date;
+    let end_date: Date;
+
+    if (hours !== undefined) {
+      // Use hours-based filtering
+      end_date = new Date();
+      start_date = new Date(Date.now() - hours * 60 * 60 * 1000);
+    } else {
+      // Fallback to time_period-based filtering
+      const period = this.getTimePeriod(filters.time_period || 'all');
+      start_date = period.start_date;
+      end_date = period.end_date;
+    }
 
     // Build Prisma where clause
     const where = this.buildPrismaWhereClause(filters, start_date, end_date);
@@ -737,7 +801,14 @@ export class AddressService {
       where.tokenSymbol = filters.token;
     }
 
+    // Apply timestamp filter if time_period is specified OR if dates are meaningful
     if (filters.time_period && filters.time_period !== 'all') {
+      where.timestamp = {
+        gte: start_date,
+        lte: end_date,
+      };
+    } else if (start_date && end_date && start_date.getTime() !== end_date.getTime()) {
+      // Also apply filter if start_date and end_date are different (hours parameter was provided)
       where.timestamp = {
         gte: start_date,
         lte: end_date,
@@ -938,9 +1009,14 @@ export class AddressService {
    */
   async getWhaleAddresses(
     tokenAddress?: string,
-    limit: number = 50
+    tokenSymbol?: string,
+    limit: number = 50,
+    hours?: number
   ): Promise<AddressListResponse<AddressProfile>> {
-    const cacheKey = `whale_addresses:${tokenAddress || 'all'}:${limit}`;
+    // Convert token symbol to address if provided
+    const resolvedTokenAddress = tokenAddress || (await this.getTokenAddress(tokenSymbol));
+
+    const cacheKey = `whale_addresses:${resolvedTokenAddress || 'all'}:${limit}:${hours || 'all'}`;
 
     // Try to get from cache first
     try {
@@ -952,9 +1028,16 @@ export class AddressService {
       apiLogger.warn('Cache miss for whale addresses', error);
     }
 
-    const whereClause = tokenAddress
-      ? { tokenAddress, isWhale: true }
+    // Build where clause with time filtering if hours is provided
+    const whereClause: any = resolvedTokenAddress
+      ? { tokenAddress: resolvedTokenAddress, isWhale: true }
       : { isWhale: true };
+
+    // Add time-based filtering if hours is provided
+    if (hours !== undefined) {
+      const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+      whereClause.lastSeen = { gte: cutoffDate };
+    }
 
     const whaleStats = await prisma.addressStatistics.findMany({
       where: whereClause,
@@ -1017,8 +1100,9 @@ export class AddressService {
     const response: AddressListResponse<AddressProfile> = {
       data: profiles,
       filters: {
-        tokenAddress,
+        tokenAddress: resolvedTokenAddress,
         limit,
+        hours,
       },
       timestamp: new Date(),
     };
@@ -1038,10 +1122,15 @@ export class AddressService {
    */
   async getActiveTraders(
     tokenAddress?: string,
+    tokenSymbol?: string,
     limit: number = 50,
-    minTransactions: number = 50
+    minTransactions: number = 50,
+    hours?: number
   ): Promise<AddressListResponse<AddressProfile>> {
-    const cacheKey = `active_traders:${tokenAddress || 'all'}:${limit}:${minTransactions}`;
+    // Convert token symbol to address if provided
+    const resolvedTokenAddress = tokenAddress || (await this.getTokenAddress(tokenSymbol));
+
+    const cacheKey = `active_traders:${resolvedTokenAddress || 'all'}:${limit}:${minTransactions}:${hours || 'all'}`;
 
     // Try to get from cache first
     try {
@@ -1053,15 +1142,24 @@ export class AddressService {
       apiLogger.warn('Cache miss for active traders', error);
     }
 
+    // Build where clause
+    const whereClause: any = {
+      ...(resolvedTokenAddress && { tokenAddress: resolvedTokenAddress }),
+      OR: [
+        { transactionCountSent: { gte: minTransactions } },
+        { transactionCountReceived: { gte: minTransactions } },
+      ],
+      isActive: true,
+    };
+
+    // Add time-based filtering if hours is provided
+    if (hours !== undefined) {
+      const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+      whereClause.lastSeen = { gte: cutoffDate };
+    }
+
     const activeTraders = await prisma.addressStatistics.findMany({
-      where: {
-        ...(tokenAddress && { tokenAddress }),
-        OR: [
-          { transactionCountSent: { gte: minTransactions } },
-          { transactionCountReceived: { gte: minTransactions } },
-        ],
-        isActive: true,
-      },
+      where: whereClause,
       orderBy: [
         { velocityScore: 'desc' },
         { transactionCountSent: 'desc' },
@@ -1125,9 +1223,10 @@ export class AddressService {
     const response: AddressListResponse<AddressProfile> = {
       data: profiles,
       filters: {
-        tokenAddress,
+        tokenAddress: resolvedTokenAddress,
         limit,
         minTransactions,
+        hours,
       },
       timestamp: new Date(),
     };
@@ -1147,10 +1246,15 @@ export class AddressService {
    */
   async getSuspiciousAddresses(
     tokenAddress?: string,
+    tokenSymbol?: string,
     limit: number = 50,
-    minRiskScore: number = 0.7
+    minRiskScore: number = 0.7,
+    hours?: number
   ): Promise<AddressListResponse<AddressProfile>> {
-    const cacheKey = `suspicious_addresses:${tokenAddress || 'all'}:${limit}:${minRiskScore}`;
+    // Convert token symbol to address if provided
+    const resolvedTokenAddress = tokenAddress || (await this.getTokenAddress(tokenSymbol));
+
+    const cacheKey = `suspicious_addresses:${resolvedTokenAddress || 'all'}:${limit}:${minRiskScore}:${hours || 'all'}`;
 
     // Try to get from cache first
     try {
@@ -1162,11 +1266,20 @@ export class AddressService {
       apiLogger.warn('Cache miss for suspicious addresses', error);
     }
 
+    // Build where clause
+    const whereClause: any = {
+      ...(resolvedTokenAddress && { tokenAddress: resolvedTokenAddress }),
+      OR: [{ riskScore: { gte: minRiskScore } }, { isSuspicious: true }],
+    };
+
+    // Add time-based filtering if hours is provided
+    if (hours !== undefined) {
+      const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+      whereClause.lastSeen = { gte: cutoffDate };
+    }
+
     const suspiciousAddresses = await prisma.addressStatistics.findMany({
-      where: {
-        ...(tokenAddress && { tokenAddress }),
-        OR: [{ riskScore: { gte: minRiskScore } }, { isSuspicious: true }],
-      },
+      where: whereClause,
       orderBy: [
         { riskScore: 'desc' },
         { totalSent: 'desc' },
@@ -1234,9 +1347,10 @@ export class AddressService {
     const response: AddressListResponse<AddressProfile> = {
       data: profiles,
       filters: {
-        tokenAddress,
+        tokenAddress: resolvedTokenAddress,
         limit,
         minRiskScore,
+        hours,
       },
       timestamp: new Date(),
     };

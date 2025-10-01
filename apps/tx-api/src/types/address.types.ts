@@ -117,6 +117,7 @@ export interface AddressListResponse<T> {
     limit: number;
     minRiskScore?: number;
     minTransactions?: number;
+    hours?: number;
   };
   timestamp: Date;
 }

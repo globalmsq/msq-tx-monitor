@@ -141,6 +141,15 @@ export function Addresses() {
     fetchAddresses();
   }, [fetchAddresses]);
 
+  // Handle time range change with explicit fetch (like Analytics)
+  const handleTimeRangeChange = (range: TimeRange) => {
+    setTimeRange(range);
+    setIsLoading(true);
+    setCurrentPage(1); // Reset to first page when changing time range
+    // Explicitly trigger fetch to ensure immediate update
+    fetchAddresses();
+  };
+
   // Handle address click to show details
   const handleAddressClick = useCallback(
     async (address: string) => {
@@ -298,7 +307,7 @@ export function Addresses() {
             ).map(range => (
               <button
                 key={range}
-                onClick={() => setTimeRange(range)}
+                onClick={() => handleTimeRangeChange(range)}
                 className={cn(
                   'px-3 py-1 rounded text-xs transition-colors',
                   timeRange === range
