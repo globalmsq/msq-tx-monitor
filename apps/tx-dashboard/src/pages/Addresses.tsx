@@ -9,6 +9,8 @@ import {
   Check,
   X,
   Calendar,
+  ArrowDown,
+  ArrowUp,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import {
@@ -21,6 +23,7 @@ import {
   formatRelativeTime,
   formatFullTimestamp,
 } from '@msq-tx-monitor/msq-common';
+import { VolumeWithTooltip } from '../components/VolumeWithTooltip';
 
 const ADDRESSES_BASE_URL = 'http://localhost:8000/api/v1/addresses';
 
@@ -458,12 +461,6 @@ export function Addresses() {
                       Volume
                     </th>
                     <th className='text-right text-white/60 text-sm font-medium py-3 px-4'>
-                      Received
-                    </th>
-                    <th className='text-right text-white/60 text-sm font-medium py-3 px-4'>
-                      Sent
-                    </th>
-                    <th className='text-right text-white/60 text-sm font-medium py-3 px-4'>
                       Transactions
                     </th>
                     <th className='text-right text-white/60 text-sm font-medium py-3 px-4'>
@@ -512,51 +509,40 @@ export function Addresses() {
                           </button>
                         </div>
                       </td>
-                      {/* Volume */}
-                      <td className='py-3 px-4 text-right text-white text-sm'>
-                        <div className='relative inline-block group'>
-                          <span className='cursor-help'>
-                            {formatVolume(addr.total_volume, selectedToken)}
-                          </span>
-                          <div className='absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-white/10'>
-                            {formatVolume(addr.total_volume, selectedToken, {
-                              compact: false,
-                              precision: 2,
-                              showSymbol: true,
-                            })}
-                            <div className='absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900'></div>
+                      {/* Volume with Breakdown */}
+                      <td className='py-3 px-4 text-right'>
+                        <div className='flex flex-col items-end'>
+                          <div className='text-white font-medium text-sm'>
+                            <VolumeWithTooltip
+                              formattedValue={formatVolume(
+                                addr.total_volume,
+                                selectedToken,
+                                { precision: 0 }
+                              )}
+                              rawValue={addr.total_volume}
+                              tokenSymbol={selectedToken}
+                              receivedValue={addr.total_received}
+                              sentValue={addr.total_sent}
+                              showBreakdown={true}
+                            />
                           </div>
-                        </div>
-                      </td>
-                      {/* Received */}
-                      <td className='py-3 px-4 text-right text-white text-sm'>
-                        <div className='relative inline-block group'>
-                          <span className='cursor-help'>
-                            {formatVolume(addr.total_received, selectedToken)}
-                          </span>
-                          <div className='absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-white/10'>
-                            {formatVolume(addr.total_received, selectedToken, {
-                              compact: false,
-                              precision: 2,
-                              showSymbol: true,
-                            })}
-                            <div className='absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900'></div>
-                          </div>
-                        </div>
-                      </td>
-                      {/* Sent */}
-                      <td className='py-3 px-4 text-right text-white text-sm'>
-                        <div className='relative inline-block group'>
-                          <span className='cursor-help'>
-                            {formatVolume(addr.total_sent, selectedToken)}
-                          </span>
-                          <div className='absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-white/10'>
-                            {formatVolume(addr.total_sent, selectedToken, {
-                              compact: false,
-                              precision: 2,
-                              showSymbol: true,
-                            })}
-                            <div className='absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900'></div>
+                          <div className='flex items-center justify-end gap-3 mt-1 text-xs text-white/60'>
+                            <div className='flex items-center gap-1'>
+                              <ArrowDown size={12} className='text-blue-400' />
+                              <span>
+                                {formatVolume(addr.total_received, selectedToken, {
+                                  precision: 0,
+                                })}
+                              </span>
+                            </div>
+                            <div className='flex items-center gap-1'>
+                              <ArrowUp size={12} className='text-orange-400' />
+                              <span>
+                                {formatVolume(addr.total_sent, selectedToken, {
+                                  precision: 0,
+                                })}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </td>
