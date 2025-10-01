@@ -276,6 +276,24 @@ export function Analytics() {
     }
   };
 
+  // Get display label for time range
+  const getTimeRangeLabel = (range: TimeRange): string => {
+    switch (range) {
+      case '1h':
+        return '1h';
+      case '24h':
+        return '24h';
+      case '7d':
+        return '7d';
+      case '30d':
+        return '30d';
+      case 'custom':
+        return '24h'; // Fallback
+      default:
+        return '24h';
+    }
+  };
+
   // Fetch analytics data with time range support and token filter
   const fetchAnalyticsData = useCallback(
     async (token: string = activeTab) => {
@@ -1140,7 +1158,7 @@ export function Analytics() {
                 precision: 0,
                 compact: false,
               })}
-              change={`+${formatNumber(data.realtime?.transactionsLast24h || 0, { precision: 0, compact: false })} (24h)`}
+              change={`+${formatNumber(data.realtime?.transactionsLast24h || 0, { precision: 0, compact: false })} (${getTimeRangeLabel(timeRange)})`}
               icon={<Activity className='w-5 h-5' />}
             />
             <MetricCard
@@ -1148,7 +1166,7 @@ export function Analytics() {
               value={formatVolume(data.realtime?.totalVolume || '0', activeTab)}
               rawValue={data.realtime?.totalVolume || '0'}
               tokenSymbol={activeTab}
-              change={`+${formatVolume(data.realtime?.volumeLast24h || '0', activeTab)} (24h)`}
+              change={`+${formatVolume(data.realtime?.volumeLast24h || '0', activeTab)} (${getTimeRangeLabel(timeRange)})`}
               icon={<TrendingUp className='w-5 h-5' />}
               isVolume={true}
             />
