@@ -6,6 +6,19 @@ export const TOKEN_ADDRESSES = {
   P2UC: '0x8B3C6ff5911392dECB5B08611822280dEe0E4f64', // P2UC Token
 } as const;
 
+// Token Deployment Block Numbers on Polygon Network
+export const TOKEN_DEPLOYMENT_BLOCKS = {
+  MSQ: 28385214,
+  KWT: 69407446,
+  SUT: 52882612,
+  P2UC: 73725373,
+} as const;
+
+// Minimum deployment block (earliest token deployment)
+export const MIN_DEPLOYMENT_BLOCK = Math.min(
+  ...Object.values(TOKEN_DEPLOYMENT_BLOCKS)
+);
+
 // ERC-20 Transfer Event Signature
 export const TRANSFER_EVENT_SIGNATURE =
   '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';

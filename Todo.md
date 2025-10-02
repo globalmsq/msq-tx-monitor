@@ -19,3 +19,4 @@
 15. [done] Transaction 주소 검색후 More Transaction 문제
 16. [done] Analytics에 Time Range 변경
 17. [done] Analytics Volume, Transaction 이 Time Range에 달라도 똑같음
+18. [done] 토큰 배포 블록넘버 이후부터만 스캔하도록 최적화

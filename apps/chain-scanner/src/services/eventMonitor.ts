@@ -8,6 +8,7 @@ import {
   MONITORING_INTERVALS,
   EVENT_TYPES,
   REDIS_KEYS,
+  MIN_DEPLOYMENT_BLOCK,
 } from '../config/constants';
 import { TokenService } from './tokenService';
 import { logger } from '@msq-tx-monitor/msq-common';
@@ -99,7 +100,8 @@ export class EventMonitor {
 
   /**
    * Get last processed block number from Redis or database
-   * Priority: Redis -> Database -> 0
+   * Priority: Redis -> Database -> MIN_DEPLOYMENT_BLOCK
+   * Ensures returned block is never below MIN_DEPLOYMENT_BLOCK (earliest token deployment)
    */
   private async getLastProcessedBlockNumber(): Promise<number> {
     try {
@@ -108,25 +110,41 @@ export class EventMonitor {
         const redisBlock = await this.redisClient.get(REDIS_KEYS.LAST_PROCESSED_BLOCK);
         if (redisBlock) {
           const blockNum = parseInt(redisBlock, 10);
-          logger.info(`📖 Loaded last processed block from Redis: ${blockNum}`);
-          return blockNum;
+          const effectiveBlock = Math.max(blockNum, MIN_DEPLOYMENT_BLOCK);
+          if (effectiveBlock > blockNum) {
+            logger.info(
+              `📖 Loaded block ${blockNum} from Redis, adjusted to min deployment block ${effectiveBlock}`
+            );
+          } else {
+            logger.info(`📖 Loaded last processed block from Redis: ${blockNum}`);
+          }
+          return effectiveBlock;
         }
       }
 
       // 2. Fallback to database
       const dbBlock = await this.databaseService.getLastProcessedBlock();
       if (dbBlock && dbBlock > 0) {
-        logger.info(`📖 Loaded last processed block from database: ${dbBlock}`);
+        const effectiveBlock = Math.max(dbBlock, MIN_DEPLOYMENT_BLOCK);
+        if (effectiveBlock > dbBlock) {
+          logger.info(
+            `📖 Loaded block ${dbBlock} from database, adjusted to min deployment block ${effectiveBlock}`
+          );
+        } else {
+          logger.info(`📖 Loaded last processed block from database: ${dbBlock}`);
+        }
         // Also save to Redis for next time
-        await this.saveLastProcessedBlockNumber(dbBlock);
-        return dbBlock;
+        await this.saveLastProcessedBlockNumber(effectiveBlock);
+        return effectiveBlock;
       }
 
-      logger.info('📖 No saved block found, will start from current block');
-      return 0;
+      logger.info(
+        `📖 No saved block found, starting from min deployment block ${MIN_DEPLOYMENT_BLOCK}`
+      );
+      return MIN_DEPLOYMENT_BLOCK;
     } catch (error) {
       logger.error('❌ Error getting last processed block:', error);
-      return 0;
+      return MIN_DEPLOYMENT_BLOCK;
     }
   }
 
@@ -205,11 +223,20 @@ export class EventMonitor {
 
       // Determine strategy based on gap size
       if (gap > config.monitoring.catchUpMaxGap) {
-        // Too far behind - only process recent blocks
+        // Too far behind - only process recent blocks, but never go below min deployment block
+        const calculatedStart = currentBlock - config.monitoring.catchUpMaxBlocks;
+        this.lastProcessedBlock = Math.max(calculatedStart, MIN_DEPLOYMENT_BLOCK);
+
         logger.warn(
-          `⚠️ ${gap} blocks behind, processing only recent ${config.monitoring.catchUpMaxBlocks} blocks`
+          `⚠️ ${gap} blocks behind, processing from block ${this.lastProcessedBlock} to ${currentBlock}`
         );
-        this.lastProcessedBlock = currentBlock - config.monitoring.catchUpMaxBlocks;
+
+        if (this.lastProcessedBlock === MIN_DEPLOYMENT_BLOCK && calculatedStart < MIN_DEPLOYMENT_BLOCK) {
+          logger.info(
+            `📍 Adjusted start block to minimum deployment block ${MIN_DEPLOYMENT_BLOCK} (earliest token: MSQ)`
+          );
+        }
+
         await this.saveLastProcessedBlockNumber(this.lastProcessedBlock);
         await this.fastCatchUp(this.lastProcessedBlock, currentBlock);
       } else if (gap > 1000) {
