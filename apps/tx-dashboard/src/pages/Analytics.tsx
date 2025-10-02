@@ -30,7 +30,12 @@ import {
   DetailedData,
 } from '../components/DetailedAnalysisModal';
 import { TOKEN_CONFIG } from '../config/tokens';
-import { formatNumber, formatVolume, logger, formatAddress } from '@msq-tx-monitor/msq-common';
+import {
+  formatNumber,
+  formatVolume,
+  logger,
+  formatAddress,
+} from '@msq-tx-monitor/msq-common';
 import { VolumeWithTooltip } from '../components/VolumeWithTooltip';
 
 // Analytics API service
@@ -725,8 +730,10 @@ export function Analytics() {
     }
 
     // Set time range based on user selection
+    // Use a large number for 'all' time range (10 years)
+    const hoursToUse = hours ?? 8760 * 10;
     const timeRange = {
-      start: new Date(now - hours * 60 * 60 * 1000).toISOString(),
+      start: new Date(now - hoursToUse * 60 * 60 * 1000).toISOString(),
       end: new Date(now).toISOString(),
     };
 
@@ -734,7 +741,7 @@ export function Analytics() {
     let trends: any[] = [];
     try {
       const trendsResponse = await fetch(
-        `http://localhost:8000/api/v1/addresses/${address}/trends?hours=${hours}&tokenSymbol=${token}&interval=${hours > 168 ? 'daily' : 'hourly'}`
+        `http://localhost:8000/api/v1/addresses/${address}/trends?hours=${hoursToUse}&tokenSymbol=${token}&interval=${hoursToUse > 168 ? 'daily' : 'hourly'}`
       );
       if (trendsResponse.ok) {
         const trendsData = await trendsResponse.json();
@@ -1117,7 +1124,9 @@ export function Analytics() {
           <Calendar className='w-4 h-4 text-white/60' />
           <span className='text-sm text-white/60'>Time Range:</span>
           <div className='flex gap-1'>
-            {(['1h', '24h', '7d', '30d', '3m', '6m', '1y', 'all'] as TimeRange[]).map(range => (
+            {(
+              ['1h', '24h', '7d', '30d', '3m', '6m', '1y', 'all'] as TimeRange[]
+            ).map(range => (
               <button
                 key={range}
                 onClick={() => handleTimeRangeChange(range)}
@@ -1281,10 +1290,14 @@ export function Analytics() {
                           }
                         >
                           <div className='text-white font-mono text-sm hover:text-primary-400 transition-colors flex items-center gap-2'>
-                            <span className='hidden lg:inline'>{address.address}</span>
-                            <span className='inline lg:hidden'>{formatAddress(address.address)}</span>
+                            <span className='hidden lg:inline'>
+                              {address.address}
+                            </span>
+                            <span className='inline lg:hidden'>
+                              {formatAddress(address.address)}
+                            </span>
                             <button
-                              onClick={(e) => {
+                              onClick={e => {
                                 e.stopPropagation();
                                 handleCopyAddress(address.address);
                               }}
@@ -1373,11 +1386,15 @@ export function Analytics() {
                           }
                         >
                           <div className='text-white font-mono text-sm hover:text-green-400 transition-colors'>
-                            <span className='hidden lg:inline'>{address.address}</span>
-                            <span className='inline lg:hidden'>{formatAddress(address.address)}</span>
+                            <span className='hidden lg:inline'>
+                              {address.address}
+                            </span>
+                            <span className='inline lg:hidden'>
+                              {formatAddress(address.address)}
+                            </span>
                           </div>
                           <button
-                            onClick={(e) => {
+                            onClick={e => {
                               e.stopPropagation();
                               handleCopyAddress(address.address);
                             }}
@@ -1433,11 +1450,15 @@ export function Analytics() {
                           }
                         >
                           <div className='text-white font-mono text-sm hover:text-orange-400 transition-colors'>
-                            <span className='hidden lg:inline'>{address.address}</span>
-                            <span className='inline lg:hidden'>{formatAddress(address.address)}</span>
+                            <span className='hidden lg:inline'>
+                              {address.address}
+                            </span>
+                            <span className='inline lg:hidden'>
+                              {formatAddress(address.address)}
+                            </span>
                           </div>
                           <button
-                            onClick={(e) => {
+                            onClick={e => {
                               e.stopPropagation();
                               handleCopyAddress(address.address);
                             }}

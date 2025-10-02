@@ -401,12 +401,27 @@ export class TransactionService {
       where.tokenSymbol = filters.token;
     }
 
-    if (filters.from_address) {
-      where.fromAddress = filters.from_address;
-    }
+    // Handle address filtering with OR logic when both from_address and to_address are the same
+    // This allows searching for an address involved in transactions (either as sender or receiver)
+    if (
+      filters.from_address &&
+      filters.to_address &&
+      filters.from_address === filters.to_address
+    ) {
+      // Same address in both - use OR logic for either from or to
+      where.OR = [
+        { fromAddress: filters.from_address },
+        { toAddress: filters.to_address },
+      ];
+    } else {
+      // Different addresses or only one specified - use AND logic
+      if (filters.from_address) {
+        where.fromAddress = filters.from_address;
+      }
 
-    if (filters.to_address) {
-      where.toAddress = filters.to_address;
+      if (filters.to_address) {
+        where.toAddress = filters.to_address;
+      }
     }
 
     // Special case for address involved (either from or to)

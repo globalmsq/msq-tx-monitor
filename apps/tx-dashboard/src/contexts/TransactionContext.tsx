@@ -12,13 +12,16 @@ import {
 } from '../services/websocket';
 import { FilterState, useUrlFilterSync } from '../hooks/useUrlFilterSync';
 import { FILTER_TOKENS } from '@msq-tx-monitor/msq-common';
-import { applyFiltersToTransactions } from '../utils/filterUtils';
+import {
+  applyFiltersToTransactions,
+  parseAddressSearch,
+} from '../utils/filterUtils';
 import {
   Transaction,
   adaptWebSocketTransactionForUI,
   adaptApiTransactionForUI,
 } from '../types/transaction';
-import { apiService } from '../services/api';
+import { apiService, TransactionFilters } from '../services/api';
 
 interface TokenStats {
   tokenSymbol: string;
@@ -143,6 +146,52 @@ function applyFiltersToState(state: TransactionState): TransactionState {
     filteredTransactions,
     filteredRecentTransactions,
   };
+}
+
+// Helper function to convert frontend filters to API filters for server-side filtering
+function convertFiltersForAPI(filters: FilterState): TransactionFilters {
+  const apiFilters: TransactionFilters = {};
+
+  // Convert address search to from_address/to_address for server-side filtering
+  if (filters.addressSearch && filters.addressSearch.trim()) {
+    const searchTerms = parseAddressSearch(filters.addressSearch);
+    if (searchTerms.length > 0) {
+      const address = searchTerms[0].toLowerCase();
+      // Set both from_address and to_address to match either direction
+      // Backend will use OR logic when both are set
+      apiFilters.from_address = address;
+      apiFilters.to_address = address;
+    }
+  }
+
+  // Apply token filter if specific tokens are selected
+  if (filters.tokens && filters.tokens.length > 0) {
+    // API expects single token, use first selected token
+    apiFilters.token = filters.tokens[0];
+  }
+
+  // Apply amount range filters
+  if (filters.amountRange?.min) {
+    apiFilters.min_amount = filters.amountRange.min;
+  }
+  if (filters.amountRange?.max) {
+    apiFilters.max_amount = filters.amountRange.max;
+  }
+
+  // Apply time range filters
+  if (filters.timeRange?.from) {
+    apiFilters.start_date = filters.timeRange.from;
+  }
+  if (filters.timeRange?.to) {
+    apiFilters.end_date = filters.timeRange.to;
+  }
+
+  // Apply anomaly filter
+  if (filters.showAnomalies) {
+    apiFilters.has_anomaly = true;
+  }
+
+  return apiFilters;
 }
 
 function transactionReducer(
@@ -355,11 +404,12 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
   const [state, dispatch] = useReducer(transactionReducer, initialState);
   const { parseFiltersFromUrl, updateUrlFromFilters } = useUrlFilterSync();
 
-  // Initialize filters from URL on mount only
+  // Initialize filters from URL on mount only (run once)
   useEffect(() => {
     const urlFilters = parseFiltersFromUrl();
     dispatch({ type: 'SET_FILTERS', payload: urlFilters });
-  }, [parseFiltersFromUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only run on mount
 
   // Auto-conversion check: If all tokens are selected, convert to ALL state
   useEffect(() => {
@@ -389,10 +439,11 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       dispatch({ type: 'CLEAR_ERROR' });
 
       try {
-        const response = await apiService.getTransactionsCursor(
-          {}, // No filters for initial load
-          { limit: 50 }
-        );
+        // Convert frontend filters to API filters for server-side filtering
+        const apiFilters = convertFiltersForAPI(state.filters);
+        const response = await apiService.getTransactionsCursor(apiFilters, {
+          limit: 50,
+        });
 
         const uiTransactions = response.data.map(adaptApiTransactionForUI);
         const lastId =
@@ -424,10 +475,11 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
     loadInitialData();
   }, [state.isInitialLoad]);
 
-  // Update URL when filters change
+  // Update URL when filters change (not on initial mount to avoid infinite loop)
   useEffect(() => {
     updateUrlFromFilters(state.filters, true);
-  }, [state.filters, updateUrlFromFilters]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.filters]); // Only depend on state.filters, not updateUrlFromFilters
 
   useEffect(() => {
     // Set up WebSocket connection
@@ -580,10 +632,12 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       dispatch({ type: 'CLEAR_ERROR' });
 
       try {
-        const response = await apiService.getTransactionsCursor(
-          {}, // Apply current filters if needed
-          { limit: 50, afterId: state.lastTransactionId }
-        );
+        // Convert frontend filters to API filters for server-side filtering
+        const apiFilters = convertFiltersForAPI(state.filters);
+        const response = await apiService.getTransactionsCursor(apiFilters, {
+          limit: 50,
+          afterId: state.lastTransactionId,
+        });
 
         const uiTransactions = response.data.map(adaptApiTransactionForUI);
         const lastId =
