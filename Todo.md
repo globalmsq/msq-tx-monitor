@@ -12,10 +12,10 @@
 8. [done] Token Statistics 실시간 업데이트
 9. [done] Tx 세부 페이지 또는 Polygon 스캔으로 연결
 10. [done] Analytics 의 주소 클릭시 세부 페이지
-11. Address Detail에서 Trend 구현
+11. [done] Address Detail에서 Trend 구현
 12. depcheck 문제
 13. [done] 실제 DB에 저장된 tx와 dashboard와 다른 이유
 14. API Cache 문제
-15. Transaction 주소 검색후 More Transaction 문제
+15. [done] Transaction 주소 검색후 More Transaction 문제
 16. [done] Analytics에 Time Range 변경
 17. [done] Analytics Volume, Transaction 이 Time Range에 달라도 똑같음
