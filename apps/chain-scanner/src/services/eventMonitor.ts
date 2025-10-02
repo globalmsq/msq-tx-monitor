@@ -1,3 +1,4 @@
+import { createClient, RedisClientType } from 'redis';
 import { Web3Service } from './web3Service';
 import { DatabaseService, TransactionData } from './databaseService';
 import { config } from '../config';
@@ -6,6 +7,7 @@ import {
   TRANSFER_EVENT_SIGNATURE,
   MONITORING_INTERVALS,
   EVENT_TYPES,
+  REDIS_KEYS,
 } from '../config/constants';
 import { TokenService } from './tokenService';
 import { logger } from '@msq-tx-monitor/msq-common';
@@ -46,6 +48,7 @@ export class EventMonitor {
   private eventListeners: Map<string, ((data?: unknown) => void)[]> = new Map();
   private lastProcessedBlock: number = 0;
   private blockPollingTimer: NodeJS.Timeout | null = null;
+  private redisClient: RedisClientType | null = null;
 
   constructor(
     private web3Service: Web3Service,
@@ -53,6 +56,30 @@ export class EventMonitor {
     private tokenService: TokenService
   ) {
     this.setupEventHandlers();
+    this.initializeRedis();
+  }
+
+  private async initializeRedis(): Promise<void> {
+    try {
+      this.redisClient = createClient({
+        socket: {
+          host: config.redis.host,
+          port: config.redis.port,
+        },
+        password: config.redis.password,
+        database: config.redis.db,
+      });
+
+      this.redisClient.on('error', (error) => {
+        logger.error('❌ Redis error:', error);
+      });
+
+      await this.redisClient.connect();
+      logger.info('✅ Redis connected for block sync');
+    } catch (error) {
+      logger.warn('⚠️ Redis connection failed, block sync will use database only:', error);
+      this.redisClient = null;
+    }
   }
 
   private setupEventHandlers(): void {
@@ -70,6 +97,94 @@ export class EventMonitor {
     this.stopMonitoring();
   }
 
+  /**
+   * Get last processed block number from Redis or database
+   * Priority: Redis -> Database -> 0
+   */
+  private async getLastProcessedBlockNumber(): Promise<number> {
+    try {
+      // 1. Try Redis first (fast)
+      if (this.redisClient) {
+        const redisBlock = await this.redisClient.get(REDIS_KEYS.LAST_PROCESSED_BLOCK);
+        if (redisBlock) {
+          const blockNum = parseInt(redisBlock, 10);
+          logger.info(`📖 Loaded last processed block from Redis: ${blockNum}`);
+          return blockNum;
+        }
+      }
+
+      // 2. Fallback to database
+      const dbBlock = await this.databaseService.getLastProcessedBlock();
+      if (dbBlock && dbBlock > 0) {
+        logger.info(`📖 Loaded last processed block from database: ${dbBlock}`);
+        // Also save to Redis for next time
+        await this.saveLastProcessedBlockNumber(dbBlock);
+        return dbBlock;
+      }
+
+      logger.info('📖 No saved block found, will start from current block');
+      return 0;
+    } catch (error) {
+      logger.error('❌ Error getting last processed block:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Save last processed block number to Redis
+   */
+  private async saveLastProcessedBlockNumber(blockNumber: number): Promise<void> {
+    try {
+      if (this.redisClient) {
+        await this.redisClient.set(REDIS_KEYS.LAST_PROCESSED_BLOCK, blockNumber.toString());
+      }
+    } catch (error) {
+      logger.error('❌ Error saving last processed block to Redis:', error);
+    }
+  }
+
+  /**
+   * Fast catch-up mode for processing many blocks quickly
+   */
+  private async fastCatchUp(fromBlock: number, toBlock: number): Promise<void> {
+    const batchSize = config.monitoring.catchUpBatchSize;
+    const totalBlocks = toBlock - fromBlock;
+
+    logger.info(`🚀 Catch-up mode: processing ${totalBlocks} blocks in batches of ${batchSize}`);
+
+    for (let start = fromBlock + 1; start <= toBlock; start += batchSize) {
+      const end = Math.min(start + batchSize - 1, toBlock);
+
+      try {
+        // Process 100 blocks at once with a single getLogs call
+        await this.fetchAllTokenEventsWithRetry(
+          Object.values(TOKEN_ADDRESSES),
+          start,
+          end
+        );
+
+        this.lastProcessedBlock = end;
+
+        // Save progress every batch
+        await this.saveLastProcessedBlockNumber(end);
+
+        const progress = (((end - fromBlock) / totalBlocks) * 100).toFixed(1);
+        logger.info(`📦 Catch-up progress: ${end}/${toBlock} (${progress}%)`);
+
+        // Rate limit prevention delay
+        await new Promise(resolve =>
+          setTimeout(resolve, config.monitoring.catchUpBatchDelay)
+        );
+
+      } catch (error) {
+        logger.error(`❌ Error processing blocks ${start}-${end}:`, error);
+        // Continue with next batch even if one fails
+      }
+    }
+
+    logger.info(`✅ Catch-up completed: ${totalBlocks} blocks processed`);
+  }
+
   async startMonitoring(): Promise<void> {
     if (!this.web3Service.isConnected()) {
       throw new Error('Web3 service not connected');
@@ -80,16 +195,40 @@ export class EventMonitor {
     );
 
     try {
-      // Get the current block number to start monitoring from
-      this.lastProcessedBlock = await this.web3Service.getLatestBlockNumber();
+      const savedBlock = await this.getLastProcessedBlockNumber();
+      const currentBlock = await this.web3Service.getLatestBlockNumber();
+      const gap = currentBlock - savedBlock;
+
       logger.info(
-        `📍 Starting monitoring from block: ${this.lastProcessedBlock}`
+        `📊 Block status: saved=${savedBlock}, current=${currentBlock}, gap=${gap}`
       );
+
+      // Determine strategy based on gap size
+      if (gap > config.monitoring.catchUpMaxGap) {
+        // Too far behind - only process recent blocks
+        logger.warn(
+          `⚠️ ${gap} blocks behind, processing only recent ${config.monitoring.catchUpMaxBlocks} blocks`
+        );
+        this.lastProcessedBlock = currentBlock - config.monitoring.catchUpMaxBlocks;
+        await this.saveLastProcessedBlockNumber(this.lastProcessedBlock);
+        await this.fastCatchUp(this.lastProcessedBlock, currentBlock);
+      } else if (gap > 1000) {
+        // Medium gap - fast catch-up mode
+        logger.info(`📦 ${gap} blocks to catch up, starting fast catch-up mode`);
+        this.lastProcessedBlock = savedBlock > 0 ? savedBlock : currentBlock;
+        await this.fastCatchUp(this.lastProcessedBlock, currentBlock);
+      } else {
+        // Small gap or first run - normal mode
+        this.lastProcessedBlock = savedBlock > 0 ? savedBlock : currentBlock;
+        logger.info(
+          `✅ Normal range, starting from block ${this.lastProcessedBlock}`
+        );
+      }
 
       // Start processing queue
       this.startProcessingQueue();
 
-      // Start HTTP polling for new blocks
+      // Start HTTP polling for new blocks (real-time mode)
       this.startBlockPolling();
 
       const tokenAddresses = Object.values(TOKEN_ADDRESSES);
@@ -152,6 +291,11 @@ export class EventMonitor {
         }
 
         this.lastProcessedBlock = endBlock;
+
+        // Save progress periodically (every N blocks)
+        if (endBlock % config.monitoring.blockSaveInterval === 0) {
+          await this.saveLastProcessedBlockNumber(endBlock);
+        }
 
         // Log remaining blocks if any
         if (endBlock < currentBlockNumber) {
@@ -683,6 +827,18 @@ export class EventMonitor {
         `Processing remaining ${this.processingQueue.length} events...`
       );
       await this.processQueuedEvents();
+    }
+
+    // Save final block number before stopping
+    if (this.lastProcessedBlock > 0) {
+      await this.saveLastProcessedBlockNumber(this.lastProcessedBlock);
+      logger.info(`💾 Saved last processed block: ${this.lastProcessedBlock}`);
+    }
+
+    // Disconnect Redis
+    if (this.redisClient) {
+      await this.redisClient.quit();
+      logger.info('✅ Redis disconnected');
     }
 
     logger.info('Event monitoring stopped');

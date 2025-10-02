@@ -71,6 +71,21 @@ export const config = {
       process.env.RATE_LIMIT_BACKOFF_MS || '5000',
       10
     ),
+    // Block Catch-up Settings
+    catchUpBatchSize: parseInt(
+      process.env.CATCHUP_BATCH_SIZE || '100',
+      10
+    ), // 100 blocks per batch
+    catchUpMaxGap: parseInt(process.env.CATCHUP_MAX_GAP || '100000', 10), // Max gap before limiting catch-up
+    catchUpMaxBlocks: parseInt(
+      process.env.CATCHUP_MAX_BLOCKS || '50000',
+      10
+    ), // Max blocks to catch up
+    catchUpBatchDelay: parseInt(
+      process.env.CATCHUP_BATCH_DELAY || '1000',
+      10
+    ), // 1 second delay between batches
+    blockSaveInterval: parseInt(process.env.BLOCK_SAVE_INTERVAL || '10', 10), // Save every N blocks
   },
 
   websocket: {

@@ -94,3 +94,8 @@ export const CONNECTION_STATUS = {
   RECONNECTING: 'reconnecting',
   ERROR: 'error',
 } as const;
+
+// Redis keys for block sync state
+export const REDIS_KEYS = {
+  LAST_PROCESSED_BLOCK: 'chain_scanner:last_processed_block',
+} as const;
