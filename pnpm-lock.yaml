@@ -98,9 +98,9 @@ importers:
       '@msq-tx-monitor/database':
         specifier: workspace:*
         version: link:../../libs/database
-      axios:
-        specifier: ^1.6.0
-        version: 1.12.2
+      '@msq-tx-monitor/msq-common':
+        specifier: workspace:^
+        version: link:../../libs/msq-common
       dotenv:
         specifier: ^17.2.2
         version: 17.2.2
@@ -141,27 +141,21 @@ importers:
       '@msq-tx-monitor/database':
         specifier: workspace:*
         version: link:../../libs/database
-      compression:
-        specifier: ^1.8.1
-        version: 1.8.1
+      '@msq-tx-monitor/msq-common':
+        specifier: workspace:^
+        version: link:../../libs/msq-common
       cors:
         specifier: ^2.8.5
         version: 2.8.5
       dotenv:
         specifier: ^17.2.2
         version: 17.2.2
-      ethers:
-        specifier: ^6.15.0
-        version: 6.15.0
       express:
         specifier: ^4.19.2
         version: 4.21.2
       helmet:
         specifier: ^8.1.0
         version: 8.1.0
-      morgan:
-        specifier: ^1.10.1
-        version: 1.10.1
       redis:
         specifier: ^4.6.14
         version: 4.6.14
@@ -172,18 +166,12 @@ importers:
         specifier: ^4.20.5
         version: 4.20.5
     devDependencies:
-      '@types/compression':
-        specifier: ^1.8.1
-        version: 1.8.1
       '@types/cors':
         specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.21
-      '@types/morgan':
-        specifier: ^1.9.10
-        version: 1.9.10
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.10.0
         version: 7.10.0(@typescript-eslint/parser@7.10.0(eslint@8.57.0)(typescript@5.4.5))(eslint@8.57.0)(typescript@5.4.5)
@@ -211,6 +199,12 @@ importers:
       '@msq-tx-monitor/database':
         specifier: workspace:*
         version: link:../../libs/database
+      '@msq-tx-monitor/msq-common':
+        specifier: workspace:^
+        version: link:../../libs/msq-common
+      '@msq-tx-monitor/tx-types':
+        specifier: workspace:^
+        version: link:../../libs/tx-types
       '@prisma/client':
         specifier: ^5.22.0
         version: 5.22.0(prisma@5.22.0)
@@ -223,9 +217,6 @@ importers:
       dotenv:
         specifier: ^17.2.2
         version: 17.2.2
-      ethers:
-        specifier: ^6.15.0
-        version: 6.15.0
       express:
         specifier: ^4.19.2
         version: 4.19.2
@@ -302,15 +293,15 @@ importers:
 
   apps/tx-dashboard:
     dependencies:
+      '@msq-tx-monitor/msq-common':
+        specifier: workspace:^
+        version: link:../../libs/msq-common
       '@msq-tx-monitor/tx-types':
         specifier: workspace:*
         version: link:../../libs/tx-types
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      date-fns:
-        specifier: ^4.1.0
-        version: 4.1.0
       ethers:
         specifier: ^6.15.0
         version: 6.15.0
@@ -4219,9 +4210,6 @@ packages:
   data-view-byte-offset@1.0.1:
     resolution: {integrity: sha512-BS8PfmtDGnrgYdOonGZQdLZslWIeCGFP9tpan0hi1Co2Zr2NKADsvGYA8XxuG/4UWgJ6Cjtv+YJnB6MM69QGlQ==}
     engines: {node: '>= 0.4'}
-
-  date-fns@4.1.0:
-    resolution: {integrity: sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==}
 
   date-format@4.0.14:
     resolution: {integrity: sha512-39BOQLs9ZjKh0/patS9nrT8wc3ioX3/eA/zgbKNopnF2wCqJEoxywwwElATYvRsXdnOxA/OQeQoFZ3rFjVajhg==}
@@ -13654,8 +13642,6 @@ snapshots:
       es-errors: 1.3.0
       is-data-view: 1.0.2
 
-  date-fns@4.1.0: {}
-
   date-format@4.0.14: {}
 
   dayjs@1.11.13:
@@ -15730,7 +15716,7 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 20.19.9
+      '@types/node': 22.7.5
       merge-stream: 2.0.0
       supports-color: 8.1.1
 

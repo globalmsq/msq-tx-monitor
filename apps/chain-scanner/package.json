@@ -16,12 +16,12 @@
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "format": "prettier --check \"src/**/*.ts\"",
     "format:fix": "prettier --write \"src/**/*.ts\"",
-    "depcheck": "depcheck || true",
+    "depcheck": "depcheck",
     "typecheck": "tsc --noEmit --project tsconfig.app.json"
   },
   "dependencies": {
     "@msq-tx-monitor/database": "workspace:*",
-    "axios": "^1.6.0",
+    "@msq-tx-monitor/msq-common": "workspace:^",
     "dotenv": "^17.2.2",
     "ethers": "^6.15.0",
     "redis": "^4.6.7",

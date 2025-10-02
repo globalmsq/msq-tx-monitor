@@ -1,0 +1,30 @@
+{
+  "ignores": [
+    "react",
+    "react-dom",
+    "@msq-tx-monitor/tx-types",
+    "@msq-tx-monitor/msq-common",
+    "clsx",
+    "ethers",
+    "lucide-react",
+    "react-hot-toast",
+    "react-router-dom",
+    "recharts",
+    "tailwind-merge",
+    "tslib",
+    "@tailwindcss/forms",
+    "@vitejs/plugin-react",
+    "autoprefixer",
+    "postcss",
+    "tailwindcss",
+    "vite",
+    "eslint-plugin-react",
+    "eslint-plugin-react-hooks",
+    "@nx/eslint-plugin",
+    "eslint-config-prettier",
+    "@nx/react",
+    "@types/jest",
+    "@nx/vite",
+    "@testing-library/react"
+  ]
+}

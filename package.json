@@ -27,7 +27,7 @@
     "format": "nx format:check --libs-and-apps",
     "format:fix": "nx format:write --libs-and-apps",
     "typecheck": "nx run-many --target=typecheck --all",
-    "depcheck": "depcheck || true",
+    "depcheck": "nx run-many --target=depcheck --all",
     "clean": "nx reset && rm -rf node_modules && rm -rf dist",
     "api": "pnpm --filter @msq-tx-monitor/tx-api",
     "scanner": "pnpm --filter @msq-tx-monitor/chain-scanner",

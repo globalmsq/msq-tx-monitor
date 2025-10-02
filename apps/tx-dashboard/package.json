@@ -17,13 +17,13 @@
     "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
     "format": "prettier --check \"src/**/*.{ts,tsx}\"",
     "format:fix": "prettier --write \"src/**/*.{ts,tsx}\"",
-    "depcheck": "depcheck || true",
+    "depcheck": "depcheck",
     "typecheck": "tsc --noEmit --project tsconfig.app.json"
   },
   "dependencies": {
+    "@msq-tx-monitor/msq-common": "workspace:^",
     "@msq-tx-monitor/tx-types": "workspace:*",
     "clsx": "^2.1.1",
-    "date-fns": "^4.1.0",
     "ethers": "^6.15.0",
     "lucide-react": "^0.544.0",
     "react": "^18.3.1",

@@ -1,47 +1,17 @@
 {
   "ignores": [
-    "@types/*",
+    "@msq-tx-monitor/database",
+    "@msq-tx-monitor/msq-common",
+    "@msq-tx-monitor/tx-types",
+    "tslib",
+    "@typescript-eslint/eslint-plugin",
+    "@typescript-eslint/parser",
+    "eslint",
+    "eslint-config-prettier",
+    "typescript",
     "webpack-cli",
-    "@prisma/client",
-    "prisma",
-    "express",
-    "compression",
-    "cors",
-    "dotenv",
-    "express-rate-limit",
-    "express-slow-down",
-    "helmet",
-    "morgan",
-    "mysql2",
-    "redis",
-    "swagger-jsdoc",
-    "swagger-ui-express",
-    "tsx",
-    "supertest"
-  ],
-  "parsers": {
-    "*.json": "depcheck-parser-sass"
-  },
-  "detectors": [
-    "depcheck-detector-require",
-    "depcheck-detector-import",
-    "depcheck-detector-amd",
-    "depcheck-detector-export",
-    "depcheck-detector-typescript"
-  ],
-  "specials": [
-    "depcheck-special-eslint"
-  ],
-  "ignore-patterns": [
-    "dist",
-    "build",
-    "coverage",
-    "*.d.ts"
-  ],
-  "ignore-dirs": [
-    "dist",
-    "build",
-    "coverage",
-    "node_modules"
+    "@types/node",
+    "@types/jest",
+    "@nx/webpack"
   ]
 }
