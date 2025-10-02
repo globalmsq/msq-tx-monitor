@@ -154,24 +154,21 @@ export class AnalyticsService {
   ): Promise<RealtimeStats> {
     try {
       const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-      const whereClause = tokenSymbol
-        ? `WHERE tokenSymbol = '${tokenSymbol}'`
-        : '';
       const whereTimeRangeClause = tokenSymbol
         ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
         : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
 
-      // Get overall stats
+      // Get overall stats with time range filter
       const totalStatsQuery = `
         SELECT
           COUNT(*) as totalTransactions,
           SUM(value) as totalVolume,
           COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as activeAddresses
         FROM transactions
-        ${whereClause}
+        ${whereTimeRangeClause}
       `;
 
-      // Get time range stats
+      // Get time range stats (same as totalStats now, but kept for backward compatibility)
       const timeRangeStatsQuery = `
         SELECT
           COUNT(*) as transactionsLast24h,
@@ -180,7 +177,7 @@ export class AnalyticsService {
         ${whereTimeRangeClause}
       `;
 
-      // Get token stats
+      // Get token stats with time range filter
       const tokenStatsQuery = tokenSymbol
         ? `
           SELECT
@@ -188,9 +185,9 @@ export class AnalyticsService {
             SUM(value) as totalVolume,
             COUNT(*) as transactionCount,
             COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as uniqueAddresses24h,
-            SUM(CASE WHEN timestamp >= '${cutoffDate.toISOString()}' THEN value ELSE 0 END) as volume24h
+            SUM(value) as volume24h
           FROM transactions
-          WHERE tokenSymbol = '${tokenSymbol}'
+          WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'
           GROUP BY tokenSymbol
         `
         : `
@@ -199,8 +196,9 @@ export class AnalyticsService {
             SUM(value) as totalVolume,
             COUNT(*) as transactionCount,
             COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as uniqueAddresses24h,
-            SUM(CASE WHEN timestamp >= '${cutoffDate.toISOString()}' THEN value ELSE 0 END) as volume24h
+            SUM(value) as volume24h
           FROM transactions
+          WHERE timestamp >= '${cutoffDate.toISOString()}'
           GROUP BY tokenSymbol
         `;
 

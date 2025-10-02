@@ -17,3 +17,5 @@
 13. [done] 실제 DB에 저장된 tx와 dashboard와 다른 이유
 14. API Cache 문제
 15. Transaction 주소 검색후 More Transaction 문제
+16. [done] Analytics에 Time Range 변경
+17. [done] Analytics Volume, Transaction 이 Time Range에 달라도 똑같음
