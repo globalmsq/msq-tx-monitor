@@ -56,9 +56,7 @@ function CustomTooltip({ active, payload }: TooltipProps) {
 
     return (
       <div className='bg-gray-900/95 backdrop-blur border border-white/20 rounded-lg p-3 shadow-xl'>
-        <p className='text-white font-medium mb-2'>
-          {formattedDate}
-        </p>
+        <p className='text-white font-medium mb-2'>{formattedDate}</p>
         <div className='space-y-1'>
           <div className='flex items-center justify-between gap-4'>
             <span className='text-sm' style={{ color: '#8b5cf6' }}>

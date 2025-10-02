@@ -54,7 +54,9 @@ export function VolumeWithTooltip({
   const formattedReceived = receivedValue
     ? formatExactNumber(receivedValue, decimals)
     : '0';
-  const formattedSent = sentValue ? formatExactNumber(sentValue, decimals) : '0';
+  const formattedSent = sentValue
+    ? formatExactNumber(sentValue, decimals)
+    : '0';
 
   const handleMouseEnter = () => {
     if (containerRef.current) {
@@ -105,8 +107,8 @@ export function VolumeWithTooltip({
           tooltipPosition.alignment === 'left'
             ? 'translate(0, -100%)'
             : tooltipPosition.alignment === 'right'
-            ? 'translate(-100%, -100%)'
-            : 'translate(-50%, -100%)',
+              ? 'translate(-100%, -100%)'
+              : 'translate(-50%, -100%)',
         zIndex: 9999999,
         visibility: 'visible',
         opacity: 1,
@@ -144,9 +146,7 @@ export function VolumeWithTooltip({
             }}
           >
             <ArrowDown size={12} />
-            <span>
-              recv: {formattedReceived}
-            </span>
+            <span>recv: {formattedReceived}</span>
           </div>
           <div
             style={{
@@ -157,9 +157,7 @@ export function VolumeWithTooltip({
             }}
           >
             <ArrowUp size={12} />
-            <span>
-              sent: {formattedSent}
-            </span>
+            <span>sent: {formattedSent}</span>
           </div>
         </div>
       ) : (

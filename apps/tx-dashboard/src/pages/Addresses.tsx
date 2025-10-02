@@ -530,9 +530,13 @@ export function Addresses() {
                             <div className='flex items-center gap-1'>
                               <ArrowDown size={12} className='text-blue-400' />
                               <span>
-                                {formatVolume(addr.total_received, selectedToken, {
-                                  precision: 0,
-                                })}
+                                {formatVolume(
+                                  addr.total_received,
+                                  selectedToken,
+                                  {
+                                    precision: 0,
+                                  }
+                                )}
                               </span>
                             </div>
                             <div className='flex items-center gap-1'>
