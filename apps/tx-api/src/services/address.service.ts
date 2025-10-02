@@ -89,7 +89,9 @@ export class AddressService {
   /**
    * Convert token symbol to token address
    */
-  private async getTokenAddress(tokenSymbol?: string): Promise<string | undefined> {
+  private async getTokenAddress(
+    tokenSymbol?: string
+  ): Promise<string | undefined> {
     if (!tokenSymbol) return undefined;
 
     // Check known tokens first (fast path)
@@ -807,7 +809,11 @@ export class AddressService {
         gte: start_date,
         lte: end_date,
       };
-    } else if (start_date && end_date && start_date.getTime() !== end_date.getTime()) {
+    } else if (
+      start_date &&
+      end_date &&
+      start_date.getTime() !== end_date.getTime()
+    ) {
       // Also apply filter if start_date and end_date are different (hours parameter was provided)
       where.timestamp = {
         gte: start_date,
@@ -1014,7 +1020,8 @@ export class AddressService {
     hours?: number
   ): Promise<AddressListResponse<AddressProfile>> {
     // Convert token symbol to address if provided
-    const resolvedTokenAddress = tokenAddress || (await this.getTokenAddress(tokenSymbol));
+    const resolvedTokenAddress =
+      tokenAddress || (await this.getTokenAddress(tokenSymbol));
 
     const cacheKey = `whale_addresses:${resolvedTokenAddress || 'all'}:${limit}:${hours || 'all'}`;
 
@@ -1128,7 +1135,8 @@ export class AddressService {
     hours?: number
   ): Promise<AddressListResponse<AddressProfile>> {
     // Convert token symbol to address if provided
-    const resolvedTokenAddress = tokenAddress || (await this.getTokenAddress(tokenSymbol));
+    const resolvedTokenAddress =
+      tokenAddress || (await this.getTokenAddress(tokenSymbol));
 
     const cacheKey = `active_traders:${resolvedTokenAddress || 'all'}:${limit}:${minTransactions}:${hours || 'all'}`;
 
@@ -1252,7 +1260,8 @@ export class AddressService {
     hours?: number
   ): Promise<AddressListResponse<AddressProfile>> {
     // Convert token symbol to address if provided
-    const resolvedTokenAddress = tokenAddress || (await this.getTokenAddress(tokenSymbol));
+    const resolvedTokenAddress =
+      tokenAddress || (await this.getTokenAddress(tokenSymbol));
 
     const cacheKey = `suspicious_addresses:${resolvedTokenAddress || 'all'}:${limit}:${minRiskScore}:${hours || 'all'}`;
 

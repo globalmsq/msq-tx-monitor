@@ -108,9 +108,10 @@ export class AnalyticsService {
 
       const rawData = rows.map(row => {
         // Only add 'Z' for datetime formats (minute/hour), not for date formats (day/week/month)
-        const hourValue = intervalType === 'minute' || intervalType === 'hour'
-          ? `${row.hour}Z`  // Add UTC timezone indicator for datetime
-          : row.hour;        // Keep as-is for date formats
+        const hourValue =
+          intervalType === 'minute' || intervalType === 'hour'
+            ? `${row.hour}Z` // Add UTC timezone indicator for datetime
+            : row.hour; // Keep as-is for date formats
 
         return {
           hour: hourValue,
@@ -375,10 +376,7 @@ export class AnalyticsService {
             cutoffDate,
             limit
           )
-        : await prisma.$queryRawUnsafe<any[]>(
-            query,
-            limit
-          );
+        : await prisma.$queryRawUnsafe<any[]>(query, limit);
 
       // Process and format results
       return addresses.map((addr, index) => {
@@ -650,9 +648,10 @@ export class AnalyticsService {
 
       const rawData = rows.map(row => {
         // Only add 'Z' for datetime formats (minute/hour), not for date formats (day/week/month)
-        const hourValue = intervalType === 'minute' || intervalType === 'hour'
-          ? `${row.hour}Z`  // Add UTC timezone indicator for datetime
-          : row.hour;        // Keep as-is for date formats
+        const hourValue =
+          intervalType === 'minute' || intervalType === 'hour'
+            ? `${row.hour}Z` // Add UTC timezone indicator for datetime
+            : row.hour; // Keep as-is for date formats
 
         return {
           timestamp: hourValue,
@@ -917,7 +916,9 @@ export class AnalyticsService {
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + 4 - (d.getDay() || 7));
     const yearStart = new Date(d.getFullYear(), 0, 1);
-    const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+    const weekNo = Math.ceil(
+      ((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
+    );
     return weekNo;
   }
 
