@@ -62,15 +62,14 @@ export const config = {
     ),
     requestDelay: parseInt(process.env.REQUEST_DELAY || '500', 10),
     // RPC Optimization Settings
-    maxBlocksPerPoll: parseInt(process.env.MAX_BLOCKS_PER_POLL || '10', 10),
-    enableTxDetails: process.env.ENABLE_TX_DETAILS === 'true',
+    maxBlocksPerPoll: parseInt(process.env.MAX_BLOCKS_PER_POLL || '5', 10), // Reduced from 10 to 5 for rate limit prevention
     disableIndividualTokenFallback:
       process.env.DISABLE_INDIVIDUAL_TOKEN_FALLBACK === 'true',
     maxRetryAttempts: parseInt(process.env.MAX_RETRY_ATTEMPTS || '2', 10),
     rateLimitBackoffMs: parseInt(
-      process.env.RATE_LIMIT_BACKOFF_MS || '5000',
+      process.env.RATE_LIMIT_BACKOFF_MS || '10000',
       10
-    ),
+    ), // Increased from 5000ms to 10000ms for better rate limit handling
     // Block Catch-up Settings
     catchUpBatchSize: parseInt(
       process.env.CATCHUP_BATCH_SIZE || '100',
@@ -82,9 +81,9 @@ export const config = {
       10
     ), // Max blocks to catch up
     catchUpBatchDelay: parseInt(
-      process.env.CATCHUP_BATCH_DELAY || '1000',
+      process.env.CATCHUP_BATCH_DELAY || '2000',
       10
-    ), // 1 second delay between batches
+    ), // Increased from 1000ms to 2000ms for rate limit prevention
     blockSaveInterval: parseInt(process.env.BLOCK_SAVE_INTERVAL || '10', 10), // Save every N blocks
   },
 
