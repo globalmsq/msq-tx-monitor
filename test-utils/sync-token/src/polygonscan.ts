@@ -97,6 +97,8 @@ export class PolygonScanClient {
    * Get all token transfers with automatic pagination using block ranges
    * V2 API limitation: PageNo × Offset ≤ 10,000
    * Solution: Use single page (page=1, offset=10000) and iterate by block ranges
+   *
+   * @deprecated Use streamTokenTransfers instead for memory efficiency
    */
   async getAllTokenTransfers(
     contractAddress: string,
@@ -146,5 +148,73 @@ export class PolygonScanClient {
     }
 
     return allTransactions;
+  }
+
+  /**
+   * Stream token transfers with automatic pagination using block ranges
+   * Memory-efficient approach: processes each batch immediately via callback
+   *
+   * @param contractAddress Token contract address
+   * @param startBlock Starting block number
+   * @param endBlock Ending block number (optional, defaults to latest)
+   * @param onBatch Callback to process each batch of transactions
+   * @returns Total number of transactions processed
+   */
+  async streamTokenTransfers(
+    contractAddress: string,
+    startBlock: number,
+    endBlock: number | undefined,
+    onBatch: (batch: PolygonScanTransaction[], iteration: number) => Promise<void>
+  ): Promise<number> {
+    let currentStartBlock = startBlock;
+    let iteration = 1;
+    let totalProcessed = 0;
+    const pageSize = 10000; // Max results per request
+    const targetEndBlock = endBlock ?? 999999999;
+
+    while (true) {
+      console.log(`  📄 Fetching batch ${iteration} (from block ${currentStartBlock})...`);
+
+      const transactions = await this.getTokenTransfers(
+        contractAddress,
+        currentStartBlock,
+        targetEndBlock,
+        1, // Always use page 1
+        pageSize
+      );
+
+      if (transactions.length === 0) {
+        console.log(`  ✅ No more transactions (batch ${iteration})`);
+        break;
+      }
+
+      totalProcessed += transactions.length;
+
+      console.log(`  ✅ Batch ${iteration}: ${transactions.length} transactions`);
+
+      // Process batch immediately (streaming approach)
+      await onBatch(transactions, iteration);
+
+      // If we got less than pageSize, we've reached the end
+      if (transactions.length < pageSize) {
+        break;
+      }
+
+      // Update startBlock to continue from the last transaction's block + 1
+      const lastTransaction = transactions[transactions.length - 1];
+      const lastBlockNumber = parseInt(lastTransaction.blockNumber, 10);
+
+      // Stop if we've reached or exceeded the target end block
+      if (lastBlockNumber >= targetEndBlock) {
+        console.log(`  ✅ Reached target end block ${targetEndBlock}`);
+        break;
+      }
+
+      currentStartBlock = lastBlockNumber + 1;
+
+      iteration++;
+    }
+
+    return totalProcessed;
   }
 }
