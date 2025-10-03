@@ -588,6 +588,94 @@ export class EventMonitor {
     }, MONITORING_INTERVALS.EVENT_PROCESSING);
   }
 
+  /**
+   * Fetch blockchain data (blocks, transactions, receipts) in batch to minimize RPC calls
+   * This dramatically reduces RPC calls from 3N to (unique_blocks + 2*unique_transactions)
+   */
+  private async fetchBlockchainDataBatch(events: EventData[]): Promise<{
+    blocks: Map<number, unknown>;
+    transactions: Map<string, unknown>;
+    receipts: Map<string, unknown>;
+  }> {
+    if (!this.web3Service.isConnected()) {
+      logger.warn('Web3 service not connected, returning empty blockchain data');
+      return {
+        blocks: new Map(),
+        transactions: new Map(),
+        receipts: new Map(),
+      };
+    }
+
+    const web3 = this.web3Service.getWeb3Instance();
+    if (!web3) {
+      logger.warn('Web3 instance not available, returning empty blockchain data');
+      return {
+        blocks: new Map(),
+        transactions: new Map(),
+        receipts: new Map(),
+      };
+    }
+
+    try {
+      // Extract unique block numbers and transaction hashes
+      const uniqueBlockNumbers = [...new Set(events.map(e => parseInt(e.blockNumber, 16)))];
+      const uniqueTxHashes = [...new Set(events.map(e => e.transactionHash))];
+
+      logger.info(
+        `Batch fetching blockchain data: ${uniqueBlockNumbers.length} blocks, ${uniqueTxHashes.length} transactions for ${events.length} events`
+      );
+
+      const startTime = Date.now();
+
+      // Fetch all data in parallel (3 RPC calls instead of 3*N)
+      const [blocks, transactions, receipts] = await Promise.all([
+        Promise.all(uniqueBlockNumbers.map(n => web3.eth.getBlock(n).catch(err => {
+          logger.error(`Error fetching block ${n}:`, err);
+          return null;
+        }))),
+        Promise.all(uniqueTxHashes.map(hash => web3.eth.getTransaction(hash).catch(err => {
+          logger.error(`Error fetching transaction ${hash}:`, err);
+          return null;
+        }))),
+        Promise.all(uniqueTxHashes.map(hash => web3.eth.getTransactionReceipt(hash).catch(err => {
+          logger.error(`Error fetching receipt ${hash}:`, err);
+          return null;
+        })))
+      ]);
+
+      const elapsed = Date.now() - startTime;
+      logger.info(`Batch fetch completed in ${elapsed}ms (${Math.round(events.length / (elapsed / 1000))} events/sec)`);
+
+      // Convert arrays to Maps for fast lookup
+      const blockMap = new Map(
+        blocks
+          .filter(b => b !== null)
+          .map(b => [Number(b!.number), b])
+      );
+
+      const txMap = new Map(
+        transactions
+          .filter(t => t !== null)
+          .map(t => [t!.hash, t])
+      );
+
+      const receiptMap = new Map(
+        receipts
+          .filter(r => r !== null)
+          .map(r => [r!.transactionHash, r])
+      );
+
+      return { blocks: blockMap, transactions: txMap, receipts: receiptMap };
+    } catch (error) {
+      logger.error('Error in batch blockchain data fetch:', error);
+      return {
+        blocks: new Map(),
+        transactions: new Map(),
+        receipts: new Map(),
+      };
+    }
+  }
+
   private async processQueuedEvents(): Promise<void> {
     if (this.isProcessing || this.processingQueue.length === 0) {
       return;
@@ -602,14 +690,20 @@ export class EventMonitor {
       );
       const eventsToProcess = this.processingQueue.splice(0, batchSize);
 
+      const overallStartTime = Date.now();
       logger.info(`Processing ${eventsToProcess.length} events...`);
+
+      // Fetch blockchain data in batch (major optimization)
+      const blockchainData = await this.fetchBlockchainDataBatch(eventsToProcess);
 
       const processedEvents: ProcessedEvent[] = [];
       const transactionData: TransactionData[] = [];
 
+      const processingStartTime = Date.now();
       for (const eventData of eventsToProcess) {
         try {
-          const processedEvent = await this.processEvent(eventData);
+          // Use cached blockchain data instead of making individual RPC calls
+          const processedEvent = this.processEvent(eventData, blockchainData);
           if (processedEvent) {
             processedEvents.push(processedEvent);
 
@@ -639,9 +733,14 @@ export class EventMonitor {
         this.emit(EVENT_TYPES.NEW_TRANSACTION, processedEvent);
       }
 
-      if (config.logging.enableBlockchainLogs) {
-        logger.info(`Processed ${processedEvents.length} events successfully`);
-      }
+      const overallElapsed = Date.now() - overallStartTime;
+      const processingElapsed = Date.now() - processingStartTime;
+
+      logger.info(
+        `✅ Batch complete: ${processedEvents.length}/${eventsToProcess.length} events processed in ${overallElapsed}ms ` +
+        `(RPC: ${overallElapsed - processingElapsed}ms, Processing: ${processingElapsed}ms, ` +
+        `Throughput: ${Math.round(processedEvents.length / (overallElapsed / 1000))} events/sec)`
+      );
     } catch (error) {
       logger.error('Error processing queued events:', error);
     } finally {
@@ -649,9 +748,14 @@ export class EventMonitor {
     }
   }
 
-  private async processEvent(
-    eventData: EventData
-  ): Promise<ProcessedEvent | null> {
+  private processEvent(
+    eventData: EventData,
+    blockchainData?: {
+      blocks: Map<number, unknown>;
+      transactions: Map<string, unknown>;
+      receipts: Map<string, unknown>;
+    }
+  ): ProcessedEvent | null {
     try {
       const { topics, data, address: tokenAddress } = eventData;
 
@@ -681,51 +785,41 @@ export class EventMonitor {
       const tokenSymbol = this.getTokenSymbol(tokenAddress);
       const tokenDecimals = this.getTokenDecimals(tokenAddress);
 
-      // Get gas information and block timestamp from blockchain
+      // Get gas information and block timestamp from cached blockchain data
       let gasPrice: string | undefined;
       let gasUsed: string | undefined;
       let blockTimestamp = new Date(); // Fallback to current time if block fetch fails
       let transactionStatus = 1; // default to success
 
-      if (this.web3Service.isConnected()) {
-        const web3 = this.web3Service.getWeb3Instance();
-        if (web3) {
-          try {
-            // Get block information for accurate timestamp
-            const blockNumber = parseInt(eventData.blockNumber, 16);
-            const block = await web3.eth.getBlock(blockNumber);
-            if (block?.timestamp) {
-              // Convert Unix timestamp (seconds) to JavaScript Date
-              blockTimestamp = new Date(Number(block.timestamp) * 1000);
-            }
+      // Use cached blockchain data if available (batch processing)
+      if (blockchainData) {
+        const blockNumber = parseInt(eventData.blockNumber, 16);
+        const block = blockchainData.blocks.get(blockNumber);
+        const transaction = blockchainData.transactions.get(eventData.transactionHash);
+        const receipt = blockchainData.receipts.get(eventData.transactionHash);
 
-            // Get transaction details for gas price
-            const transaction = await web3.eth.getTransaction(
-              eventData.transactionHash
-            );
-            if (transaction?.gasPrice) {
-              gasPrice = transaction.gasPrice.toString();
-            }
+        // Extract block timestamp
+        if (block?.timestamp) {
+          blockTimestamp = new Date(Number(block.timestamp) * 1000);
+        }
 
-            // Get transaction receipt for gas usage and status
-            const receipt = await web3.eth.getTransactionReceipt(
-              eventData.transactionHash
-            );
-            if (receipt) {
-              if (receipt.gasUsed) {
-                gasUsed = receipt.gasUsed.toString();
-              }
-              // Check transaction status (true/1 = success, false/0 = failed)
-              transactionStatus = receipt.status ? 1 : 0;
-            }
-          } catch (blockchainError) {
-            if (config.logging.enableBlockchainLogs) {
-              logger.warn(
-                `Failed to fetch blockchain info for ${eventData.transactionHash}:`,
-                blockchainError
-              );
-            }
+        // Extract gas price from transaction
+        if (transaction?.gasPrice) {
+          gasPrice = transaction.gasPrice.toString();
+        }
+
+        // Extract gas used and status from receipt
+        if (receipt) {
+          if (receipt.gasUsed) {
+            gasUsed = receipt.gasUsed.toString();
           }
+          transactionStatus = receipt.status ? 1 : 0;
+        }
+
+        if (config.logging.enableBlockchainLogs) {
+          logger.info(
+            `Using cached blockchain data for ${eventData.transactionHash}`
+          );
         }
       }
 
@@ -801,13 +895,9 @@ export class EventMonitor {
           basicTransactionData.gasUsed = processedEvent.gasUsed;
         }
 
-        // Only fetch confirmations if enableTxDetails is true (for performance)
-        if (config.monitoring.enableTxDetails) {
-          // Get current block number for confirmations (most expensive call)
-          const currentBlockNumber = await web3.eth.getBlockNumber();
-          basicTransactionData.confirmations =
-            Number(currentBlockNumber) - processedEvent.blockNumber;
-        }
+        // Note: confirmations field remains 0 in database
+        // It should be calculated in real-time by tx-api when serving transaction data
+        // confirmations = currentBlock - tx.blockNumber (calculated at query time)
       } catch (detailError) {
         logger.warn(
           `Failed to fetch transaction details for ${processedEvent.transactionHash}, using basic data:`,

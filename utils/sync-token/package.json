@@ -1,0 +1,24 @@
+{
+  "name": "sync-token-history",
+  "version": "1.0.0",
+  "description": "One-time utility to sync historical token transaction data from PolygonScan API",
+  "private": true,
+  "scripts": {
+    "sync": "tsx --env-file=.env src/index.ts",
+    "sync:msq": "tsx --env-file=.env src/index.ts --token=MSQ",
+    "sync:kwt": "tsx --env-file=.env src/index.ts --token=KWT",
+    "sync:sut": "tsx --env-file=.env src/index.ts --token=SUT",
+    "sync:p2uc": "tsx --env-file=.env src/index.ts --token=P2UC",
+    "sync:all": "tsx --env-file=.env src/index.ts --token=ALL"
+  },
+  "dependencies": {
+    "@msq-tx-monitor/database": "workspace:*",
+    "axios": "^1.6.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  }
+}

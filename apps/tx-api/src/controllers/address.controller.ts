@@ -1027,12 +1027,12 @@ export class AddressController {
 
       // Parse and validate hours parameter
       const hoursParam = hours ? parseInt(hours as string) : 24;
-      if (hoursParam < 1 || hoursParam > 720) {
+      if (hoursParam < 1 || hoursParam > 8760) {
         res.status(400).json({
           error: {
             code: 400,
             message: 'Invalid hours parameter',
-            details: 'Hours must be between 1 and 720',
+            details: 'Hours must be between 1 and 8760',
             timestamp: new Date().toISOString(),
           },
         });
