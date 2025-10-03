@@ -550,6 +550,7 @@ export function Analytics() {
 
   // Data fetching effect
   useEffect(() => {
+    setLoading(true); // Set loading state when fetching data
     fetchAnalyticsData(activeTab);
 
     // Auto-refresh interval (only when auto-refresh is enabled)
@@ -572,15 +573,13 @@ export function Analytics() {
 
   const handleTimeRangeChange = (range: TimeRange) => {
     setTimeRange(range);
-    setLoading(true);
-    fetchAnalyticsData(activeTab);
+    // fetchAnalyticsData will be called by useEffect when timeRange changes
   };
 
   // Handle token tab change
   const handleTokenChange = (token: keyof typeof TOKEN_CONFIG) => {
     setActiveTab(token);
-    setLoading(true);
-    fetchAnalyticsData(token);
+    // fetchAnalyticsData will be called by useEffect when activeTab changes
   };
 
   // Fetch address details from API
