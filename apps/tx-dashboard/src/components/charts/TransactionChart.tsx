@@ -161,8 +161,12 @@ function formatHour(hour: string, dataLength: number): string {
     // 1h, 24h: HH:MM
     return `${hours}:${minutes}`;
   } else if (dataLength <= 168) {
-    // 7d, 30d, 3m: MM-DD HH:MM
-    return `${month}-${day} ${hours}:${minutes}`;
+    // 7d: MM-DD HH:MM, 30d+: MM-DD only
+    if (dataLength <= 48) {
+      return `${month}-${day} ${hours}:${minutes}`;
+    } else {
+      return `${month}-${day}`;
+    }
   } else {
     // Other ranges: MM-DD
     return `${month}-${day}`;
@@ -188,11 +192,10 @@ export function TransactionChart({
   // Calculate appropriate interval based on data length
   const getXAxisInterval = (dataLength: number) => {
     if (dataLength <= 24) return 'preserveStartEnd'; // 1h, 24h: show all or start/end
-    if (dataLength <= 30) return 2; // 6m (26 weeks): show ~13 points
-    if (dataLength <= 48) return 'preserveEnd'; // 2d: show end points
-    if (dataLength <= 52) return 4; // 1y (52 weeks): show ~13 points
-    if (dataLength <= 90) return Math.floor(dataLength / 10); // 30d-3m: show ~10 points
-    if (dataLength <= 168) return 24; // 7d: show daily (every 24 hours)
+    if (dataLength <= 30) return Math.floor(dataLength / 8); // 30d: ~8 labels
+    if (dataLength <= 52) return Math.floor(dataLength / 8); // 6m, 1y: ~6-8 labels
+    if (dataLength <= 90) return Math.floor(dataLength / 8); // 3m: ~11 labels
+    if (dataLength <= 168) return Math.floor(dataLength / 8); // 7d: ~21 labels
     return 'preserveStartEnd'; // All time or others: show start/end
   };
 
@@ -207,7 +210,7 @@ export function TransactionChart({
             top: 10,
             right: 30,
             left: 20,
-            bottom: 25,
+            bottom: 65, // Increased for rotated labels
           }}
           barCategoryGap={2}
         >
@@ -222,8 +225,11 @@ export function TransactionChart({
             dataKey='hourLabel'
             axisLine={false}
             tickLine={false}
-            tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }}
+            tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 11 }}
             interval={xAxisInterval}
+            angle={-45}
+            textAnchor='end'
+            height={60}
           />
 
           <YAxis
