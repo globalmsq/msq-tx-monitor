@@ -21,6 +21,12 @@ import {
   LazyAnomalyChart,
 } from '../components/charts/LazyCharts';
 import {
+  StatsCardSkeleton,
+  ChartSkeleton,
+  TopAddressesSkeleton,
+  AnomalyStatsSkeleton,
+} from '../components/LoadingSkeleton';
+import {
   wsService,
   ConnectionState,
   TransactionMessage,
@@ -40,6 +46,52 @@ import { VolumeWithTooltip } from '../components/VolumeWithTooltip';
 
 // Analytics API service
 const ANALYTICS_BASE_URL = 'http://localhost:8000/api/v1/analytics';
+
+// Helper function to process hourly volume data from API
+function processHourlyVolumeData(
+  apiResponse: ApiResponse<HourlyVolumeApiItem[]>,
+  _token: string
+): HourlyVolumeData[] {
+  if (
+    apiResponse &&
+    apiResponse.success &&
+    apiResponse.data &&
+    apiResponse.data.length > 0
+  ) {
+    return apiResponse.data.map((item: HourlyVolumeApiItem) => ({
+      timestamp: item.hour,
+      hour: item.hour,
+      totalVolume: item.totalVolume,
+      transactionCount: item.transactionCount,
+      averageVolume: item.averageVolume,
+      tokenSymbol: item.tokenSymbol,
+    }));
+  }
+  return [];
+}
+
+// Helper function to process anomaly time series data from API
+function processAnomalyTimeData(
+  apiResponse: ApiResponse<AnomalyTimeApiItem[]>
+): AnomalyTimeData[] {
+  if (
+    apiResponse &&
+    apiResponse.success &&
+    apiResponse.data &&
+    apiResponse.data.length > 0
+  ) {
+    return apiResponse.data.map((item: AnomalyTimeApiItem) => ({
+      timestamp: item.timestamp,
+      hour: item.hour,
+      anomalyCount: item.anomalyCount,
+      averageScore: item.averageScore,
+      highRiskCount: item.highRiskCount,
+      totalTransactions: item.totalTransactions,
+      anomalyRate: item.anomalyRate,
+    }));
+  }
+  return [];
+}
 
 interface TokenDistribution {
   tokenSymbol: string;
@@ -147,6 +199,9 @@ interface TokenStatApiItem {
   tokenSymbol: string;
   transactionCount: number;
   volume: string;
+  volume24h: string;
+  totalVolume: string;
+  uniqueAddresses24h: number;
   percentage: number;
 }
 
@@ -233,10 +288,32 @@ function TabButton({ isActive, onClick, children }: TabButtonProps) {
 
 type TimeRange = '1h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
 
+interface LoadingStates {
+  realtime: boolean;
+  hourlyVolume: boolean;
+  tokenDistribution: boolean;
+  topAddresses: boolean;
+  topReceivers: boolean;
+  topSenders: boolean;
+  anomalyStats: boolean;
+  anomalyTimeData: boolean;
+  networkStats: boolean;
+}
+
 export function Analytics() {
   const [activeTab, setActiveTab] = useState<keyof typeof TOKEN_CONFIG>('MSQ');
   const [data, setData] = useState<AnalyticsData>({});
-  const [loading, setLoading] = useState(true);
+  const [loadingStates, setLoadingStates] = useState<LoadingStates>({
+    realtime: true,
+    hourlyVolume: true,
+    tokenDistribution: true,
+    topAddresses: true,
+    topReceivers: true,
+    topSenders: true,
+    anomalyStats: true,
+    anomalyTimeData: true,
+    networkStats: true,
+  });
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [timeRange, setTimeRange] = useState<TimeRange>('24h');
@@ -321,7 +398,18 @@ export function Analytics() {
   const fetchAnalyticsData = useCallback(
     async (token: string = activeTab) => {
       try {
-        setLoading(true);
+        // Reset all loading states
+        setLoadingStates({
+          realtime: true,
+          hourlyVolume: true,
+          tokenDistribution: true,
+          topAddresses: true,
+          topReceivers: true,
+          topSenders: true,
+          anomalyStats: true,
+          anomalyTimeData: true,
+          networkStats: true,
+        });
         setError(null);
 
         const hours = getHoursFromTimeRange(timeRange);
@@ -329,134 +417,110 @@ export function Analytics() {
         const tokenParam = `&token=${token}`;
         const hoursParam = hours !== undefined ? `&hours=${hours}` : '';
 
-        const endpoints = [
-          `realtime?${tokenParam.slice(1)}${hoursParam}`,
-          `volume/hourly?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`,
-          `distribution/token?${tokenParam.slice(1)}${hoursParam}`,
-          `addresses/top?metric=volume&limit=5${tokenParam}${hoursParam}`,
-          `addresses/receivers?limit=5${tokenParam}${hoursParam}`,
-          `addresses/senders?limit=5${tokenParam}${hoursParam}`,
-          `anomalies?${tokenParam.slice(1)}${hoursParam}`,
-          `anomalies/timeseries?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`,
-          `network?${tokenParam.slice(1)}${hoursParam}`,
-        ];
+        // Fetch realtime stats
+        fetch(`${ANALYTICS_BASE_URL}/realtime?${tokenParam.slice(1)}${hoursParam}`)
+          .then(res => res.json())
+          .then((realtimeRes: ApiResponse<unknown>) => {
+            const tokenStats = (realtimeRes.data as { tokenStats?: TokenStatApiItem[] })?.tokenStats?.find(
+              (stat: TokenStatApiItem) => stat.tokenSymbol === token
+            );
 
-        const requests = endpoints.map(endpoint =>
-          fetch(`${ANALYTICS_BASE_URL}/${endpoint}`)
-            .then(res => res.json())
-            .catch(err => ({ error: err.message }))
-        );
+            const tokenSpecificRealtime = tokenStats
+              ? {
+                  totalTransactions: tokenStats.transactionCount || 0,
+                  totalVolume: tokenStats.totalVolume || '0',
+                  activeAddresses: tokenStats.uniqueAddresses24h || 0,
+                  transactionsLast24h: tokenStats.transactionCount || 0,
+                  volumeLast24h: tokenStats.volume24h || '0',
+                  activeTokens: 1,
+                }
+              : {
+                  totalTransactions: 0,
+                  totalVolume: '0',
+                  activeAddresses: 0,
+                  transactionsLast24h: 0,
+                  volumeLast24h: '0',
+                  activeTokens: 0,
+                };
 
-        const [
-          realtimeRes,
-          hourlyVolumeRes,
-          tokenDistributionRes,
-          topAddressesRes,
-          topReceiversRes,
-          topSendersRes,
-          anomalyStatsRes,
-          anomalyTimeSeriesRes,
-          networkStatsRes,
-        ] = await Promise.all(requests);
+            setData(prev => ({ ...prev, realtime: tokenSpecificRealtime }));
+            setLoadingStates(prev => ({ ...prev, realtime: false }));
+          })
+          .catch(err => logger.error('Realtime fetch error:', err));
 
-        // Process hourly volume data from API
-        const processHourlyVolumeData = (
-          apiResponse: ApiResponse<HourlyVolumeApiItem[]>,
-          _token: string
-        ): HourlyVolumeData[] => {
-          // If API returns real data, use it directly
-          if (
-            apiResponse &&
-            apiResponse.success &&
-            apiResponse.data &&
-            apiResponse.data.length > 0
-          ) {
-            return apiResponse.data.map((item: HourlyVolumeApiItem) => ({
-              timestamp: item.hour,
-              hour: item.hour,
-              totalVolume: item.totalVolume,
-              transactionCount: item.transactionCount,
-              averageVolume: item.averageVolume,
-              tokenSymbol: item.tokenSymbol,
-            }));
-          }
+        // Fetch hourly volume
+        fetch(`${ANALYTICS_BASE_URL}/volume/hourly?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`)
+          .then(res => res.json())
+          .then((hourlyVolumeRes: ApiResponse<HourlyVolumeApiItem[]>) => {
+            const hourlyVolumeData = processHourlyVolumeData(hourlyVolumeRes, token);
+            setData(prev => ({ ...prev, hourlyVolume: hourlyVolumeData }));
+            setLoadingStates(prev => ({ ...prev, hourlyVolume: false }));
+          })
+          .catch(err => logger.error('Hourly volume fetch error:', err));
 
-          // If no real data available, return empty array to show "No data" message
-          return [];
-        };
+        // Fetch token distribution
+        fetch(`${ANALYTICS_BASE_URL}/distribution/token?${tokenParam.slice(1)}${hoursParam}`)
+          .then(res => res.json())
+          .then((tokenDistributionRes: ApiResponse<TokenDistribution[]>) => {
+            setData(prev => ({ ...prev, tokenDistribution: tokenDistributionRes.data || [] }));
+            setLoadingStates(prev => ({ ...prev, tokenDistribution: false }));
+          })
+          .catch(err => logger.error('Token distribution fetch error:', err));
 
-        const hourlyVolumeData = processHourlyVolumeData(
-          hourlyVolumeRes,
-          token
-        );
+        // Fetch top addresses (slowest API)
+        fetch(`${ANALYTICS_BASE_URL}/addresses/top?metric=volume&limit=5${tokenParam}${hoursParam}`)
+          .then(res => res.json())
+          .then((topAddressesRes: ApiResponse<TopAddress[]>) => {
+            setData(prev => ({ ...prev, topAddresses: topAddressesRes.data || [] }));
+            setLoadingStates(prev => ({ ...prev, topAddresses: false }));
+          })
+          .catch(err => logger.error('Top addresses fetch error:', err));
 
-        // Process anomaly time series data from API
-        const processAnomalyTimeData = (
-          apiResponse: ApiResponse<AnomalyTimeApiItem[]>
-        ): AnomalyTimeData[] => {
-          // If API returns real data, use it directly
-          if (
-            apiResponse &&
-            apiResponse.success &&
-            apiResponse.data &&
-            apiResponse.data.length > 0
-          ) {
-            return apiResponse.data.map((item: AnomalyTimeApiItem) => ({
-              timestamp: item.timestamp,
-              hour: item.hour,
-              anomalyCount: item.anomalyCount,
-              averageScore: item.averageScore,
-              highRiskCount: item.highRiskCount,
-              totalTransactions: item.totalTransactions,
-              anomalyRate: item.anomalyRate,
-            }));
-          }
+        // Fetch top receivers
+        fetch(`${ANALYTICS_BASE_URL}/addresses/receivers?limit=5${tokenParam}${hoursParam}`)
+          .then(res => res.json())
+          .then((topReceiversRes: ApiResponse<TopAddress[]>) => {
+            setData(prev => ({ ...prev, topReceivers: topReceiversRes.data || [] }));
+            setLoadingStates(prev => ({ ...prev, topReceivers: false }));
+          })
+          .catch(err => logger.error('Top receivers fetch error:', err));
 
-          // If no real data available, return empty array to show "No data" message
-          return [];
-        };
+        // Fetch top senders
+        fetch(`${ANALYTICS_BASE_URL}/addresses/senders?limit=5${tokenParam}${hoursParam}`)
+          .then(res => res.json())
+          .then((topSendersRes: ApiResponse<TopAddress[]>) => {
+            setData(prev => ({ ...prev, topSenders: topSendersRes.data || [] }));
+            setLoadingStates(prev => ({ ...prev, topSenders: false }));
+          })
+          .catch(err => logger.error('Top senders fetch error:', err));
 
-        const anomalyTimeData = processAnomalyTimeData(anomalyTimeSeriesRes);
+        // Fetch anomaly stats
+        fetch(`${ANALYTICS_BASE_URL}/anomalies?${tokenParam.slice(1)}${hoursParam}`)
+          .then(res => res.json())
+          .then((anomalyStatsRes: ApiResponse<AnomalyStats>) => {
+            setData(prev => ({ ...prev, anomalyStats: anomalyStatsRes.data }));
+            setLoadingStates(prev => ({ ...prev, anomalyStats: false }));
+          })
+          .catch(err => logger.error('Anomaly stats fetch error:', err));
 
-        // Use real hourly volume data (already filtered by token)
-        const filteredHourlyVolume = hourlyVolumeData;
+        // Fetch anomaly time series
+        fetch(`${ANALYTICS_BASE_URL}/anomalies/timeseries?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`)
+          .then(res => res.json())
+          .then((anomalyTimeSeriesRes: ApiResponse<AnomalyTimeApiItem[]>) => {
+            const anomalyTimeData = processAnomalyTimeData(anomalyTimeSeriesRes);
+            setData(prev => ({ ...prev, anomalyTimeData }));
+            setLoadingStates(prev => ({ ...prev, anomalyTimeData: false }));
+          })
+          .catch(err => logger.error('Anomaly time series fetch error:', err));
 
-        // Extract token-specific stats from realtime data
-        const tokenStats = realtimeRes.data?.tokenStats?.find(
-          (stat: TokenStatApiItem) => stat.tokenSymbol === token
-        );
-
-        // Create token-specific realtime stats
-        const tokenSpecificRealtime = tokenStats
-          ? {
-              totalTransactions: tokenStats.transactionCount || 0,
-              totalVolume: tokenStats.totalVolume || '0',
-              activeAddresses: tokenStats.uniqueAddresses24h || 0,
-              transactionsLast24h: tokenStats.transactionCount || 0,
-              volumeLast24h: tokenStats.volume24h || '0',
-              activeTokens: 1, // Since we're showing data for one token
-            }
-          : {
-              // Fallback for when token stats are not found
-              totalTransactions: 0,
-              totalVolume: '0',
-              activeAddresses: 0,
-              transactionsLast24h: 0,
-              volumeLast24h: '0',
-              activeTokens: 0,
-            };
-
-        setData({
-          realtime: tokenSpecificRealtime,
-          hourlyVolume: filteredHourlyVolume,
-          tokenDistribution: tokenDistributionRes.data || [],
-          topAddresses: topAddressesRes.data || [],
-          topReceivers: topReceiversRes.data || [],
-          topSenders: topSendersRes.data || [],
-          anomalyStats: anomalyStatsRes.data,
-          anomalyTimeData: anomalyTimeData,
-          networkStats: networkStatsRes.data,
-        });
+        // Fetch network stats
+        fetch(`${ANALYTICS_BASE_URL}/network?${tokenParam.slice(1)}${hoursParam}`)
+          .then(res => res.json())
+          .then((networkStatsRes: ApiResponse<unknown>) => {
+            setData(prev => ({ ...prev, networkStats: networkStatsRes.data }));
+            setLoadingStates(prev => ({ ...prev, networkStats: false }));
+          })
+          .catch(err => logger.error('Network stats fetch error:', err));
 
         setLastUpdated(new Date());
       } catch (err) {
@@ -464,8 +528,6 @@ export function Analytics() {
           err instanceof Error ? err.message : 'Failed to fetch analytics data'
         );
         logger.error('Analytics fetch error:', err);
-      } finally {
-        setLoading(false);
       }
     },
     [activeTab, timeRange]
@@ -550,7 +612,6 @@ export function Analytics() {
 
   // Data fetching effect
   useEffect(() => {
-    setLoading(true); // Set loading state when fetching data
     fetchAnalyticsData(activeTab);
 
     // Auto-refresh interval (only when auto-refresh is enabled)
@@ -1103,16 +1164,21 @@ export function Analytics() {
           </div>
           <button
             onClick={handleRefresh}
-            disabled={loading}
+            disabled={Object.values(loadingStates).some(state => state)}
             className={cn(
               'p-2 rounded-lg transition-colors',
-              loading
+              Object.values(loadingStates).some(state => state)
                 ? 'text-white/40 cursor-not-allowed'
                 : 'text-white/70 hover:text-white hover:bg-white/10'
             )}
             title='Refresh data'
           >
-            <RefreshCw className={cn('w-5 h-5', loading && 'animate-spin')} />
+            <RefreshCw
+              className={cn(
+                'w-5 h-5',
+                Object.values(loadingStates).some(state => state) && 'animate-spin'
+              )}
+            />
           </button>
           <button
             onClick={handleExport}
@@ -1180,18 +1246,16 @@ export function Analytics() {
       </div>
 
       {/* Content */}
-      {loading ? (
-        <div className='glass rounded-2xl p-6'>
-          <div className='flex items-center justify-center py-12'>
-            <RefreshCw className='w-8 h-8 text-primary-400 animate-spin' />
-            <span className='ml-3 text-white/70'>
-              Loading analytics data...
-            </span>
+      <div className='space-y-6'>
+        {/* Key Metrics for Selected Token */}
+        {loadingStates.realtime ? (
+          <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
+            <StatsCardSkeleton />
+            <StatsCardSkeleton />
+            <StatsCardSkeleton />
+            <StatsCardSkeleton />
           </div>
-        </div>
-      ) : (
-        <div className='space-y-6'>
-          {/* Key Metrics for Selected Token */}
+        ) : (
           <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
             <MetricCard
               title={`${activeTab} Transactions`}
@@ -1227,54 +1291,49 @@ export function Analytics() {
               icon={<Coins className='w-5 h-5' />}
             />
           </div>
+        )}
 
-          {/* Volume Trends */}
+        {/* Volume Trends */}
+        {loadingStates.hourlyVolume ? (
+          <ChartSkeleton />
+        ) : data.hourlyVolume && data.hourlyVolume.length > 0 ? (
           <div className='glass rounded-2xl p-6'>
             <h3 className='text-lg font-bold text-white mb-4'>
               {activeTab} Volume Trends
             </h3>
-            {data.hourlyVolume && data.hourlyVolume.length > 0 ? (
-              <LazyVolumeChart
-                data={data.hourlyVolume}
-                height={400}
-                showGrid={true}
-                gradient={true}
-                tokenSymbol={activeTab}
-              />
-            ) : (
-              <div className='flex items-center justify-center py-12'>
-                <span className='text-white/60'>
-                  No volume data available for {activeTab}
-                </span>
-              </div>
-            )}
+            <LazyVolumeChart
+              data={data.hourlyVolume}
+              height={400}
+              showGrid={true}
+              gradient={true}
+              tokenSymbol={activeTab}
+            />
           </div>
+        ) : null}
 
-          {/* Transaction Trends and Addresses by Volume - Responsive Grid */}
-          <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-            {/* Transaction Trends */}
+        {/* Transaction Trends and Addresses by Volume - Responsive Grid */}
+        <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+          {/* Transaction Trends */}
+          {loadingStates.hourlyVolume ? (
+            <ChartSkeleton />
+          ) : data.hourlyVolume && data.hourlyVolume.length > 0 ? (
             <div className='glass rounded-2xl p-6'>
               <h3 className='text-lg font-bold text-white mb-4'>
                 {activeTab} Transaction Trends
               </h3>
-              {data.hourlyVolume && data.hourlyVolume.length > 0 ? (
-                <LazyTransactionChart
-                  data={data.hourlyVolume}
-                  height={300}
-                  showGrid={true}
-                  tokenSymbol={activeTab}
-                />
-              ) : (
-                <div className='flex items-center justify-center py-12'>
-                  <span className='text-white/60'>
-                    No transaction data available for {activeTab}
-                  </span>
-                </div>
-              )}
+              <LazyTransactionChart
+                data={data.hourlyVolume}
+                height={300}
+                showGrid={true}
+                tokenSymbol={activeTab}
+              />
             </div>
+          ) : null}
 
-            {/* Top Addresses by Volume */}
-            {data.topAddresses && data.topAddresses.length > 0 && (
+          {/* Top Addresses by Volume */}
+          {loadingStates.topAddresses ? (
+            <TopAddressesSkeleton />
+          ) : data.topAddresses && data.topAddresses.length > 0 ? (
               <div className='glass rounded-2xl p-6'>
                 <h3 className='text-lg font-bold text-white mb-4'>
                   Top {activeTab} Addresses by Volume
@@ -1363,19 +1422,21 @@ export function Analytics() {
                   ))}
                 </div>
               </div>
-            )}
-          </div>
+            ) : null}
+        </div>
 
-          {/* Top Address Activity - Receivers and Senders */}
-          <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-            {/* Top Receivers */}
+        {/* Top Address Activity - Receivers and Senders */}
+        <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+          {/* Top Receivers */}
+          {loadingStates.topReceivers ? (
+            <TopAddressesSkeleton />
+          ) : data.topReceivers && data.topReceivers.length > 0 ? (
             <div className='glass rounded-2xl p-6'>
               <h3 className='text-lg font-bold text-white mb-4 flex items-center gap-2'>
                 <span className='w-3 h-3 rounded-full bg-green-500'></span>
                 Top {activeTab} Transaction Receivers
               </h3>
-              {data.topReceivers && data.topReceivers.length > 0 ? (
-                <div className='space-y-3'>
+              <div className='space-y-3'>
                   {data.topReceivers.slice(0, 5).map((address, index) => (
                     <div
                       key={address.address}
@@ -1422,24 +1483,20 @@ export function Analytics() {
                       </div>
                     </div>
                   ))}
-                </div>
-              ) : (
-                <div className='flex items-center justify-center py-12'>
-                  <span className='text-white/60'>
-                    No receiver data available
-                  </span>
-                </div>
-              )}
+              </div>
             </div>
+          ) : null}
 
-            {/* Top Senders */}
+          {/* Top Senders */}
+          {loadingStates.topSenders ? (
+            <TopAddressesSkeleton />
+          ) : data.topSenders && data.topSenders.length > 0 ? (
             <div className='glass rounded-2xl p-6'>
               <h3 className='text-lg font-bold text-white mb-4 flex items-center gap-2'>
                 <span className='w-3 h-3 rounded-full bg-orange-500'></span>
                 Top {activeTab} Transaction Senders
               </h3>
-              {data.topSenders && data.topSenders.length > 0 ? (
-                <div className='space-y-3'>
+              <div className='space-y-3'>
                   {data.topSenders.slice(0, 5).map((address, index) => (
                     <div
                       key={address.address}
@@ -1486,25 +1543,21 @@ export function Analytics() {
                       </div>
                     </div>
                   ))}
-                </div>
-              ) : (
-                <div className='flex items-center justify-center py-12'>
-                  <span className='text-white/60'>
-                    No sender data available
-                  </span>
-                </div>
-              )}
+              </div>
             </div>
-          </div>
+          ) : null}
+        </div>
 
-          {/* Anomaly Detection Overview */}
+        {/* Anomaly Detection Overview */}
+        {loadingStates.anomalyStats ? (
+          <AnomalyStatsSkeleton />
+        ) : data.anomalyStats ? (
           <div className='glass rounded-2xl p-6'>
             <h3 className='text-lg font-bold text-white mb-4'>
               {activeTab} Anomaly Detection Overview{' '}
               <span className='text-red-400'>(Not Working)</span>
             </h3>
-            {data.anomalyStats ? (
-              <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
+            <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
                 <MetricCard
                   title='Total Anomalies'
                   value={formatNumber(data.anomalyStats.totalAnomalies || 0, {
@@ -1537,34 +1590,27 @@ export function Analytics() {
                   color='red'
                 />
               </div>
-            ) : (
-              <p className='text-white/70'>Anomaly data unavailable.</p>
-            )}
-          </div>
+            </div>
+          ) : null}
 
-          {/* Anomaly Trends & Risk Analysis */}
+        {/* Anomaly Trends & Risk Analysis */}
+        {loadingStates.anomalyTimeData ? (
+          <ChartSkeleton />
+        ) : data.anomalyTimeData && data.anomalyTimeData.length > 0 ? (
           <div className='glass rounded-2xl p-6'>
             <h3 className='text-lg font-bold text-white mb-4'>
               {activeTab} Anomaly Trends & Risk Analysis{' '}
               <span className='text-red-400'>(Not Working)</span>
             </h3>
-            {data.anomalyTimeData && data.anomalyTimeData.length > 0 ? (
-              <LazyAnomalyChart
-                data={data.anomalyTimeData}
-                height={400}
-                showGrid={true}
-                riskThreshold={0.7}
-              />
-            ) : (
-              <div className='flex items-center justify-center py-12'>
-                <span className='text-white/60'>
-                  No anomaly trend data available
-                </span>
-              </div>
-            )}
+            <LazyAnomalyChart
+              data={data.anomalyTimeData}
+              height={400}
+              showGrid={true}
+              riskThreshold={0.7}
+            />
           </div>
-        </div>
-      )}
+        ) : null}
+      </div>
 
       {/* Detailed Analysis Modal */}
       <DetailedAnalysisModal

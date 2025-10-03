@@ -119,3 +119,69 @@ export function InitialStatsLoadingSkeleton() {
     </div>
   );
 }
+
+export function ChartSkeleton() {
+  return (
+    <div className='glass rounded-2xl p-6 animate-pulse'>
+      <LoadingSkeleton className='h-6 w-48 mb-4' />
+      <div className='space-y-2'>
+        <LoadingSkeleton className='h-64 w-full' />
+        <div className='flex justify-between pt-2'>
+          <LoadingSkeleton className='h-3 w-16' />
+          <LoadingSkeleton className='h-3 w-16' />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function TopAddressesSkeleton() {
+  return (
+    <div className='glass rounded-2xl p-6 animate-pulse'>
+      <LoadingSkeleton className='h-6 w-48 mb-4' />
+      <div className='space-y-3'>
+        {Array.from({ length: 5 }, (_, index) => (
+          <div key={index} className='flex items-center justify-between p-3 bg-white/5 rounded-lg'>
+            <div className='flex items-center space-x-3 flex-1'>
+              <LoadingSkeleton className='h-8 w-8 rounded-full' />
+              <div className='flex-1'>
+                <LoadingSkeleton className='h-4 w-32 mb-2' />
+                <LoadingSkeleton className='h-3 w-24' />
+              </div>
+            </div>
+            <div className='text-right'>
+              <LoadingSkeleton className='h-4 w-20 mb-2' />
+              <LoadingSkeleton className='h-3 w-16' />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AnomalyStatsSkeleton() {
+  return (
+    <div className='glass rounded-2xl p-6 animate-pulse'>
+      <LoadingSkeleton className='h-6 w-48 mb-4' />
+      <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
+        <div>
+          <LoadingSkeleton className='h-4 w-24 mb-2' />
+          <LoadingSkeleton className='h-8 w-16' />
+        </div>
+        <div>
+          <LoadingSkeleton className='h-4 w-24 mb-2' />
+          <LoadingSkeleton className='h-8 w-16' />
+        </div>
+        <div>
+          <LoadingSkeleton className='h-4 w-24 mb-2' />
+          <LoadingSkeleton className='h-8 w-16' />
+        </div>
+        <div>
+          <LoadingSkeleton className='h-4 w-24 mb-2' />
+          <LoadingSkeleton className='h-8 w-16' />
+        </div>
+      </div>
+    </div>
+  );
+}
