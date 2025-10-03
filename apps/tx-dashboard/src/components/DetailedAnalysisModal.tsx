@@ -12,6 +12,8 @@ import {
   Copy,
   Check,
   ExternalLink,
+  ArrowDown,
+  ArrowUp,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { formatVolume, formatAddress } from '@msq-tx-monitor/msq-common';
@@ -32,6 +34,10 @@ export interface DetailedData {
     uniqueAddresses?: number;
     riskScore?: number;
     tokenSymbol?: string; // Token context for proper volume formatting
+    totalSent?: string;
+    totalReceived?: string;
+    sentTransactions?: number;
+    receivedTransactions?: number;
   };
   transactions: DetailedTransaction[];
   trends: TrendDataPoint[];
@@ -408,7 +414,17 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
       '',
       'Summary',
       `Total Volume,${data.summary.totalVolume}`,
+      data.summary.totalReceived
+        ? `Total Received,${data.summary.totalReceived}`
+        : '',
+      data.summary.totalSent ? `Total Sent,${data.summary.totalSent}` : '',
       `Transaction Count,${data.summary.transactionCount}`,
+      data.summary.receivedTransactions
+        ? `Received Transactions,${data.summary.receivedTransactions}`
+        : '',
+      data.summary.sentTransactions
+        ? `Sent Transactions,${data.summary.sentTransactions}`
+        : '',
       data.summary.uniqueAddresses
         ? `Unique Addresses,${data.summary.uniqueAddresses}`
         : '',
@@ -589,6 +605,14 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
                         data.summary.tokenSymbol ||
                         data.transactions?.[0]?.tokenSymbol
                       }
+                      receivedValue={data.summary.totalReceived}
+                      sentValue={data.summary.totalSent}
+                      showBreakdown={
+                        !!(
+                          data.summary.totalReceived !== undefined &&
+                          data.summary.totalSent !== undefined
+                        )
+                      }
                     />
                     {data.summary.tokenSymbol && (
                       <span className='text-white/60 text-sm ml-1'>
@@ -596,6 +620,31 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
                       </span>
                     )}
                   </div>
+                  {data.summary.totalReceived !== undefined &&
+                    data.summary.totalSent !== undefined && (
+                    <div className='flex items-center gap-3 mt-2 text-xs text-white/60'>
+                      <div className='flex items-center gap-1'>
+                        <ArrowDown size={12} className='text-blue-400' />
+                        <span>
+                          {formatVolumeHelper(
+                            data.summary.totalReceived,
+                            data.summary.tokenSymbol ||
+                              data.transactions?.[0]?.tokenSymbol
+                          )}
+                        </span>
+                      </div>
+                      <div className='flex items-center gap-1'>
+                        <ArrowUp size={12} className='text-orange-400' />
+                        <span>
+                          {formatVolumeHelper(
+                            data.summary.totalSent,
+                            data.summary.tokenSymbol ||
+                              data.transactions?.[0]?.tokenSymbol
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className='bg-white/20 rounded-lg p-4'>
@@ -606,6 +655,25 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
                   <div className='text-white font-bold text-lg'>
                     {data.summary.transactionCount.toLocaleString()}
                   </div>
+                  {data.summary.sentTransactions !== undefined &&
+                    data.summary.receivedTransactions !== undefined &&
+                    (data.summary.sentTransactions > 0 ||
+                      data.summary.receivedTransactions > 0) && (
+                      <div className='flex items-center gap-3 mt-2 text-xs text-white/60'>
+                        <div className='flex items-center gap-1'>
+                          <ArrowDown size={12} className='text-blue-400' />
+                          <span>
+                            {data.summary.receivedTransactions.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className='flex items-center gap-1'>
+                          <ArrowUp size={12} className='text-orange-400' />
+                          <span>
+                            {data.summary.sentTransactions.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                 </div>
 
                 {data.summary.uniqueAddresses !== undefined && (
@@ -960,23 +1028,26 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
                   <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-6'>
                     <div className='bg-gray-800/50 rounded-lg p-4'>
                       <div className='text-white/60 text-xs mb-1'>
-                        Total Transactions
-                      </div>
-                      <div className='text-white text-lg font-semibold'>
-                        {data.trends
-                          .reduce((sum, t) => sum + t.transactionCount, 0)
-                          .toLocaleString()}
-                      </div>
-                    </div>
-                    <div className='bg-gray-800/50 rounded-lg p-4'>
-                      <div className='text-white/60 text-xs mb-1'>
                         Total Volume
                       </div>
                       <div className='text-white text-lg font-semibold'>
                         {(() => {
+                          const tokenSymbol = data.summary.tokenSymbol || 'MSQ';
                           const totalVol = data.trends
                             .reduce(
                               (sum, t) => sum + BigInt(t.volume || 0),
+                              BigInt(0)
+                            )
+                            .toString();
+                          const totalSent = data.trends
+                            .reduce(
+                              (sum, t) => sum + BigInt(t.sentVolume || 0),
+                              BigInt(0)
+                            )
+                            .toString();
+                          const totalReceived = data.trends
+                            .reduce(
+                              (sum, t) => sum + BigInt(t.receivedVolume || 0),
                               BigInt(0)
                             )
                             .toString();
@@ -984,14 +1055,84 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
                             <VolumeWithTooltip
                               formattedValue={formatVolumeHelper(
                                 totalVol,
-                                data.summary.tokenSymbol || 'MSQ'
+                                tokenSymbol
                               )}
                               rawValue={totalVol}
-                              tokenSymbol={data.summary.tokenSymbol || 'MSQ'}
+                              tokenSymbol={tokenSymbol}
+                              receivedValue={totalReceived}
+                              sentValue={totalSent}
+                              showBreakdown={true}
                             />
                           );
                         })()}
                       </div>
+                      {/* Add received/sent breakdown display */}
+                      {(() => {
+                        const tokenSymbol = data.summary.tokenSymbol || 'MSQ';
+                        const totalSent = data.trends
+                          .reduce(
+                            (sum, t) => sum + BigInt(t.sentVolume || 0),
+                            BigInt(0)
+                          )
+                          .toString();
+                        const totalReceived = data.trends
+                          .reduce(
+                            (sum, t) => sum + BigInt(t.receivedVolume || 0),
+                            BigInt(0)
+                          )
+                          .toString();
+
+                        return (
+                          <div className='flex items-center gap-3 mt-2 text-xs text-white/60'>
+                            <div className='flex items-center gap-1'>
+                              <ArrowDown size={12} className='text-blue-400' />
+                              <span>
+                                {formatVolumeHelper(totalReceived, tokenSymbol)}
+                              </span>
+                            </div>
+                            <div className='flex items-center gap-1'>
+                              <ArrowUp size={12} className='text-orange-400' />
+                              <span>
+                                {formatVolumeHelper(totalSent, tokenSymbol)}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    <div className='bg-gray-800/50 rounded-lg p-4'>
+                      <div className='text-white/60 text-xs mb-1'>
+                        Transactions
+                      </div>
+                      <div className='text-white text-lg font-semibold'>
+                        {data.trends
+                          .reduce((sum, t) => sum + t.transactionCount, 0)
+                          .toLocaleString()}
+                      </div>
+                      {/* Add received/sent transaction count breakdown */}
+                      {(() => {
+                        const totalSentCount = data.trends.reduce(
+                          (sum, t) => sum + t.sentCount,
+                          0
+                        );
+                        const totalReceivedCount = data.trends.reduce(
+                          (sum, t) => sum + t.receivedCount,
+                          0
+                        );
+
+                        return (
+                          <div className='flex items-center gap-3 mt-2 text-xs text-white/60'>
+                            <div className='flex items-center gap-1'>
+                              <ArrowDown size={12} className='text-blue-400' />
+                              <span>{totalReceivedCount.toLocaleString()}</span>
+                            </div>
+                            <div className='flex items-center gap-1'>
+                              <ArrowUp size={12} className='text-orange-400' />
+                              <span>{totalSentCount.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className='bg-gray-800/50 rounded-lg p-4'>
                       <div className='text-white/60 text-xs mb-1'>

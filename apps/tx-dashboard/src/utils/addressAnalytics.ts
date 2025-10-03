@@ -1,5 +1,6 @@
 import { DetailedData } from '../components/DetailedAnalysisModal';
 import { logger } from '@msq-tx-monitor/msq-common';
+import { API_BASE_URL } from '../config/api';
 
 export type TimeRange = '1h' | '24h' | '7d' | '30d' | 'custom';
 
@@ -78,11 +79,12 @@ export const fetchAddressDetails = async (
 
   let statsData: StatsResponse | null = null;
   let transactionsData: TransactionApiResponse | null = null;
+  let trendsData: any[] = [];
 
   try {
     // Try to fetch stats data with time range and token filter
     const statsResponse = await fetch(
-      `http://localhost:8000/api/v1/addresses/stats/${address}?hours=${hours}&token=${token}`
+      `${API_BASE_URL}/addresses/stats/${address}?hours=${hours}&token=${token}`
     );
     if (statsResponse.ok) {
       statsData = await statsResponse.json();
@@ -95,9 +97,22 @@ export const fetchAddressDetails = async (
   }
 
   try {
+    // Fetch trends data
+    const trendsResponse = await fetch(
+      `${API_BASE_URL}/addresses/${address}/trends?token=${token}&hours=${hours}&interval=daily`
+    );
+    if (trendsResponse.ok) {
+      const trends = await trendsResponse.json();
+      trendsData = trends?.data?.trends || [];
+    }
+  } catch (error) {
+    logger.warn('Failed to fetch trends data:', error);
+  }
+
+  try {
     // Fetch transactions with pagination
     const transactionsResponse = await fetch(
-      `http://localhost:8000/api/v1/transactions/address/${address}?hours=${hours}&page=${page}&limit=10&token=${token}`
+      `${API_BASE_URL}/transactions/address/${address}?hours=${hours}&page=${page}&limit=10&token=${token}`
     );
     if (!transactionsResponse.ok) {
       throw new Error('Failed to fetch transactions');
@@ -142,6 +157,10 @@ export const fetchAddressDetails = async (
           (statsData.data.total_sent_transactions || 0) +
           (statsData.data.total_received_transactions || 0),
         riskScore: statsData.data.anomaly_statistics?.avg_anomaly_score || 0,
+        totalSent: tokenData.sent || '0',
+        totalReceived: tokenData.received || '0',
+        sentTransactions: statsData.data.total_sent_transactions || 0,
+        receivedTransactions: statsData.data.total_received_transactions || 0,
       };
     } else {
       // Fallback to total volume (all tokens)
@@ -152,6 +171,10 @@ export const fetchAddressDetails = async (
           (statsData.data.total_sent_transactions || 0) +
           (statsData.data.total_received_transactions || 0),
         riskScore: statsData.data.anomaly_statistics?.avg_anomaly_score || 0,
+        totalSent: statsData.data.total_sent || '0',
+        totalReceived: statsData.data.total_received || '0',
+        sentTransactions: statsData.data.total_sent_transactions || 0,
+        receivedTransactions: statsData.data.total_received_transactions || 0,
       };
     }
   } else {
@@ -182,6 +205,10 @@ export const fetchAddressDetails = async (
           (sum: number, tx: TransactionData) => sum + (tx.riskScore || 0),
           0
         ) / Math.max(transactions.length, 1),
+      totalSent: '0', // Cannot calculate from transaction list alone
+      totalReceived: '0', // Cannot calculate from transaction list alone
+      sentTransactions: 0,
+      receivedTransactions: 0,
     };
   }
 
@@ -201,12 +228,12 @@ export const fetchAddressDetails = async (
       tokenSymbol: token, // Add token context for proper volume formatting
     },
     transactions,
-    trends: [], // Trends data can be added later if API provides it
+    trends: trendsData,
     paginationMeta: {
       totalTransactions:
         transactionsData?.pagination?.total || summary.transactionCount,
       currentToken: token,
-      apiEndpoint: `http://localhost:8000/api/v1/transactions/address/${address}`,
+      apiEndpoint: `${API_BASE_URL}/transactions/address/${address}`,
     },
   };
 };
@@ -223,7 +250,7 @@ export const fetchTransactionsPage = async (
   try {
     const filterParam = filter ? `&filter=${filter}` : '';
     const response = await fetch(
-      `http://localhost:8000/api/v1/transactions/address/${identifier}?hours=${hours}&page=${page}&limit=10&token=${token}${filterParam}`
+      `${API_BASE_URL}/transactions/address/${identifier}?hours=${hours}&page=${page}&limit=10&token=${token}${filterParam}`
     );
     if (!response.ok) {
       throw new Error('Failed to fetch transactions page');

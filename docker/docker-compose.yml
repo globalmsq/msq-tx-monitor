@@ -74,8 +74,8 @@ services:
   #     - 3000:3000
   #   environment:
   #     - NODE_ENV=development
-  #     - VITE_API_URL=http://localhost:8000
-  #     - VITE_WS_URL=ws://localhost:8001
+  #     - VITE_API_ENDPOINT=http://tx-api:8000/api/v1
+  #     - VITE_WS_URL=ws://tx-api:8001
   #   networks:
   #     - msq-tx-monitor-network
   #   depends_on:

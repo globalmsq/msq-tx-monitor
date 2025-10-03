@@ -43,9 +43,12 @@ import {
   formatAddress,
 } from '@msq-tx-monitor/msq-common';
 import { VolumeWithTooltip } from '../components/VolumeWithTooltip';
-
-// Analytics API service
-const ANALYTICS_BASE_URL = 'http://localhost:8000/api/v1/analytics';
+import { API_BASE_URL } from '../config/api';
+import {
+  fetchAddressDetails as fetchAddressDetailsUtil,
+  fetchTransactionsPage as fetchTransactionsPageUtil,
+  TimeRange as UtilTimeRange,
+} from '../utils/addressAnalytics';
 
 // Helper function to process hourly volume data from API
 function processHourlyVolumeData(
@@ -418,7 +421,7 @@ export function Analytics() {
         const hoursParam = hours !== undefined ? `&hours=${hours}` : '';
 
         // Fetch realtime stats
-        fetch(`${ANALYTICS_BASE_URL}/realtime?${tokenParam.slice(1)}${hoursParam}`)
+        fetch(`${API_BASE_URL}/analytics/realtime?${tokenParam.slice(1)}${hoursParam}`)
           .then(res => res.json())
           .then((realtimeRes: ApiResponse<unknown>) => {
             const tokenStats = (realtimeRes.data as { tokenStats?: TokenStatApiItem[] })?.tokenStats?.find(
@@ -449,7 +452,7 @@ export function Analytics() {
           .catch(err => logger.error('Realtime fetch error:', err));
 
         // Fetch hourly volume
-        fetch(`${ANALYTICS_BASE_URL}/volume/hourly?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`)
+        fetch(`${API_BASE_URL}/analytics/volume/hourly?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`)
           .then(res => res.json())
           .then((hourlyVolumeRes: ApiResponse<HourlyVolumeApiItem[]>) => {
             const hourlyVolumeData = processHourlyVolumeData(hourlyVolumeRes, token);
@@ -459,7 +462,7 @@ export function Analytics() {
           .catch(err => logger.error('Hourly volume fetch error:', err));
 
         // Fetch token distribution
-        fetch(`${ANALYTICS_BASE_URL}/distribution/token?${tokenParam.slice(1)}${hoursParam}`)
+        fetch(`${API_BASE_URL}/analytics/distribution/token?${tokenParam.slice(1)}${hoursParam}`)
           .then(res => res.json())
           .then((tokenDistributionRes: ApiResponse<TokenDistribution[]>) => {
             setData(prev => ({ ...prev, tokenDistribution: tokenDistributionRes.data || [] }));
@@ -468,7 +471,7 @@ export function Analytics() {
           .catch(err => logger.error('Token distribution fetch error:', err));
 
         // Fetch top addresses (slowest API)
-        fetch(`${ANALYTICS_BASE_URL}/addresses/top?metric=volume&limit=5${tokenParam}${hoursParam}`)
+        fetch(`${API_BASE_URL}/analytics/addresses/top?metric=volume&limit=5${tokenParam}${hoursParam}`)
           .then(res => res.json())
           .then((topAddressesRes: ApiResponse<TopAddress[]>) => {
             setData(prev => ({ ...prev, topAddresses: topAddressesRes.data || [] }));
@@ -477,7 +480,7 @@ export function Analytics() {
           .catch(err => logger.error('Top addresses fetch error:', err));
 
         // Fetch top receivers
-        fetch(`${ANALYTICS_BASE_URL}/addresses/receivers?limit=5${tokenParam}${hoursParam}`)
+        fetch(`${API_BASE_URL}/analytics/addresses/receivers?limit=5${tokenParam}${hoursParam}`)
           .then(res => res.json())
           .then((topReceiversRes: ApiResponse<TopAddress[]>) => {
             setData(prev => ({ ...prev, topReceivers: topReceiversRes.data || [] }));
@@ -486,7 +489,7 @@ export function Analytics() {
           .catch(err => logger.error('Top receivers fetch error:', err));
 
         // Fetch top senders
-        fetch(`${ANALYTICS_BASE_URL}/addresses/senders?limit=5${tokenParam}${hoursParam}`)
+        fetch(`${API_BASE_URL}/analytics/addresses/senders?limit=5${tokenParam}${hoursParam}`)
           .then(res => res.json())
           .then((topSendersRes: ApiResponse<TopAddress[]>) => {
             setData(prev => ({ ...prev, topSenders: topSendersRes.data || [] }));
@@ -495,7 +498,7 @@ export function Analytics() {
           .catch(err => logger.error('Top senders fetch error:', err));
 
         // Fetch anomaly stats
-        fetch(`${ANALYTICS_BASE_URL}/anomalies?${tokenParam.slice(1)}${hoursParam}`)
+        fetch(`${API_BASE_URL}/analytics/anomalies?${tokenParam.slice(1)}${hoursParam}`)
           .then(res => res.json())
           .then((anomalyStatsRes: ApiResponse<AnomalyStats>) => {
             setData(prev => ({ ...prev, anomalyStats: anomalyStatsRes.data }));
@@ -504,7 +507,7 @@ export function Analytics() {
           .catch(err => logger.error('Anomaly stats fetch error:', err));
 
         // Fetch anomaly time series
-        fetch(`${ANALYTICS_BASE_URL}/anomalies/timeseries?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`)
+        fetch(`${API_BASE_URL}/analytics/anomalies/timeseries?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`)
           .then(res => res.json())
           .then((anomalyTimeSeriesRes: ApiResponse<AnomalyTimeApiItem[]>) => {
             const anomalyTimeData = processAnomalyTimeData(anomalyTimeSeriesRes);
@@ -514,7 +517,7 @@ export function Analytics() {
           .catch(err => logger.error('Anomaly time series fetch error:', err));
 
         // Fetch network stats
-        fetch(`${ANALYTICS_BASE_URL}/network?${tokenParam.slice(1)}${hoursParam}`)
+        fetch(`${API_BASE_URL}/analytics/network?${tokenParam.slice(1)}${hoursParam}`)
           .then(res => res.json())
           .then((networkStatsRes: ApiResponse<unknown>) => {
             setData(prev => ({ ...prev, networkStats: networkStatsRes.data }));
@@ -643,255 +646,62 @@ export function Analytics() {
     // fetchAnalyticsData will be called by useEffect when activeTab changes
   };
 
-  // Fetch address details from API
-  const fetchAddressDetails = async (
-    address: string,
-    token: string = activeTab,
-    timeRangeParam: TimeRange = '24h',
-    page: number = 1
-  ) => {
-    const now = Date.now();
-    const hours = getHoursFromTimeRange(timeRangeParam);
-    interface StatsResponse {
-      data?: {
-        address: string;
-        total_transactions: number;
-        total_sent: string;
-        total_received: string;
-        total_volume: string;
-        token_breakdown?: Record<
-          string,
-          {
-            sent: string;
-            received: string;
-            volume: string;
-            transaction_count: number;
-          }
-        >;
-      };
-    }
+  // Handle address click to show details
+  const handleAddressClick = useCallback(
+    async (address: string) => {
+      setModalLoading(true);
+      try {
+        // Convert local timeRange to UtilTimeRange
+        const utilTimeRange: UtilTimeRange =
+          timeRange === '1h' ||
+          timeRange === '24h' ||
+          timeRange === '7d' ||
+          timeRange === '30d'
+            ? timeRange
+            : '24h'; // Default to 24h for longer ranges
 
-    interface TransactionData {
-      hash: string;
-      from: string;
-      to: string;
-      value: string;
-      tokenSymbol: string;
-      timestamp: string;
-      riskScore?: number;
-    }
-
-    let statsData: StatsResponse | null = null;
-    let transactionsData: TransactionData[] | null = null;
-
-    try {
-      // Try to fetch stats data with time range and token filter
-      const statsResponse = await fetch(
-        `http://localhost:8000/api/v1/addresses/stats/${address}?hours=${hours}&token=${token}`
-      );
-      if (statsResponse.ok) {
-        statsData = await statsResponse.json();
+        const detailedData = await fetchAddressDetailsUtil(
+          address,
+          activeTab,
+          utilTimeRange
+        );
+        setModalData(detailedData);
+      } catch (error) {
+        logger.error('Failed to fetch address details:', error);
+      } finally {
+        setModalLoading(false);
       }
-    } catch (error) {
-      logger.warn(
-        'Failed to fetch address stats, will use transaction data instead:',
-        error
-      );
-    }
+    },
+    [activeTab, timeRange]
+  );
 
-    try {
-      // Fetch transactions with pagination
-      const transactionsResponse = await fetch(
-        `http://localhost:8000/api/v1/transactions/address/${address}?hours=${hours}&page=${page}&limit=10&token=${token}`
-      );
-      if (!transactionsResponse.ok) {
-        throw new Error('Failed to fetch transactions');
+  // Handle transaction pagination in modal
+  const handleFetchModalTransactions = useCallback(
+    async (page: number, filter?: string) => {
+      if (!modalData?.identifier) {
+        return { transactions: [], pagination: {} };
       }
-      transactionsData = await transactionsResponse.json();
-    } catch (error) {
-      logger.error('Failed to fetch transactions:', error);
-      throw error;
-    }
 
-    // Transform transaction data - handle API field names properly
-    const transactions =
-      (transactionsData as any)?.data?.map((tx: Record<string, unknown>) => ({
-        hash: tx.hash || tx.transaction_hash,
-        timestamp: tx.timestamp || tx.blockTimestamp,
-        from: tx.from_address || tx.from || tx.fromAddress,
-        to: tx.to_address || tx.to || tx.toAddress,
-        value: tx.amount || tx.value || '0',
-        tokenSymbol: tx.token_symbol || tx.tokenSymbol || token,
-        gasUsed: tx.gas_used || tx.gasUsed || '0',
-        gasPrice: tx.gas_price || tx.gasPrice || '0',
-        status:
-          tx.status === 1 || tx.status === 'success' ? 'success' : 'failed',
-        riskScore: tx.anomaly_score || tx.riskScore || tx.anomalyScore || 0,
-      })) || [];
+      // Convert local timeRange to UtilTimeRange
+      const utilTimeRange: UtilTimeRange =
+        timeRange === '1h' ||
+        timeRange === '24h' ||
+        timeRange === '7d' ||
+        timeRange === '30d'
+          ? timeRange
+          : '24h';
 
-    // Calculate statistics from transactions if stats API failed
-    let summary;
-    if (statsData?.data) {
-      // Use stats API data if available
-      // Check if we have token-specific data in token_breakdown
-      const tokenData = statsData.data.token_breakdown?.[token];
-      if (tokenData) {
-        // Use token-specific data
-        summary = {
-          totalVolume: tokenData.volume || '0',
-          transactionCount: tokenData.transaction_count || 0,
-          uniqueAddresses:
-            ((statsData.data as any).total_sent_transactions || 0) +
-            ((statsData.data as any).total_received_transactions || 0),
-          riskScore:
-            (statsData.data as any).anomaly_statistics?.avg_anomaly_score || 0,
-        };
-      } else {
-        // Fallback to total volume (all tokens)
-        summary = {
-          totalVolume: statsData.data.total_volume || '0',
-          transactionCount: statsData.data.total_transactions || 0,
-          uniqueAddresses:
-            ((statsData.data as any).total_sent_transactions || 0) +
-            ((statsData.data as any).total_received_transactions || 0),
-          riskScore:
-            (statsData.data as any).anomaly_statistics?.avg_anomaly_score || 0,
-        };
-      }
-    } else {
-      // Calculate from transactions data
-      const totalVolume = transactions.reduce(
-        (sum: bigint, tx: TransactionData) => {
-          try {
-            return sum + BigInt(tx.value || 0);
-          } catch {
-            return sum;
-          }
-        },
-        BigInt(0)
+      return fetchTransactionsPageUtil(
+        modalData.identifier,
+        page,
+        activeTab,
+        utilTimeRange,
+        filter
       );
+    },
+    [modalData?.identifier, activeTab, timeRange]
+  );
 
-      const uniqueAddrs = new Set<string>();
-      transactions.forEach((tx: TransactionData) => {
-        if (tx.from && tx.from !== address) uniqueAddrs.add(tx.from);
-        if (tx.to && tx.to !== address) uniqueAddrs.add(tx.to);
-      });
-
-      summary = {
-        totalVolume: totalVolume.toString(),
-        transactionCount: transactions.length,
-        uniqueAddresses: uniqueAddrs.size,
-        riskScore:
-          transactions.reduce(
-            (sum: number, tx: TransactionData) => sum + (tx.riskScore || 0),
-            0
-          ) / Math.max(transactions.length, 1),
-      };
-    }
-
-    // Set time range based on user selection
-    const hoursToUse = hours; // Don't use fallback, let backend handle undefined
-    const timeRange = hours
-      ? {
-          start: new Date(now - hours * 60 * 60 * 1000).toISOString(),
-          end: new Date(now).toISOString(),
-        }
-      : {
-          start: 'All Time',
-          end: new Date(now).toISOString(),
-        };
-
-    // Fetch trends data
-    let trends: any[] = [];
-    try {
-      // Build URL with conditional hours parameter
-      const hoursParam = hours ? `hours=${hours}&` : '';
-      const interval = hours && hours > 168 ? 'daily' : 'hourly';
-      const trendsResponse = await fetch(
-        `http://localhost:8000/api/v1/addresses/${address}/trends?${hoursParam}tokenSymbol=${token}&interval=${interval}`
-      );
-      if (trendsResponse.ok) {
-        const trendsData = await trendsResponse.json();
-        trends = trendsData?.data?.trends || [];
-      }
-    } catch (error) {
-      logger.warn('Failed to fetch address trends:', error);
-    }
-
-    return {
-      type: 'address' as const,
-      title: `${token} Address Detail`,
-      identifier: address,
-      timeRange,
-      summary: {
-        ...summary,
-        tokenSymbol: token, // Add token context for proper volume formatting
-      },
-      transactions,
-      trends,
-      paginationMeta: {
-        totalTransactions:
-          (transactionsData as any)?.pagination?.total ||
-          summary.transactionCount,
-        currentToken: token,
-        apiEndpoint: `http://localhost:8000/api/v1/transactions/address/${address}`,
-      },
-    };
-  };
-
-  // Fetch transactions for a specific page
-  const fetchTransactionsPage = async (
-    identifier: string,
-    page: number,
-    filter?: string
-  ): Promise<{ transactions: any[]; pagination: any }> => {
-    const hours = getHoursFromTimeRange(timeRange);
-    const token = activeTab;
-
-    try {
-      const filterParam = filter ? `&filter=${filter}` : '';
-      const response = await fetch(
-        `http://localhost:8000/api/v1/transactions/address/${identifier}?hours=${hours}&page=${page}&limit=10&token=${token}${filterParam}`
-      );
-      if (!response.ok) {
-        throw new Error('Failed to fetch transactions page');
-      }
-      const data = await response.json();
-
-      // Transform transaction data
-      const transactions =
-        data?.data?.map((tx: Record<string, unknown>) => ({
-          hash: tx.hash || tx.transaction_hash,
-          timestamp: tx.timestamp || tx.blockTimestamp,
-          from: tx.from_address || tx.from || tx.fromAddress,
-          to: tx.to_address || tx.to || tx.toAddress,
-          value: tx.amount || tx.value || '0',
-          tokenSymbol: tx.token_symbol || tx.tokenSymbol || token,
-          gasUsed: tx.gas_used || tx.gasUsed || '0',
-          gasPrice: tx.gas_price || tx.gasPrice || '0',
-          status:
-            tx.status === 1 || tx.status === 'success' ? 'success' : 'failed',
-          riskScore: tx.risk_score || tx.anomalyScore || tx.riskScore,
-        })) || [];
-
-      // Return both transactions and pagination metadata
-      return {
-        transactions,
-        pagination: data?.pagination || {
-          total: 0,
-          totalPages: 0,
-          page: 1,
-          limit: 10,
-        },
-      };
-    } catch (error) {
-      logger.error('Failed to fetch transaction page:', error);
-      return {
-        transactions: [],
-        pagination: { total: 0, totalPages: 0, page: 1, limit: 10 },
-      };
-    }
-  };
 
   // Drill-down handlers
   const handleChartClick = async (
@@ -907,23 +717,9 @@ export function Analytics() {
 
       switch (type) {
         case 'address':
-          // Fetch real data from API for addresses
-          try {
-            detailedData = await fetchAddressDetails(
-              identifier,
-              activeTab,
-              timeRange
-            );
-          } catch (apiError) {
-            logger.error(
-              'API call failed, falling back to mock data:',
-              apiError
-            );
-            // Fallback to mock data if API fails
-            title = `Address Analysis`;
-            detailedData = generateMockDetailedData(type, identifier, title);
-          }
-          break;
+          // Fetch real data from API for addresses - use handleAddressClick
+          await handleAddressClick(identifier);
+          return; // handleAddressClick already sets modalData, so return early
 
         case 'token':
           title = `Token Analysis: ${identifier}`;
@@ -1618,20 +1414,7 @@ export function Analytics() {
         onClose={closeModal}
         data={modalData}
         loading={modalLoading}
-        onFetchTransactions={async (page, filter) => {
-          if (modalData?.identifier) {
-            const result = await fetchTransactionsPage(
-              modalData.identifier,
-              page,
-              filter
-            );
-            return result; // Return full result with transactions and pagination
-          }
-          return {
-            transactions: [],
-            pagination: { total: 0, totalPages: 0, page: 1, limit: 10 },
-          };
-        }}
+        onFetchTransactions={handleFetchModalTransactions}
       />
     </div>
   );

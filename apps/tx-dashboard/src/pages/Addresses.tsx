@@ -24,8 +24,12 @@ import {
   formatFullTimestamp,
 } from '@msq-tx-monitor/msq-common';
 import { VolumeWithTooltip } from '../components/VolumeWithTooltip';
-
-const ADDRESSES_BASE_URL = 'http://localhost:8000/api/v1/addresses';
+import {
+  fetchAddressDetails,
+  fetchTransactionsPage,
+  TimeRange as UtilTimeRange,
+} from '../utils/addressAnalytics';
+import { API_BASE_URL } from '../config/api';
 
 type TimeRange = '1h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
 type CategoryTab = 'rankings' | 'whales' | 'active' | 'suspicious';
@@ -107,16 +111,16 @@ export function Addresses() {
 
       switch (activeCategory) {
         case 'rankings':
-          endpoint = `${ADDRESSES_BASE_URL}/rankings?${params}`;
+          endpoint = `${API_BASE_URL}/addresses/rankings?${params}`;
           break;
         case 'whales':
-          endpoint = `${ADDRESSES_BASE_URL}/whales?${params}`;
+          endpoint = `${API_BASE_URL}/addresses/whales?${params}`;
           break;
         case 'active':
-          endpoint = `${ADDRESSES_BASE_URL}/active-traders?${params}`;
+          endpoint = `${API_BASE_URL}/addresses/active-traders?${params}`;
           break;
         case 'suspicious':
-          endpoint = `${ADDRESSES_BASE_URL}/suspicious?${params}`;
+          endpoint = `${API_BASE_URL}/addresses/suspicious?${params}`;
           break;
       }
 
@@ -157,79 +161,21 @@ export function Addresses() {
   const handleAddressClick = useCallback(
     async (address: string) => {
       setIsModalLoading(true);
-
       try {
-        // Get hours for current time range
-        const hours = getHoursFromTimeRange(timeRange);
-        const hoursParam = hours !== undefined ? `&hours=${hours}` : '';
+        // Convert local timeRange to UtilTimeRange (simplified mapping)
+        const utilTimeRange: UtilTimeRange =
+          timeRange === '1h' ||
+          timeRange === '24h' ||
+          timeRange === '7d' ||
+          timeRange === '30d'
+            ? timeRange
+            : '24h'; // Default to 24h for custom ranges
 
-        // Fetch address statistics
-        const statsResponse = await fetch(
-          `${ADDRESSES_BASE_URL}/stats/${address}?token=${selectedToken}${hoursParam}`
+        const detailedData = await fetchAddressDetails(
+          address,
+          selectedToken,
+          utilTimeRange
         );
-        if (!statsResponse.ok) {
-          throw new Error('Failed to fetch address stats');
-        }
-        const statsData = await statsResponse.json();
-
-        // Fetch trends data
-        const trendsResponse = await fetch(
-          `${ADDRESSES_BASE_URL}/${address}/trends?token=${selectedToken}${hoursParam}&interval=daily`
-        );
-        let trendsData = [];
-        if (trendsResponse.ok) {
-          const trends = await trendsResponse.json();
-          trendsData = trends?.data?.trends || [];
-        }
-
-        // Fetch recent transactions
-        const txResponse = await fetch(
-          `http://localhost:8000/api/v1/transactions/address/${address}?token=${selectedToken}${hoursParam}&limit=10`
-        );
-        let transactions = [];
-        if (txResponse.ok) {
-          const txData = await txResponse.json();
-          transactions =
-            txData?.data?.map((tx: any) => ({
-              hash: tx.hash || tx.transaction_hash,
-              timestamp: tx.timestamp || tx.blockTimestamp,
-              from: tx.from_address || tx.from || tx.fromAddress,
-              to: tx.to_address || tx.to || tx.toAddress,
-              value: tx.amount || tx.value || '0',
-              tokenSymbol: tx.token_symbol || tx.tokenSymbol || 'MSQ',
-              gasUsed: tx.gas_used || tx.gasUsed || '0',
-              gasPrice: tx.gas_price || tx.gasPrice || '0',
-              status:
-                tx.status === 1 || tx.status === 'success'
-                  ? 'success'
-                  : 'failed',
-              riskScore:
-                tx.anomaly_score || tx.riskScore || tx.anomalyScore || 0,
-            })) || [];
-        }
-
-        const detailedData: DetailedData = {
-          type: 'address',
-          title: `Address Detail`,
-          identifier: address,
-          timeRange: {
-            start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            end: new Date().toISOString(),
-          },
-          summary: {
-            totalVolume: statsData.data?.total_volume || '0',
-            transactionCount: statsData.data?.total_transactions || 0,
-            uniqueAddresses:
-              (statsData.data?.total_sent_transactions || 0) +
-              (statsData.data?.total_received_transactions || 0),
-            riskScore:
-              statsData.data?.anomaly_statistics?.avg_anomaly_score || 0,
-            tokenSymbol: selectedToken,
-          },
-          transactions,
-          trends: trendsData,
-        };
-
         setSelectedAddressData(detailedData);
       } catch (error) {
         logger.error('Failed to fetch address details:', error);
@@ -238,6 +184,33 @@ export function Addresses() {
       }
     },
     [selectedToken, timeRange]
+  );
+
+  // Handle transaction pagination in modal
+  const handleFetchModalTransactions = useCallback(
+    async (page: number, filter?: string) => {
+      if (!selectedAddressData?.identifier) {
+        return { transactions: [], pagination: {} };
+      }
+
+      // Convert local timeRange to UtilTimeRange
+      const utilTimeRange: UtilTimeRange =
+        timeRange === '1h' ||
+        timeRange === '24h' ||
+        timeRange === '7d' ||
+        timeRange === '30d'
+          ? timeRange
+          : '24h';
+
+      return fetchTransactionsPage(
+        selectedAddressData.identifier,
+        page,
+        selectedToken,
+        utilTimeRange,
+        filter
+      );
+    },
+    [selectedAddressData?.identifier, selectedToken, timeRange]
   );
 
   const closeModal = useCallback(() => {
@@ -606,6 +579,7 @@ export function Addresses() {
         onClose={closeModal}
         data={selectedAddressData}
         loading={isModalLoading}
+        onFetchTransactions={handleFetchModalTransactions}
       />
     </div>
   );
