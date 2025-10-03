@@ -1025,9 +1025,10 @@ export class AddressController {
         return;
       }
 
-      // Parse and validate hours parameter
-      const hoursParam = hours ? parseInt(hours as string) : 24;
-      if (hoursParam < 1 || hoursParam > 8760) {
+      // Parse and validate hours parameter (only if provided)
+      const hoursParam = hours ? parseInt(hours as string) : undefined;
+
+      if (hoursParam !== undefined && (hoursParam < 1 || hoursParam > 8760)) {
         res.status(400).json({
           error: {
             code: 400,

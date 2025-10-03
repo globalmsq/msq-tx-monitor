@@ -37,19 +37,26 @@ export class AnalyticsService {
    * Get hourly volume aggregation for the last N hours
    */
   async getHourlyVolume(
-    hours: number = 24,
+    hours?: number,
     tokenSymbol?: string,
     limit: number = 24
   ): Promise<HourlyVolumeData[]> {
     try {
-      const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+      const cutoffDate = hours
+        ? new Date(Date.now() - hours * 60 * 60 * 1000)
+        : undefined;
 
       // Determine interval type and format based on time range
       let intervalType: 'minute' | 'hour' | 'day' | 'week' | 'month';
       let dateFormat: string;
       let intervalMinutes: number;
 
-      if (hours <= 1) {
+      if (!hours) {
+        // All time: use monthly intervals
+        intervalType = 'month';
+        intervalMinutes = 43200; // 30 * 24 * 60 (approximate)
+        dateFormat = '%Y-%m'; // Year-Month format
+      } else if (hours <= 1) {
         intervalType = 'minute';
         intervalMinutes = 5;
         dateFormat = '%Y-%m-%d %H:%i:00'; // 5-minute intervals
@@ -79,32 +86,59 @@ export class AnalyticsService {
       const dateFormatExpression = `DATE_FORMAT(timestamp, '${dateFormat}')`;
 
       const rows = tokenSymbol
-        ? await prisma.$queryRaw<any[]>`
-            SELECT
-              ${Prisma.raw(dateFormatExpression)} as hour,
-              tokenSymbol,
-              SUM(value) as totalVolume,
-              COUNT(*) as transactionCount,
-              CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
-            FROM transactions
-            WHERE timestamp >= ${cutoffDate} AND tokenSymbol = ${tokenSymbol}
-            GROUP BY hour, tokenSymbol
-            ORDER BY hour DESC, tokenSymbol
-            LIMIT ${maxResults}
-          `
-        : await prisma.$queryRaw<any[]>`
-            SELECT
-              ${Prisma.raw(dateFormatExpression)} as hour,
-              tokenSymbol,
-              SUM(value) as totalVolume,
-              COUNT(*) as transactionCount,
-              CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
-            FROM transactions
-            WHERE timestamp >= ${cutoffDate}
-            GROUP BY hour, tokenSymbol
-            ORDER BY hour DESC, tokenSymbol
-            LIMIT ${maxResults}
-          `;
+        ? cutoffDate
+          ? await prisma.$queryRaw<any[]>`
+              SELECT
+                ${Prisma.raw(dateFormatExpression)} as hour,
+                tokenSymbol,
+                SUM(value) as totalVolume,
+                COUNT(*) as transactionCount,
+                CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+              FROM transactions
+              WHERE timestamp >= ${cutoffDate} AND tokenSymbol = ${tokenSymbol}
+              GROUP BY hour, tokenSymbol
+              ORDER BY hour DESC, tokenSymbol
+              LIMIT ${maxResults}
+            `
+          : await prisma.$queryRaw<any[]>`
+              SELECT
+                ${Prisma.raw(dateFormatExpression)} as hour,
+                tokenSymbol,
+                SUM(value) as totalVolume,
+                COUNT(*) as transactionCount,
+                CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+              FROM transactions
+              WHERE tokenSymbol = ${tokenSymbol}
+              GROUP BY hour, tokenSymbol
+              ORDER BY hour DESC, tokenSymbol
+              LIMIT ${maxResults}
+            `
+        : cutoffDate
+          ? await prisma.$queryRaw<any[]>`
+              SELECT
+                ${Prisma.raw(dateFormatExpression)} as hour,
+                tokenSymbol,
+                SUM(value) as totalVolume,
+                COUNT(*) as transactionCount,
+                CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+              FROM transactions
+              WHERE timestamp >= ${cutoffDate}
+              GROUP BY hour, tokenSymbol
+              ORDER BY hour DESC, tokenSymbol
+              LIMIT ${maxResults}
+            `
+          : await prisma.$queryRaw<any[]>`
+              SELECT
+                ${Prisma.raw(dateFormatExpression)} as hour,
+                tokenSymbol,
+                SUM(value) as totalVolume,
+                COUNT(*) as transactionCount,
+                CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+              FROM transactions
+              GROUP BY hour, tokenSymbol
+              ORDER BY hour DESC, tokenSymbol
+              LIMIT ${maxResults}
+            `;
 
       const rawData = rows.map(row => {
         // Only add 'Z' for datetime formats (minute/hour), not for date formats (day/week/month)
@@ -123,16 +157,22 @@ export class AnalyticsService {
       });
 
       // Fill missing data points with zeros to ensure consistent chart intervals
-      const filledData = this.fillMissingHourlyData(
-        rawData,
-        hours,
-        tokenSymbol,
-        limit,
-        intervalType,
-        intervalMinutes
-      );
-
-      return filledData;
+      // Only fill missing data if hours filter is applied
+      if (hours) {
+        const filledData = this.fillMissingHourlyData(
+          rawData,
+          hours,
+          tokenSymbol,
+          limit,
+          intervalType,
+          intervalMinutes
+        );
+        return filledData;
+      } else {
+        // For "all time", return raw data without filling gaps
+        // Reverse to show oldest to newest (SQL query uses DESC order)
+        return rawData.reverse();
+      }
     } catch (error) {
       apiLogger.error('Error fetching hourly volume data:', {
         error: error instanceof Error ? error.message : String(error),
@@ -140,7 +180,9 @@ export class AnalyticsService {
         hours,
         tokenSymbol,
         limit,
-        cutoffDate: new Date(Date.now() - hours * 60 * 60 * 1000).toISOString(),
+        cutoffDate: hours
+          ? new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
+          : 'all time (no filter)',
       });
       throw error;
     }

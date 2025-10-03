@@ -71,12 +71,14 @@ export class AnalyticsController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const hours = parseInt(req.query.hours as string) || 24;
+      const hours = req.query.hours
+        ? parseInt(req.query.hours as string)
+        : undefined;
       const tokenSymbol = req.query.token as string;
       const limit = parseInt(req.query.limit as string) || 24;
 
-      // Validate hours parameter
-      if (hours < 1 || hours > 10000) {
+      // Validate hours parameter (only if provided)
+      if (hours !== undefined && (hours < 1 || hours > 10000)) {
         res.status(400).json({
           success: false,
           error: {

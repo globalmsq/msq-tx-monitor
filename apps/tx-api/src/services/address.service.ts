@@ -1511,7 +1511,7 @@ export class AddressService {
    */
   async getAddressTrends(
     address: string,
-    hours: number = 24,
+    hours?: number,
     tokenSymbol?: string,
     interval: 'hourly' | 'daily' = 'hourly'
   ): Promise<{
@@ -1533,7 +1533,7 @@ export class AddressService {
       growthRate: number;
     };
   }> {
-    const cacheKey = `address_trends:${address}:${hours}:${tokenSymbol || 'all'}:${interval}`;
+    const cacheKey = `address_trends:${address}:${hours ?? 'all'}:${tokenSymbol || 'all'}:${interval}`;
 
     // Try to get from cache first
     try {
@@ -1545,54 +1545,96 @@ export class AddressService {
       apiLogger.warn('Cache miss for address trends', error);
     }
 
-    const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const cutoffDate = hours
+      ? new Date(Date.now() - hours * 60 * 60 * 1000)
+      : undefined;
 
-    // Determine date format based on interval
-    const dateFormat =
-      interval === 'hourly' ? '%Y-%m-%d %H:00:00' : '%Y-%m-%d 00:00:00';
+    // Determine date format based on interval and hours
+    let dateFormat: string;
+    if (!hours) {
+      // All Time uses monthly aggregation
+      dateFormat = '%Y-%m';
+    } else if (interval === 'hourly') {
+      dateFormat = '%Y-%m-%d %H:00:00';
+    } else {
+      dateFormat = '%Y-%m-%d 00:00:00';
+    }
 
     // Build the DATE_FORMAT expression
     const dateFormatExpression = `DATE_FORMAT(timestamp, '${dateFormat}')`;
 
-    // Build query with Prisma.$queryRaw to avoid SQL injection
+    // Build query with Prisma.$queryRaw - 4 variations based on tokenSymbol and cutoffDate
     const trends = tokenSymbol
-      ? await prisma.$queryRaw<any[]>`
-          SELECT
-            ${Prisma.raw(dateFormatExpression)} as hour,
-            COUNT(*) as transactionCount,
-            CAST(SUM(value) AS CHAR) as volume,
-            SUM(CASE WHEN fromAddress = ${address} THEN 1 ELSE 0 END) as sentCount,
-            SUM(CASE WHEN toAddress = ${address} THEN 1 ELSE 0 END) as receivedCount,
-            CAST(SUM(CASE WHEN fromAddress = ${address} THEN value ELSE 0 END) AS CHAR) as sentVolume,
-            CAST(SUM(CASE WHEN toAddress = ${address} THEN value ELSE 0 END) AS CHAR) as receivedVolume,
-            AVG(anomalyScore) as avgAnomalyScore
-          FROM transactions
-          WHERE (fromAddress = ${address} OR toAddress = ${address})
-            AND timestamp >= ${cutoffDate}
-            AND tokenSymbol = ${tokenSymbol}
-          GROUP BY hour
-          ORDER BY hour ASC
-        `
-      : await prisma.$queryRaw<any[]>`
-          SELECT
-            ${Prisma.raw(dateFormatExpression)} as hour,
-            COUNT(*) as transactionCount,
-            CAST(SUM(value) AS CHAR) as volume,
-            SUM(CASE WHEN fromAddress = ${address} THEN 1 ELSE 0 END) as sentCount,
-            SUM(CASE WHEN toAddress = ${address} THEN 1 ELSE 0 END) as receivedCount,
-            CAST(SUM(CASE WHEN fromAddress = ${address} THEN value ELSE 0 END) AS CHAR) as sentVolume,
-            CAST(SUM(CASE WHEN toAddress = ${address} THEN value ELSE 0 END) AS CHAR) as receivedVolume,
-            AVG(anomalyScore) as avgAnomalyScore
-          FROM transactions
-          WHERE (fromAddress = ${address} OR toAddress = ${address})
-            AND timestamp >= ${cutoffDate}
-          GROUP BY hour
-          ORDER BY hour ASC
-        `;
+      ? cutoffDate
+        ? await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateFormatExpression)} as hour,
+              COUNT(*) as transactionCount,
+              CAST(SUM(value) AS CHAR) as volume,
+              SUM(CASE WHEN fromAddress = ${address} THEN 1 ELSE 0 END) as sentCount,
+              SUM(CASE WHEN toAddress = ${address} THEN 1 ELSE 0 END) as receivedCount,
+              CAST(SUM(CASE WHEN fromAddress = ${address} THEN value ELSE 0 END) AS CHAR) as sentVolume,
+              CAST(SUM(CASE WHEN toAddress = ${address} THEN value ELSE 0 END) AS CHAR) as receivedVolume,
+              AVG(anomalyScore) as avgAnomalyScore
+            FROM transactions
+            WHERE (fromAddress = ${address} OR toAddress = ${address})
+              AND timestamp >= ${cutoffDate}
+              AND tokenSymbol = ${tokenSymbol}
+            GROUP BY hour
+            ORDER BY hour ASC
+          `
+        : await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateFormatExpression)} as hour,
+              COUNT(*) as transactionCount,
+              CAST(SUM(value) AS CHAR) as volume,
+              SUM(CASE WHEN fromAddress = ${address} THEN 1 ELSE 0 END) as sentCount,
+              SUM(CASE WHEN toAddress = ${address} THEN 1 ELSE 0 END) as receivedCount,
+              CAST(SUM(CASE WHEN fromAddress = ${address} THEN value ELSE 0 END) AS CHAR) as sentVolume,
+              CAST(SUM(CASE WHEN toAddress = ${address} THEN value ELSE 0 END) AS CHAR) as receivedVolume,
+              AVG(anomalyScore) as avgAnomalyScore
+            FROM transactions
+            WHERE (fromAddress = ${address} OR toAddress = ${address})
+              AND tokenSymbol = ${tokenSymbol}
+            GROUP BY hour
+            ORDER BY hour ASC
+          `
+      : cutoffDate
+        ? await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateFormatExpression)} as hour,
+              COUNT(*) as transactionCount,
+              CAST(SUM(value) AS CHAR) as volume,
+              SUM(CASE WHEN fromAddress = ${address} THEN 1 ELSE 0 END) as sentCount,
+              SUM(CASE WHEN toAddress = ${address} THEN 1 ELSE 0 END) as receivedCount,
+              CAST(SUM(CASE WHEN fromAddress = ${address} THEN value ELSE 0 END) AS CHAR) as sentVolume,
+              CAST(SUM(CASE WHEN toAddress = ${address} THEN value ELSE 0 END) AS CHAR) as receivedVolume,
+              AVG(anomalyScore) as avgAnomalyScore
+            FROM transactions
+            WHERE (fromAddress = ${address} OR toAddress = ${address})
+              AND timestamp >= ${cutoffDate}
+            GROUP BY hour
+            ORDER BY hour ASC
+          `
+        : await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateFormatExpression)} as hour,
+              COUNT(*) as transactionCount,
+              CAST(SUM(value) AS CHAR) as volume,
+              SUM(CASE WHEN fromAddress = ${address} THEN 1 ELSE 0 END) as sentCount,
+              SUM(CASE WHEN toAddress = ${address} THEN 1 ELSE 0 END) as receivedCount,
+              CAST(SUM(CASE WHEN fromAddress = ${address} THEN value ELSE 0 END) AS CHAR) as sentVolume,
+              CAST(SUM(CASE WHEN toAddress = ${address} THEN value ELSE 0 END) AS CHAR) as receivedVolume,
+              AVG(anomalyScore) as avgAnomalyScore
+            FROM transactions
+            WHERE (fromAddress = ${address} OR toAddress = ${address})
+            GROUP BY hour
+            ORDER BY hour ASC
+          `;
 
     // Transform trends data
     const trendsData = trends.map(row => ({
-      timestamp: `${row.hour}Z`, // Add UTC timezone indicator
+      timestamp: !hours ? row.hour : `${row.hour}Z`, // Monthly format for All Time, otherwise ISO format
       transactionCount: parseInt(row.transactionCount.toString()),
       volume: row.volume.toString(),
       sentCount: parseInt(row.sentCount.toString()),

@@ -729,18 +729,25 @@ export function Analytics() {
     }
 
     // Set time range based on user selection
-    // Use a large number for 'all' time range (10 years)
-    const hoursToUse = hours ?? 8760 * 10;
-    const timeRange = {
-      start: new Date(now - hoursToUse * 60 * 60 * 1000).toISOString(),
-      end: new Date(now).toISOString(),
-    };
+    const hoursToUse = hours; // Don't use fallback, let backend handle undefined
+    const timeRange = hours
+      ? {
+          start: new Date(now - hours * 60 * 60 * 1000).toISOString(),
+          end: new Date(now).toISOString(),
+        }
+      : {
+          start: 'All Time',
+          end: new Date(now).toISOString(),
+        };
 
     // Fetch trends data
     let trends: any[] = [];
     try {
+      // Build URL with conditional hours parameter
+      const hoursParam = hours ? `hours=${hours}&` : '';
+      const interval = hours && hours > 168 ? 'daily' : 'hourly';
       const trendsResponse = await fetch(
-        `http://localhost:8000/api/v1/addresses/${address}/trends?hours=${hoursToUse}&tokenSymbol=${token}&interval=${hoursToUse > 168 ? 'daily' : 'hourly'}`
+        `http://localhost:8000/api/v1/addresses/${address}/trends?${hoursParam}tokenSymbol=${token}&interval=${interval}`
       );
       if (trendsResponse.ok) {
         const trendsData = await trendsResponse.json();
