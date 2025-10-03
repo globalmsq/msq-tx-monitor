@@ -71,19 +71,10 @@ export const config = {
       10
     ), // Increased from 5000ms to 10000ms for better rate limit handling
     // Block Catch-up Settings
-    catchUpBatchSize: parseInt(
-      process.env.CATCHUP_BATCH_SIZE || '100',
-      10
-    ), // 100 blocks per batch
+    catchUpBatchSize: parseInt(process.env.CATCHUP_BATCH_SIZE || '100', 10), // 100 blocks per batch
     catchUpMaxGap: parseInt(process.env.CATCHUP_MAX_GAP || '100000', 10), // Max gap before limiting catch-up
-    catchUpMaxBlocks: parseInt(
-      process.env.CATCHUP_MAX_BLOCKS || '50000',
-      10
-    ), // Max blocks to catch up
-    catchUpBatchDelay: parseInt(
-      process.env.CATCHUP_BATCH_DELAY || '2000',
-      10
-    ), // Increased from 1000ms to 2000ms for rate limit prevention
+    catchUpMaxBlocks: parseInt(process.env.CATCHUP_MAX_BLOCKS || '50000', 10), // Max blocks to catch up
+    catchUpBatchDelay: parseInt(process.env.CATCHUP_BATCH_DELAY || '2000', 10), // Increased from 1000ms to 2000ms for rate limit prevention
     blockSaveInterval: parseInt(process.env.BLOCK_SAVE_INTERVAL || '10', 10), // Save every N blocks
   },
 

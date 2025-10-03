@@ -141,7 +141,10 @@ export function TopAddressesSkeleton() {
       <LoadingSkeleton className='h-6 w-48 mb-4' />
       <div className='space-y-3'>
         {Array.from({ length: 5 }, (_, index) => (
-          <div key={index} className='flex items-center justify-between p-3 bg-white/5 rounded-lg'>
+          <div
+            key={index}
+            className='flex items-center justify-between p-3 bg-white/5 rounded-lg'
+          >
             <div className='flex items-center space-x-3 flex-1'>
               <LoadingSkeleton className='h-8 w-8 rounded-full' />
               <div className='flex-1'>

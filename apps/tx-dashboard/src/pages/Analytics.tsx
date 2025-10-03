@@ -421,10 +421,14 @@ export function Analytics() {
         const hoursParam = hours !== undefined ? `&hours=${hours}` : '';
 
         // Fetch realtime stats
-        fetch(`${API_BASE_URL}/analytics/realtime?${tokenParam.slice(1)}${hoursParam}`)
+        fetch(
+          `${API_BASE_URL}/analytics/realtime?${tokenParam.slice(1)}${hoursParam}`
+        )
           .then(res => res.json())
           .then((realtimeRes: ApiResponse<unknown>) => {
-            const tokenStats = (realtimeRes.data as { tokenStats?: TokenStatApiItem[] })?.tokenStats?.find(
+            const tokenStats = (
+              realtimeRes.data as { tokenStats?: TokenStatApiItem[] }
+            )?.tokenStats?.find(
               (stat: TokenStatApiItem) => stat.tokenSymbol === token
             );
 
@@ -452,53 +456,80 @@ export function Analytics() {
           .catch(err => logger.error('Realtime fetch error:', err));
 
         // Fetch hourly volume
-        fetch(`${API_BASE_URL}/analytics/volume/hourly?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`)
+        fetch(
+          `${API_BASE_URL}/analytics/volume/hourly?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`
+        )
           .then(res => res.json())
           .then((hourlyVolumeRes: ApiResponse<HourlyVolumeApiItem[]>) => {
-            const hourlyVolumeData = processHourlyVolumeData(hourlyVolumeRes, token);
+            const hourlyVolumeData = processHourlyVolumeData(
+              hourlyVolumeRes,
+              token
+            );
             setData(prev => ({ ...prev, hourlyVolume: hourlyVolumeData }));
             setLoadingStates(prev => ({ ...prev, hourlyVolume: false }));
           })
           .catch(err => logger.error('Hourly volume fetch error:', err));
 
         // Fetch token distribution
-        fetch(`${API_BASE_URL}/analytics/distribution/token?${tokenParam.slice(1)}${hoursParam}`)
+        fetch(
+          `${API_BASE_URL}/analytics/distribution/token?${tokenParam.slice(1)}${hoursParam}`
+        )
           .then(res => res.json())
           .then((tokenDistributionRes: ApiResponse<TokenDistribution[]>) => {
-            setData(prev => ({ ...prev, tokenDistribution: tokenDistributionRes.data || [] }));
+            setData(prev => ({
+              ...prev,
+              tokenDistribution: tokenDistributionRes.data || [],
+            }));
             setLoadingStates(prev => ({ ...prev, tokenDistribution: false }));
           })
           .catch(err => logger.error('Token distribution fetch error:', err));
 
         // Fetch top addresses (slowest API)
-        fetch(`${API_BASE_URL}/analytics/addresses/top?metric=volume&limit=5${tokenParam}${hoursParam}`)
+        fetch(
+          `${API_BASE_URL}/analytics/addresses/top?metric=volume&limit=5${tokenParam}${hoursParam}`
+        )
           .then(res => res.json())
           .then((topAddressesRes: ApiResponse<TopAddress[]>) => {
-            setData(prev => ({ ...prev, topAddresses: topAddressesRes.data || [] }));
+            setData(prev => ({
+              ...prev,
+              topAddresses: topAddressesRes.data || [],
+            }));
             setLoadingStates(prev => ({ ...prev, topAddresses: false }));
           })
           .catch(err => logger.error('Top addresses fetch error:', err));
 
         // Fetch top receivers
-        fetch(`${API_BASE_URL}/analytics/addresses/receivers?limit=5${tokenParam}${hoursParam}`)
+        fetch(
+          `${API_BASE_URL}/analytics/addresses/receivers?limit=5${tokenParam}${hoursParam}`
+        )
           .then(res => res.json())
           .then((topReceiversRes: ApiResponse<TopAddress[]>) => {
-            setData(prev => ({ ...prev, topReceivers: topReceiversRes.data || [] }));
+            setData(prev => ({
+              ...prev,
+              topReceivers: topReceiversRes.data || [],
+            }));
             setLoadingStates(prev => ({ ...prev, topReceivers: false }));
           })
           .catch(err => logger.error('Top receivers fetch error:', err));
 
         // Fetch top senders
-        fetch(`${API_BASE_URL}/analytics/addresses/senders?limit=5${tokenParam}${hoursParam}`)
+        fetch(
+          `${API_BASE_URL}/analytics/addresses/senders?limit=5${tokenParam}${hoursParam}`
+        )
           .then(res => res.json())
           .then((topSendersRes: ApiResponse<TopAddress[]>) => {
-            setData(prev => ({ ...prev, topSenders: topSendersRes.data || [] }));
+            setData(prev => ({
+              ...prev,
+              topSenders: topSendersRes.data || [],
+            }));
             setLoadingStates(prev => ({ ...prev, topSenders: false }));
           })
           .catch(err => logger.error('Top senders fetch error:', err));
 
         // Fetch anomaly stats
-        fetch(`${API_BASE_URL}/analytics/anomalies?${tokenParam.slice(1)}${hoursParam}`)
+        fetch(
+          `${API_BASE_URL}/analytics/anomalies?${tokenParam.slice(1)}${hoursParam}`
+        )
           .then(res => res.json())
           .then((anomalyStatsRes: ApiResponse<AnomalyStats>) => {
             setData(prev => ({ ...prev, anomalyStats: anomalyStatsRes.data }));
@@ -507,17 +538,22 @@ export function Analytics() {
           .catch(err => logger.error('Anomaly stats fetch error:', err));
 
         // Fetch anomaly time series
-        fetch(`${API_BASE_URL}/analytics/anomalies/timeseries?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`)
+        fetch(
+          `${API_BASE_URL}/analytics/anomalies/timeseries?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`
+        )
           .then(res => res.json())
           .then((anomalyTimeSeriesRes: ApiResponse<AnomalyTimeApiItem[]>) => {
-            const anomalyTimeData = processAnomalyTimeData(anomalyTimeSeriesRes);
+            const anomalyTimeData =
+              processAnomalyTimeData(anomalyTimeSeriesRes);
             setData(prev => ({ ...prev, anomalyTimeData }));
             setLoadingStates(prev => ({ ...prev, anomalyTimeData: false }));
           })
           .catch(err => logger.error('Anomaly time series fetch error:', err));
 
         // Fetch network stats
-        fetch(`${API_BASE_URL}/analytics/network?${tokenParam.slice(1)}${hoursParam}`)
+        fetch(
+          `${API_BASE_URL}/analytics/network?${tokenParam.slice(1)}${hoursParam}`
+        )
           .then(res => res.json())
           .then((networkStatsRes: ApiResponse<unknown>) => {
             setData(prev => ({ ...prev, networkStats: networkStatsRes.data }));
@@ -701,7 +737,6 @@ export function Analytics() {
     },
     [modalData?.identifier, activeTab, timeRange]
   );
-
 
   // Drill-down handlers
   const handleChartClick = async (
@@ -972,7 +1007,8 @@ export function Analytics() {
             <RefreshCw
               className={cn(
                 'w-5 h-5',
-                Object.values(loadingStates).some(state => state) && 'animate-spin'
+                Object.values(loadingStates).some(state => state) &&
+                  'animate-spin'
               )}
             />
           </button>
@@ -1130,95 +1166,95 @@ export function Analytics() {
           {loadingStates.topAddresses ? (
             <TopAddressesSkeleton />
           ) : data.topAddresses && data.topAddresses.length > 0 ? (
-              <div className='glass rounded-2xl p-6'>
-                <h3 className='text-lg font-bold text-white mb-4'>
-                  Top {activeTab} Addresses by Volume
-                </h3>
-                <div className='space-y-3'>
-                  {data.topAddresses.slice(0, 5).map((address, index) => (
-                    <div
-                      key={address.address}
-                      className='flex items-center justify-between py-2 border-b border-white/10 last:border-b-0'
-                    >
-                      <div className='flex items-center gap-3'>
-                        <div className='w-8 h-8 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400 font-bold text-sm'>
-                          {index + 1}
-                        </div>
-                        <div
-                          className='cursor-pointer'
-                          onClick={() =>
-                            handleChartClick('address', address.address)
-                          }
-                        >
-                          <div className='text-white font-mono text-sm hover:text-primary-400 transition-colors flex items-center gap-2'>
-                            <span className='hidden lg:inline'>
-                              {address.address}
-                            </span>
-                            <span className='inline lg:hidden'>
-                              {formatAddress(address.address)}
-                            </span>
-                            <button
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleCopyAddress(address.address);
-                              }}
-                              className='text-white/60 hover:text-white transition-colors flex-shrink-0'
-                              title='Copy address'
-                            >
-                              {copiedAddress === address.address ? (
-                                <Check size={14} className='text-green-400' />
-                              ) : (
-                                <Copy size={14} />
-                              )}
-                            </button>
-                          </div>
-                          <div className='text-white/60 text-xs'>
-                            {formatTransactionCount(address.transactionCount)}{' '}
-                            transactions
-                          </div>
-                        </div>
+            <div className='glass rounded-2xl p-6'>
+              <h3 className='text-lg font-bold text-white mb-4'>
+                Top {activeTab} Addresses by Volume
+              </h3>
+              <div className='space-y-3'>
+                {data.topAddresses.slice(0, 5).map((address, index) => (
+                  <div
+                    key={address.address}
+                    className='flex items-center justify-between py-2 border-b border-white/10 last:border-b-0'
+                  >
+                    <div className='flex items-center gap-3'>
+                      <div className='w-8 h-8 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400 font-bold text-sm'>
+                        {index + 1}
                       </div>
-                      <div className='text-right'>
-                        <div className='text-white font-medium'>
-                          <VolumeWithTooltip
-                            formattedValue={formatVolume(
-                              address.totalVolume,
-                              activeTab,
-                              {
-                                precision: 0,
-                              }
+                      <div
+                        className='cursor-pointer'
+                        onClick={() =>
+                          handleChartClick('address', address.address)
+                        }
+                      >
+                        <div className='text-white font-mono text-sm hover:text-primary-400 transition-colors flex items-center gap-2'>
+                          <span className='hidden lg:inline'>
+                            {address.address}
+                          </span>
+                          <span className='inline lg:hidden'>
+                            {formatAddress(address.address)}
+                          </span>
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleCopyAddress(address.address);
+                            }}
+                            className='text-white/60 hover:text-white transition-colors flex-shrink-0'
+                            title='Copy address'
+                          >
+                            {copiedAddress === address.address ? (
+                              <Check size={14} className='text-green-400' />
+                            ) : (
+                              <Copy size={14} />
                             )}
-                            rawValue={address.totalVolume}
-                            tokenSymbol={activeTab}
-                            receivedValue={address.totalReceived}
-                            sentValue={address.totalSent}
-                            showBreakdown={true}
-                          />
+                          </button>
                         </div>
-                        <div className='flex items-center justify-end gap-3 mt-1 text-xs text-white/60'>
-                          <div className='flex items-center gap-1'>
-                            <ArrowDown size={12} className='text-blue-400' />
-                            <span>
-                              {formatVolume(address.totalReceived, activeTab, {
-                                precision: 0,
-                              })}
-                            </span>
-                          </div>
-                          <div className='flex items-center gap-1'>
-                            <ArrowUp size={12} className='text-orange-400' />
-                            <span>
-                              {formatVolume(address.totalSent, activeTab, {
-                                precision: 0,
-                              })}
-                            </span>
-                          </div>
+                        <div className='text-white/60 text-xs'>
+                          {formatTransactionCount(address.transactionCount)}{' '}
+                          transactions
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    <div className='text-right'>
+                      <div className='text-white font-medium'>
+                        <VolumeWithTooltip
+                          formattedValue={formatVolume(
+                            address.totalVolume,
+                            activeTab,
+                            {
+                              precision: 0,
+                            }
+                          )}
+                          rawValue={address.totalVolume}
+                          tokenSymbol={activeTab}
+                          receivedValue={address.totalReceived}
+                          sentValue={address.totalSent}
+                          showBreakdown={true}
+                        />
+                      </div>
+                      <div className='flex items-center justify-end gap-3 mt-1 text-xs text-white/60'>
+                        <div className='flex items-center gap-1'>
+                          <ArrowDown size={12} className='text-blue-400' />
+                          <span>
+                            {formatVolume(address.totalReceived, activeTab, {
+                              precision: 0,
+                            })}
+                          </span>
+                        </div>
+                        <div className='flex items-center gap-1'>
+                          <ArrowUp size={12} className='text-orange-400' />
+                          <span>
+                            {formatVolume(address.totalSent, activeTab, {
+                              precision: 0,
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ) : null}
+            </div>
+          ) : null}
         </div>
 
         {/* Top Address Activity - Receivers and Senders */}
@@ -1233,52 +1269,52 @@ export function Analytics() {
                 Top {activeTab} Transaction Receivers
               </h3>
               <div className='space-y-3'>
-                  {data.topReceivers.slice(0, 5).map((address, index) => (
-                    <div
-                      key={address.address}
-                      className='flex items-center justify-between py-2 border-b border-white/10 last:border-b-0'
-                    >
-                      <div className='flex items-center gap-3'>
-                        <div className='w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 font-bold text-sm'>
-                          {index + 1}
-                        </div>
-                        <div
-                          className='cursor-pointer flex items-center gap-2'
-                          onClick={() =>
-                            handleChartClick('address', address.address)
-                          }
-                        >
-                          <div className='text-white font-mono text-sm hover:text-green-400 transition-colors'>
-                            <span className='hidden lg:inline'>
-                              {address.address}
-                            </span>
-                            <span className='inline lg:hidden'>
-                              {formatAddress(address.address)}
-                            </span>
-                          </div>
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleCopyAddress(address.address);
-                            }}
-                            className='text-white/60 hover:text-white transition-colors flex-shrink-0'
-                            title='Copy address'
-                          >
-                            {copiedAddress === address.address ? (
-                              <Check size={14} className='text-green-400' />
-                            ) : (
-                              <Copy size={14} />
-                            )}
-                          </button>
-                        </div>
+                {data.topReceivers.slice(0, 5).map((address, index) => (
+                  <div
+                    key={address.address}
+                    className='flex items-center justify-between py-2 border-b border-white/10 last:border-b-0'
+                  >
+                    <div className='flex items-center gap-3'>
+                      <div className='w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 font-bold text-sm'>
+                        {index + 1}
                       </div>
-                      <div className='text-right'>
-                        <div className='text-white font-medium'>
-                          {formatTransactionCount(address.transactionCount)}
+                      <div
+                        className='cursor-pointer flex items-center gap-2'
+                        onClick={() =>
+                          handleChartClick('address', address.address)
+                        }
+                      >
+                        <div className='text-white font-mono text-sm hover:text-green-400 transition-colors'>
+                          <span className='hidden lg:inline'>
+                            {address.address}
+                          </span>
+                          <span className='inline lg:hidden'>
+                            {formatAddress(address.address)}
+                          </span>
                         </div>
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleCopyAddress(address.address);
+                          }}
+                          className='text-white/60 hover:text-white transition-colors flex-shrink-0'
+                          title='Copy address'
+                        >
+                          {copiedAddress === address.address ? (
+                            <Check size={14} className='text-green-400' />
+                          ) : (
+                            <Copy size={14} />
+                          )}
+                        </button>
                       </div>
                     </div>
-                  ))}
+                    <div className='text-right'>
+                      <div className='text-white font-medium'>
+                        {formatTransactionCount(address.transactionCount)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ) : null}
@@ -1293,52 +1329,52 @@ export function Analytics() {
                 Top {activeTab} Transaction Senders
               </h3>
               <div className='space-y-3'>
-                  {data.topSenders.slice(0, 5).map((address, index) => (
-                    <div
-                      key={address.address}
-                      className='flex items-center justify-between py-2 border-b border-white/10 last:border-b-0'
-                    >
-                      <div className='flex items-center gap-3'>
-                        <div className='w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 font-bold text-sm'>
-                          {index + 1}
-                        </div>
-                        <div
-                          className='cursor-pointer flex items-center gap-2'
-                          onClick={() =>
-                            handleChartClick('address', address.address)
-                          }
-                        >
-                          <div className='text-white font-mono text-sm hover:text-orange-400 transition-colors'>
-                            <span className='hidden lg:inline'>
-                              {address.address}
-                            </span>
-                            <span className='inline lg:hidden'>
-                              {formatAddress(address.address)}
-                            </span>
-                          </div>
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleCopyAddress(address.address);
-                            }}
-                            className='text-white/60 hover:text-white transition-colors flex-shrink-0'
-                            title='Copy address'
-                          >
-                            {copiedAddress === address.address ? (
-                              <Check size={14} className='text-green-400' />
-                            ) : (
-                              <Copy size={14} />
-                            )}
-                          </button>
-                        </div>
+                {data.topSenders.slice(0, 5).map((address, index) => (
+                  <div
+                    key={address.address}
+                    className='flex items-center justify-between py-2 border-b border-white/10 last:border-b-0'
+                  >
+                    <div className='flex items-center gap-3'>
+                      <div className='w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 font-bold text-sm'>
+                        {index + 1}
                       </div>
-                      <div className='text-right'>
-                        <div className='text-white font-medium'>
-                          {formatTransactionCount(address.transactionCount)}
+                      <div
+                        className='cursor-pointer flex items-center gap-2'
+                        onClick={() =>
+                          handleChartClick('address', address.address)
+                        }
+                      >
+                        <div className='text-white font-mono text-sm hover:text-orange-400 transition-colors'>
+                          <span className='hidden lg:inline'>
+                            {address.address}
+                          </span>
+                          <span className='inline lg:hidden'>
+                            {formatAddress(address.address)}
+                          </span>
                         </div>
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleCopyAddress(address.address);
+                          }}
+                          className='text-white/60 hover:text-white transition-colors flex-shrink-0'
+                          title='Copy address'
+                        >
+                          {copiedAddress === address.address ? (
+                            <Check size={14} className='text-green-400' />
+                          ) : (
+                            <Copy size={14} />
+                          )}
+                        </button>
                       </div>
                     </div>
-                  ))}
+                    <div className='text-right'>
+                      <div className='text-white font-medium'>
+                        {formatTransactionCount(address.transactionCount)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ) : null}
@@ -1354,40 +1390,40 @@ export function Analytics() {
               <span className='text-red-400'>(Not Working)</span>
             </h3>
             <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
-                <MetricCard
-                  title='Total Anomalies'
-                  value={formatNumber(data.anomalyStats.totalAnomalies || 0, {
-                    compact: false,
-                  })}
-                  icon={<AlertTriangle className='w-5 h-5' />}
-                  color='yellow'
-                />
-                <MetricCard
-                  title='Suspicious Addresses'
-                  value={formatNumber(
-                    data.anomalyStats.suspiciousAddresses || 0,
-                    { compact: false }
-                  )}
-                  icon={<Users className='w-5 h-5' />}
-                  color='red'
-                />
-                <MetricCard
-                  title='Average Risk Score'
-                  value={`${(data.anomalyStats.averageAnomalyScore * 100 || 0).toFixed(1)}%`}
-                  icon={<BarChart3 className='w-5 h-5' />}
-                />
-                <MetricCard
-                  title='High Risk Transactions'
-                  value={formatNumber(
-                    data.anomalyStats.highRiskTransactions || 0,
-                    { compact: false }
-                  )}
-                  icon={<AlertTriangle className='w-5 h-5' />}
-                  color='red'
-                />
-              </div>
+              <MetricCard
+                title='Total Anomalies'
+                value={formatNumber(data.anomalyStats.totalAnomalies || 0, {
+                  compact: false,
+                })}
+                icon={<AlertTriangle className='w-5 h-5' />}
+                color='yellow'
+              />
+              <MetricCard
+                title='Suspicious Addresses'
+                value={formatNumber(
+                  data.anomalyStats.suspiciousAddresses || 0,
+                  { compact: false }
+                )}
+                icon={<Users className='w-5 h-5' />}
+                color='red'
+              />
+              <MetricCard
+                title='Average Risk Score'
+                value={`${(data.anomalyStats.averageAnomalyScore * 100 || 0).toFixed(1)}%`}
+                icon={<BarChart3 className='w-5 h-5' />}
+              />
+              <MetricCard
+                title='High Risk Transactions'
+                value={formatNumber(
+                  data.anomalyStats.highRiskTransactions || 0,
+                  { compact: false }
+                )}
+                icon={<AlertTriangle className='w-5 h-5' />}
+                color='red'
+              />
             </div>
-          ) : null}
+          </div>
+        ) : null}
 
         {/* Anomaly Trends & Risk Analysis */}
         {loadingStates.anomalyTimeData ? (

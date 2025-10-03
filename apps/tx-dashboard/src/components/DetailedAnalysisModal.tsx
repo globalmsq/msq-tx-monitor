@@ -473,9 +473,12 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
 
   if (!isOpen) return null;
 
+  const modalRoot = document.getElementById('modal-root');
+  if (!modalRoot) return null;
+
   if (loading) {
-    return (
-      <div className='fixed inset-0 bg-black/50 backdrop-blur-sm z-[10000] flex items-center justify-center'>
+    const loadingContent = (
+      <div className='fixed inset-0 bg-black/80 backdrop-blur-sm z-[10001] flex items-center justify-center'>
         <div className='bg-gray-700 rounded-2xl p-6 max-w-md w-full mx-4'>
           <div className='flex items-center justify-center'>
             <div className='w-8 h-8 border-2 border-primary-400 border-t-transparent rounded-full animate-spin' />
@@ -486,15 +489,13 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
         </div>
       </div>
     );
+    return ReactDOM.createPortal(loadingContent, modalRoot);
   }
 
   if (!data) return null;
 
-  const modalRoot = document.getElementById('modal-root');
-  if (!modalRoot) return null;
-
   const modalContent = (
-    <div className='fixed inset-0 bg-black/50 backdrop-blur-sm z-[10000] flex items-center justify-center p-4'>
+    <div className='fixed inset-0 bg-black/80 backdrop-blur-sm z-[10001] flex items-center justify-center p-4'>
       <div className='bg-gray-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden'>
         {/* Header */}
         <div className='flex items-center justify-between p-6 border-b border-white/10'>
@@ -622,29 +623,29 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
                   </div>
                   {data.summary.totalReceived !== undefined &&
                     data.summary.totalSent !== undefined && (
-                    <div className='flex items-center gap-3 mt-2 text-xs text-white/60'>
-                      <div className='flex items-center gap-1'>
-                        <ArrowDown size={12} className='text-blue-400' />
-                        <span>
-                          {formatVolumeHelper(
-                            data.summary.totalReceived,
-                            data.summary.tokenSymbol ||
-                              data.transactions?.[0]?.tokenSymbol
-                          )}
-                        </span>
+                      <div className='flex items-center gap-3 mt-2 text-xs text-white/60'>
+                        <div className='flex items-center gap-1'>
+                          <ArrowDown size={12} className='text-blue-400' />
+                          <span>
+                            {formatVolumeHelper(
+                              data.summary.totalReceived,
+                              data.summary.tokenSymbol ||
+                                data.transactions?.[0]?.tokenSymbol
+                            )}
+                          </span>
+                        </div>
+                        <div className='flex items-center gap-1'>
+                          <ArrowUp size={12} className='text-orange-400' />
+                          <span>
+                            {formatVolumeHelper(
+                              data.summary.totalSent,
+                              data.summary.tokenSymbol ||
+                                data.transactions?.[0]?.tokenSymbol
+                            )}
+                          </span>
+                        </div>
                       </div>
-                      <div className='flex items-center gap-1'>
-                        <ArrowUp size={12} className='text-orange-400' />
-                        <span>
-                          {formatVolumeHelper(
-                            data.summary.totalSent,
-                            data.summary.tokenSymbol ||
-                              data.transactions?.[0]?.tokenSymbol
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  )}
+                    )}
                 </div>
 
                 <div className='bg-white/20 rounded-lg p-4'>

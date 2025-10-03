@@ -238,7 +238,7 @@ function TransactionFeed() {
         const detailedData = await fetchAddressDetails(
           address,
           selectedTransaction.token,
-          '24h'
+          '7d'
         );
         setAddressModalData(detailedData);
       } catch (error) {
@@ -254,6 +254,7 @@ function TransactionFeed() {
 
   const closeAddressModal = useCallback(() => {
     setAddressModalData(null);
+    setAddressModalLoading(false);
   }, []);
 
   const filterSummary = getFilterSummary(filters);
@@ -398,7 +399,7 @@ function TransactionFeed() {
                 addressModalData.identifier,
                 page,
                 selectedTransaction.token,
-                '24h',
+                '7d',
                 filter
               );
               return result;

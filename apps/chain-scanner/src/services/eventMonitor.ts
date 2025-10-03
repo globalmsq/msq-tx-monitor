@@ -12,6 +12,7 @@ import {
 } from '../config/constants';
 import { TokenService } from './tokenService';
 import { logger } from '@msq-tx-monitor/msq-common';
+import { Block, Transaction, TransactionReceipt } from 'web3';
 
 export interface EventData {
   address: string;
@@ -71,14 +72,17 @@ export class EventMonitor {
         database: config.redis.db,
       });
 
-      this.redisClient.on('error', (error) => {
+      this.redisClient.on('error', error => {
         logger.error('❌ Redis error:', error);
       });
 
       await this.redisClient.connect();
       logger.info('✅ Redis connected for block sync');
     } catch (error) {
-      logger.warn('⚠️ Redis connection failed, block sync will use database only:', error);
+      logger.warn(
+        '⚠️ Redis connection failed, block sync will use database only:',
+        error
+      );
       this.redisClient = null;
     }
   }
@@ -107,7 +111,9 @@ export class EventMonitor {
     try {
       // 1. Try Redis first (fast)
       if (this.redisClient) {
-        const redisBlock = await this.redisClient.get(REDIS_KEYS.LAST_PROCESSED_BLOCK);
+        const redisBlock = await this.redisClient.get(
+          REDIS_KEYS.LAST_PROCESSED_BLOCK
+        );
         if (redisBlock) {
           const blockNum = parseInt(redisBlock, 10);
           const effectiveBlock = Math.max(blockNum, MIN_DEPLOYMENT_BLOCK);
@@ -116,7 +122,9 @@ export class EventMonitor {
               `📖 Loaded block ${blockNum} from Redis, adjusted to min deployment block ${effectiveBlock}`
             );
           } else {
-            logger.info(`📖 Loaded last processed block from Redis: ${blockNum}`);
+            logger.info(
+              `📖 Loaded last processed block from Redis: ${blockNum}`
+            );
           }
           return effectiveBlock;
         }
@@ -131,7 +139,9 @@ export class EventMonitor {
             `📖 Loaded block ${dbBlock} from database, adjusted to min deployment block ${effectiveBlock}`
           );
         } else {
-          logger.info(`📖 Loaded last processed block from database: ${dbBlock}`);
+          logger.info(
+            `📖 Loaded last processed block from database: ${dbBlock}`
+          );
         }
         // Also save to Redis for next time
         await this.saveLastProcessedBlockNumber(effectiveBlock);
@@ -151,10 +161,15 @@ export class EventMonitor {
   /**
    * Save last processed block number to Redis
    */
-  private async saveLastProcessedBlockNumber(blockNumber: number): Promise<void> {
+  private async saveLastProcessedBlockNumber(
+    blockNumber: number
+  ): Promise<void> {
     try {
       if (this.redisClient) {
-        await this.redisClient.set(REDIS_KEYS.LAST_PROCESSED_BLOCK, blockNumber.toString());
+        await this.redisClient.set(
+          REDIS_KEYS.LAST_PROCESSED_BLOCK,
+          blockNumber.toString()
+        );
       }
     } catch (error) {
       logger.error('❌ Error saving last processed block to Redis:', error);
@@ -168,7 +183,9 @@ export class EventMonitor {
     const batchSize = config.monitoring.catchUpBatchSize;
     const totalBlocks = toBlock - fromBlock;
 
-    logger.info(`🚀 Catch-up mode: processing ${totalBlocks} blocks in batches of ${batchSize}`);
+    logger.info(
+      `🚀 Catch-up mode: processing ${totalBlocks} blocks in batches of ${batchSize}`
+    );
 
     for (let start = fromBlock + 1; start <= toBlock; start += batchSize) {
       const end = Math.min(start + batchSize - 1, toBlock);
@@ -193,7 +210,6 @@ export class EventMonitor {
         await new Promise(resolve =>
           setTimeout(resolve, config.monitoring.catchUpBatchDelay)
         );
-
       } catch (error) {
         logger.error(`❌ Error processing blocks ${start}-${end}:`, error);
         // Continue with next batch even if one fails
@@ -224,14 +240,21 @@ export class EventMonitor {
       // Determine strategy based on gap size
       if (gap > config.monitoring.catchUpMaxGap) {
         // Too far behind - only process recent blocks, but never go below min deployment block
-        const calculatedStart = currentBlock - config.monitoring.catchUpMaxBlocks;
-        this.lastProcessedBlock = Math.max(calculatedStart, MIN_DEPLOYMENT_BLOCK);
+        const calculatedStart =
+          currentBlock - config.monitoring.catchUpMaxBlocks;
+        this.lastProcessedBlock = Math.max(
+          calculatedStart,
+          MIN_DEPLOYMENT_BLOCK
+        );
 
         logger.warn(
           `⚠️ ${gap} blocks behind, processing from block ${this.lastProcessedBlock} to ${currentBlock}`
         );
 
-        if (this.lastProcessedBlock === MIN_DEPLOYMENT_BLOCK && calculatedStart < MIN_DEPLOYMENT_BLOCK) {
+        if (
+          this.lastProcessedBlock === MIN_DEPLOYMENT_BLOCK &&
+          calculatedStart < MIN_DEPLOYMENT_BLOCK
+        ) {
           logger.info(
             `📍 Adjusted start block to minimum deployment block ${MIN_DEPLOYMENT_BLOCK} (earliest token: MSQ)`
           );
@@ -241,7 +264,9 @@ export class EventMonitor {
         await this.fastCatchUp(this.lastProcessedBlock, currentBlock);
       } else if (gap > 1000) {
         // Medium gap - fast catch-up mode
-        logger.info(`📦 ${gap} blocks to catch up, starting fast catch-up mode`);
+        logger.info(
+          `📦 ${gap} blocks to catch up, starting fast catch-up mode`
+        );
         this.lastProcessedBlock = savedBlock > 0 ? savedBlock : currentBlock;
         await this.fastCatchUp(this.lastProcessedBlock, currentBlock);
       } else {
@@ -593,12 +618,14 @@ export class EventMonitor {
    * This dramatically reduces RPC calls from 3N to (unique_blocks + 2*unique_transactions)
    */
   private async fetchBlockchainDataBatch(events: EventData[]): Promise<{
-    blocks: Map<number, unknown>;
-    transactions: Map<string, unknown>;
-    receipts: Map<string, unknown>;
+    blocks: Map<number, Block>;
+    transactions: Map<string, Transaction>;
+    receipts: Map<string, TransactionReceipt>;
   }> {
     if (!this.web3Service.isConnected()) {
-      logger.warn('Web3 service not connected, returning empty blockchain data');
+      logger.warn(
+        'Web3 service not connected, returning empty blockchain data'
+      );
       return {
         blocks: new Map(),
         transactions: new Map(),
@@ -608,7 +635,9 @@ export class EventMonitor {
 
     const web3 = this.web3Service.getWeb3Instance();
     if (!web3) {
-      logger.warn('Web3 instance not available, returning empty blockchain data');
+      logger.warn(
+        'Web3 instance not available, returning empty blockchain data'
+      );
       return {
         blocks: new Map(),
         transactions: new Map(),
@@ -618,7 +647,9 @@ export class EventMonitor {
 
     try {
       // Extract unique block numbers and transaction hashes
-      const uniqueBlockNumbers = [...new Set(events.map(e => parseInt(e.blockNumber, 16)))];
+      const uniqueBlockNumbers = [
+        ...new Set(events.map(e => parseInt(e.blockNumber, 16))),
+      ];
       const uniqueTxHashes = [...new Set(events.map(e => e.transactionHash))];
 
       logger.info(
@@ -629,40 +660,48 @@ export class EventMonitor {
 
       // Fetch all data in parallel (3 RPC calls instead of 3*N)
       const [blocks, transactions, receipts] = await Promise.all([
-        Promise.all(uniqueBlockNumbers.map(n => web3.eth.getBlock(n).catch(err => {
-          logger.error(`Error fetching block ${n}:`, err);
-          return null;
-        }))),
-        Promise.all(uniqueTxHashes.map(hash => web3.eth.getTransaction(hash).catch(err => {
-          logger.error(`Error fetching transaction ${hash}:`, err);
-          return null;
-        }))),
-        Promise.all(uniqueTxHashes.map(hash => web3.eth.getTransactionReceipt(hash).catch(err => {
-          logger.error(`Error fetching receipt ${hash}:`, err);
-          return null;
-        })))
+        Promise.all(
+          uniqueBlockNumbers.map(n =>
+            web3.eth.getBlock(n).catch(err => {
+              logger.error(`Error fetching block ${n}:`, err);
+              return null;
+            })
+          )
+        ),
+        Promise.all(
+          uniqueTxHashes.map(hash =>
+            web3.eth.getTransaction(hash).catch(err => {
+              logger.error(`Error fetching transaction ${hash}:`, err);
+              return null;
+            })
+          )
+        ),
+        Promise.all(
+          uniqueTxHashes.map(hash =>
+            web3.eth.getTransactionReceipt(hash).catch(err => {
+              logger.error(`Error fetching receipt ${hash}:`, err);
+              return null;
+            })
+          )
+        ),
       ]);
 
       const elapsed = Date.now() - startTime;
-      logger.info(`Batch fetch completed in ${elapsed}ms (${Math.round(events.length / (elapsed / 1000))} events/sec)`);
+      logger.info(
+        `Batch fetch completed in ${elapsed}ms (${Math.round(events.length / (elapsed / 1000))} events/sec)`
+      );
 
       // Convert arrays to Maps for fast lookup
       const blockMap = new Map(
-        blocks
-          .filter(b => b !== null)
-          .map(b => [Number(b!.number), b])
+        blocks.filter(b => b !== null).map(b => [Number(b!.number), b])
       );
 
       const txMap = new Map(
-        transactions
-          .filter(t => t !== null)
-          .map(t => [t!.hash, t])
+        transactions.filter(t => t !== null).map(t => [t!.hash, t])
       );
 
       const receiptMap = new Map(
-        receipts
-          .filter(r => r !== null)
-          .map(r => [r!.transactionHash, r])
+        receipts.filter(r => r !== null).map(r => [r!.transactionHash, r])
       );
 
       return { blocks: blockMap, transactions: txMap, receipts: receiptMap };
@@ -694,7 +733,8 @@ export class EventMonitor {
       logger.info(`Processing ${eventsToProcess.length} events...`);
 
       // Fetch blockchain data in batch (major optimization)
-      const blockchainData = await this.fetchBlockchainDataBatch(eventsToProcess);
+      const blockchainData =
+        await this.fetchBlockchainDataBatch(eventsToProcess);
 
       const processedEvents: ProcessedEvent[] = [];
       const transactionData: TransactionData[] = [];
@@ -738,8 +778,8 @@ export class EventMonitor {
 
       logger.info(
         `✅ Batch complete: ${processedEvents.length}/${eventsToProcess.length} events processed in ${overallElapsed}ms ` +
-        `(RPC: ${overallElapsed - processingElapsed}ms, Processing: ${processingElapsed}ms, ` +
-        `Throughput: ${Math.round(processedEvents.length / (overallElapsed / 1000))} events/sec)`
+          `(RPC: ${overallElapsed - processingElapsed}ms, Processing: ${processingElapsed}ms, ` +
+          `Throughput: ${Math.round(processedEvents.length / (overallElapsed / 1000))} events/sec)`
       );
     } catch (error) {
       logger.error('Error processing queued events:', error);
@@ -751,9 +791,9 @@ export class EventMonitor {
   private processEvent(
     eventData: EventData,
     blockchainData?: {
-      blocks: Map<number, unknown>;
-      transactions: Map<string, unknown>;
-      receipts: Map<string, unknown>;
+      blocks: Map<number, Block>;
+      transactions: Map<string, Transaction>;
+      receipts: Map<string, TransactionReceipt>;
     }
   ): ProcessedEvent | null {
     try {
@@ -795,7 +835,9 @@ export class EventMonitor {
       if (blockchainData) {
         const blockNumber = parseInt(eventData.blockNumber, 16);
         const block = blockchainData.blocks.get(blockNumber);
-        const transaction = blockchainData.transactions.get(eventData.transactionHash);
+        const transaction = blockchainData.transactions.get(
+          eventData.transactionHash
+        );
         const receipt = blockchainData.receipts.get(eventData.transactionHash);
 
         // Extract block timestamp
