@@ -135,19 +135,67 @@ async function updateBlockProcessingStatus(blockNumber: number): Promise<void> {
 }
 
 /**
+ * Get the last processed block number for a specific token
+ */
+async function getLastProcessedBlock(
+  tokenAddress: string
+): Promise<number | null> {
+  try {
+    const lastTx = await prisma.transaction.findFirst({
+      where: {
+        tokenAddress: tokenAddress.toLowerCase(),
+      },
+      orderBy: {
+        blockNumber: 'desc',
+      },
+      select: {
+        blockNumber: true,
+      },
+    });
+
+    return lastTx ? Number(lastTx.blockNumber) : null;
+  } catch (error) {
+    console.error(`❌ Error fetching last processed block for ${tokenAddress}:`, error);
+    return null;
+  }
+}
+
+/**
  * Sync historical data for a single token (streaming approach)
  */
 async function syncToken(
   client: PolygonScanClient,
   token: TokenConfig,
-  endBlock?: number
+  endBlock: number
 ): Promise<void> {
   console.log(`\n${'='.repeat(60)}`);
   console.log(`🔄 Syncing ${token.symbol} (${token.address})`);
-  console.log(`   Deployment Block: ${formatNumber(token.deploymentBlock)}`);
-  if (endBlock) {
-    console.log(`   Target End Block: ${formatNumber(endBlock)}`);
+
+  // Get last processed block for incremental sync
+  const lastProcessedBlock = await getLastProcessedBlock(token.address);
+
+  // Determine start block
+  const startBlock = lastProcessedBlock
+    ? lastProcessedBlock + 1
+    : token.deploymentBlock;
+
+  // Check if already up-to-date
+  if (startBlock > endBlock) {
+    console.log(`   ✅ Already up-to-date at block ${formatNumber(lastProcessedBlock!)}`);
+    console.log(`${'='.repeat(60)}\n`);
+    return;
   }
+
+  // Display sync information
+  if (lastProcessedBlock) {
+    console.log(`   Last Processed Block: ${formatNumber(lastProcessedBlock)}`);
+    console.log(`   Resume From Block: ${formatNumber(startBlock)} (incremental sync)`);
+  } else {
+    console.log(`   Deployment Block: ${formatNumber(token.deploymentBlock)}`);
+    console.log(`   Start From Block: ${formatNumber(startBlock)} (full sync)`);
+  }
+  console.log(`   Target End Block: ${formatNumber(endBlock)}`);
+  console.log(`   Blocks to Scan: ${formatNumber(endBlock - startBlock + 1)}`);
   console.log(`${'='.repeat(60)}\n`);
 
   let totalFetched = 0;
@@ -158,7 +206,7 @@ async function syncToken(
     // Stream transactions and process each batch immediately
     totalFetched = await client.streamTokenTransfers(
       token.address,
-      token.deploymentBlock,
+      startBlock,
       endBlock,
       async (batch, iteration) => {
         // Convert to database format
@@ -256,11 +304,13 @@ async function main() {
         ? Object.values(TOKENS)
         : [TOKENS[tokenArg]];
 
-    // Get current block number for sync:all mode
-    let syncEndBlock: number | undefined;
+    // Get current block number (required for both single and ALL mode)
+    const syncEndBlock = await getCurrentBlockNumber();
+
     if (tokenArg === 'ALL') {
-      syncEndBlock = await getCurrentBlockNumber();
       console.log(`\n🎯 Syncing ALL tokens to block ${formatNumber(syncEndBlock)}\n`);
+    } else {
+      console.log(`\n🎯 Target end block: ${formatNumber(syncEndBlock)}\n`);
     }
 
     // Sync each token
@@ -269,15 +319,15 @@ async function main() {
     }
 
     // Update BlockProcessingStatus if syncing all tokens
-    if (tokenArg === 'ALL' && syncEndBlock) {
+    if (tokenArg === 'ALL') {
       console.log('\n📝 Updating BlockProcessingStatus...');
       await updateBlockProcessingStatus(syncEndBlock);
     }
 
     console.log('\n' + '='.repeat(60));
     console.log('✅ All sync operations completed successfully!');
-    if (syncEndBlock) {
-      console.log(`🎯 All tokens synced to block: ${formatNumber(syncEndBlock)}`);
+    console.log(`🎯 All tokens synced to block: ${formatNumber(syncEndBlock)}`);
+    if (tokenArg === 'ALL') {
       console.log(`✅ BlockProcessingStatus updated`);
       console.log(`📡 chain-scanner will continue from block ${formatNumber(syncEndBlock + 1)}`);
     }
