@@ -1034,24 +1034,11 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
                       <div className='text-white text-lg font-semibold'>
                         {(() => {
                           const tokenSymbol = data.summary.tokenSymbol || 'MSQ';
-                          const totalVol = data.trends
-                            .reduce(
-                              (sum, t) => sum + BigInt(t.volume || 0),
-                              BigInt(0)
-                            )
-                            .toString();
-                          const totalSent = data.trends
-                            .reduce(
-                              (sum, t) => sum + BigInt(t.sentVolume || 0),
-                              BigInt(0)
-                            )
-                            .toString();
-                          const totalReceived = data.trends
-                            .reduce(
-                              (sum, t) => sum + BigInt(t.receivedVolume || 0),
-                              BigInt(0)
-                            )
-                            .toString();
+                          // Use Summary data directly instead of calculating from trends
+                          const totalVol = data.summary?.totalVolume || '0';
+                          const totalSent = data.summary?.totalSent || '0';
+                          const totalReceived =
+                            data.summary?.totalReceived || '0';
                           return (
                             <VolumeWithTooltip
                               formattedValue={formatVolumeHelper(
@@ -1070,18 +1057,10 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
                       {/* Add received/sent breakdown display */}
                       {(() => {
                         const tokenSymbol = data.summary.tokenSymbol || 'MSQ';
-                        const totalSent = data.trends
-                          .reduce(
-                            (sum, t) => sum + BigInt(t.sentVolume || 0),
-                            BigInt(0)
-                          )
-                          .toString();
-                        const totalReceived = data.trends
-                          .reduce(
-                            (sum, t) => sum + BigInt(t.receivedVolume || 0),
-                            BigInt(0)
-                          )
-                          .toString();
+                        // Use Summary data directly instead of calculating from trends
+                        const totalSent = data.summary?.totalSent || '0';
+                        const totalReceived =
+                          data.summary?.totalReceived || '0';
 
                         return (
                           <div className='flex items-center gap-3 mt-2 text-xs text-white/60'>
