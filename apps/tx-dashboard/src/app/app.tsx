@@ -58,7 +58,7 @@ function ConnectionStatus() {
 }
 
 function StatsCards() {
-  const { stats, isInitialLoad } = useTransactionData();
+  const { stats, statsLoading } = useTransactionData();
 
   // Show all token stats regardless of filter selection
   const filteredTokenStats = stats.tokenStats;
@@ -82,7 +82,7 @@ function StatsCards() {
     },
   ];
 
-  if (isInitialLoad) {
+  if (statsLoading) {
     return <InitialStatsLoadingSkeleton />;
   }
 

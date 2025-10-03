@@ -63,6 +63,7 @@ interface TransactionState {
 
   // UI state
   isLoading: boolean;
+  statsLoading: boolean;
   error: string | null;
 }
 
@@ -127,6 +128,7 @@ const initialState: TransactionState = {
   totalCount: 0,
   isInitialLoad: true,
   isLoading: false,
+  statsLoading: true,
   error: null,
 };
 
@@ -317,6 +319,7 @@ function transactionReducer(
         ...state,
         stats: updatedStats,
         totalCount: newTotalCount,
+        statsLoading: false, // Stats loaded after first update
       };
     }
 
@@ -748,6 +751,7 @@ export function useTransactionData() {
     stats: state.stats,
     isLoading: state.isLoading,
     isInitialLoad: state.isInitialLoad,
+    statsLoading: state.statsLoading,
     hasMore: state.hasMore,
     lastTransactionId: state.lastTransactionId,
     totalCount: state.totalCount,
