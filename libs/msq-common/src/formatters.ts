@@ -75,13 +75,28 @@ export function formatNumber(
 
   // Use consistent precision (default: 1 decimal place)
   if (num >= 1e9) {
-    return removeTrailingZeros(`${(num / 1e9).toFixed(precision)}B`);
+    const value = num / 1e9;
+    const formatted = value.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: precision
+    });
+    return removeTrailingZeros(`${formatted}B`);
   }
   if (num >= 1e6) {
-    return removeTrailingZeros(`${(num / 1e6).toFixed(precision)}M`);
+    const value = num / 1e6;
+    const formatted = value.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: precision
+    });
+    return removeTrailingZeros(`${formatted}M`);
   }
   if (num >= 1e3) {
-    return removeTrailingZeros(`${(num / 1e3).toFixed(precision)}K`);
+    const value = num / 1e3;
+    const formatted = value.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: precision
+    });
+    return removeTrailingZeros(`${formatted}K`);
   }
 
   // For small numbers, use up to 3 decimal places if needed
@@ -123,10 +138,20 @@ export function formatVolume(
   if (compact) {
     if (actualValue >= 1e9) {
       // For B unit, show 1 decimal place and remove trailing zeros
-      formatted = removeTrailingZeros(`${(actualValue / 1e9).toFixed(1)}B`);
+      const value = actualValue / 1e9;
+      const valueFormatted = value.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 1
+      });
+      formatted = removeTrailingZeros(`${valueFormatted}B`);
     } else if (actualValue >= 1e6) {
       // For M unit, show 1 decimal place and remove trailing zeros
-      formatted = removeTrailingZeros(`${(actualValue / 1e6).toFixed(1)}M`);
+      const value = actualValue / 1e6;
+      const valueFormatted = value.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 1
+      });
+      formatted = removeTrailingZeros(`${valueFormatted}M`);
     } else {
       // For values below 1M, show full number with thousand separators (no decimals)
       formatted = formatNumber(actualValue, { precision: 0, compact: false });
