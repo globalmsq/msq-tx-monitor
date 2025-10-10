@@ -103,37 +103,19 @@ export class EventMonitor {
   }
 
   /**
-   * Get last processed block number from Redis or database
-   * Priority: Redis -> Database -> MIN_DEPLOYMENT_BLOCK
+   * Get last processed block number from database (source of truth)
+   * Priority: Database -> MIN_DEPLOYMENT_BLOCK
+   * Redis is synchronized with database value on startup
    * Ensures returned block is never below MIN_DEPLOYMENT_BLOCK (earliest token deployment)
    */
   private async getLastProcessedBlockNumber(): Promise<number> {
     try {
-      // 1. Try Redis first (fast)
-      if (this.redisClient) {
-        const redisBlock = await this.redisClient.get(
-          REDIS_KEYS.LAST_PROCESSED_BLOCK
-        );
-        if (redisBlock) {
-          const blockNum = parseInt(redisBlock, 10);
-          const effectiveBlock = Math.max(blockNum, MIN_DEPLOYMENT_BLOCK);
-          if (effectiveBlock > blockNum) {
-            logger.info(
-              `📖 Loaded block ${blockNum} from Redis, adjusted to min deployment block ${effectiveBlock}`
-            );
-          } else {
-            logger.info(
-              `📖 Loaded last processed block from Redis: ${blockNum}`
-            );
-          }
-          return effectiveBlock;
-        }
-      }
-
-      // 2. Fallback to database
+      // 1. Always prioritize database as source of truth
       const dbBlock = await this.databaseService.getLastProcessedBlock();
+
       if (dbBlock && dbBlock > 0) {
         const effectiveBlock = Math.max(dbBlock, MIN_DEPLOYMENT_BLOCK);
+
         if (effectiveBlock > dbBlock) {
           logger.info(
             `📖 Loaded block ${dbBlock} from database, adjusted to min deployment block ${effectiveBlock}`
@@ -143,14 +125,22 @@ export class EventMonitor {
             `📖 Loaded last processed block from database: ${dbBlock}`
           );
         }
-        // Also save to Redis for next time
+
+        // Sync Redis with database value
         await this.saveLastProcessedBlockNumber(effectiveBlock);
+        logger.info(`🔄 Redis synchronized with database: ${effectiveBlock}`);
+
         return effectiveBlock;
       }
 
+      // 2. No database records - start from minimum deployment block
       logger.info(
-        `📖 No saved block found, starting from min deployment block ${MIN_DEPLOYMENT_BLOCK}`
+        `📖 No saved block found in database, starting from min deployment block ${MIN_DEPLOYMENT_BLOCK}`
       );
+
+      // Initialize Redis with minimum deployment block
+      await this.saveLastProcessedBlockNumber(MIN_DEPLOYMENT_BLOCK);
+
       return MIN_DEPLOYMENT_BLOCK;
     } catch (error) {
       logger.error('❌ Error getting last processed block:', error);
@@ -237,6 +227,12 @@ export class EventMonitor {
         `📊 Block status: saved=${savedBlock}, current=${currentBlock}, gap=${gap}`
       );
 
+      // Start event processing queue first (required for processing caught-up events)
+      logger.info('📋 Starting event processing queue...');
+      this.startProcessingQueue();
+
+      let needsCatchUp = false;
+
       // Determine strategy based on gap size
       if (gap > config.monitoring.catchUpMaxGap) {
         // Too far behind - only process recent blocks, but never go below min deployment block
@@ -248,7 +244,10 @@ export class EventMonitor {
         );
 
         logger.warn(
-          `⚠️ ${gap} blocks behind, processing from block ${this.lastProcessedBlock} to ${currentBlock}`
+          `⚠️ ${gap} blocks behind, limiting catch-up to recent ${config.monitoring.catchUpMaxBlocks} blocks`
+        );
+        logger.info(
+          `📍 Catch-up range: ${this.lastProcessedBlock} → ${currentBlock}`
         );
 
         if (
@@ -261,35 +260,46 @@ export class EventMonitor {
         }
 
         await this.saveLastProcessedBlockNumber(this.lastProcessedBlock);
+        needsCatchUp = true;
         await this.fastCatchUp(this.lastProcessedBlock, currentBlock);
       } else if (gap > 1000) {
         // Medium gap - fast catch-up mode
         logger.info(
-          `📦 ${gap} blocks to catch up, starting fast catch-up mode`
+          `📦 Gap detected: ${gap} blocks to catch up, starting catch-up mode`
         );
+        logger.info(`📍 Catch-up range: ${savedBlock} → ${currentBlock}`);
+
         this.lastProcessedBlock = savedBlock > 0 ? savedBlock : currentBlock;
+        needsCatchUp = true;
         await this.fastCatchUp(this.lastProcessedBlock, currentBlock);
       } else {
-        // Small gap or first run - normal mode
+        // Small gap or first run - skip catch-up, start real-time mode directly
         this.lastProcessedBlock = savedBlock > 0 ? savedBlock : currentBlock;
         logger.info(
-          `✅ Normal range, starting from block ${this.lastProcessedBlock}`
+          `✅ Small gap (${gap} blocks), starting real-time monitoring from block ${this.lastProcessedBlock}`
         );
       }
 
-      // Start processing queue
-      this.startProcessingQueue();
+      // Wait a moment for queued events to be processed before starting real-time polling
+      if (needsCatchUp) {
+        logger.info(
+          '⏳ Waiting for catch-up events to process before starting real-time monitoring...'
+        );
+        await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+      }
 
-      // Start HTTP polling for new blocks (real-time mode)
+      // Start real-time HTTP polling (only after catch-up is complete)
+      logger.info(
+        '🔴 Starting real-time block polling for new transactions...'
+      );
       this.startBlockPolling();
 
       const tokenAddresses = Object.values(TOKEN_ADDRESSES);
       logger.info(
-        `📊 Monitoring ${tokenAddresses.length} tokens for Transfer events using HTTP RPC`
+        `📊 Monitoring ${tokenAddresses.length} tokens for Transfer events`
       );
-      logger.info(
-        `🎯 Monitored tokens: ${Object.keys(TOKEN_ADDRESSES).join(', ')}`
-      );
+      logger.info(`🎯 Tokens: ${Object.keys(TOKEN_ADDRESSES).join(', ')}`);
+      logger.info(`✅ Event monitoring fully initialized and running`);
     } catch (error) {
       logger.error('❌ Failed to start monitoring:', error);
       throw error;
