@@ -262,8 +262,8 @@ export class EventMonitor {
         await this.saveLastProcessedBlockNumber(this.lastProcessedBlock);
         needsCatchUp = true;
         await this.fastCatchUp(this.lastProcessedBlock, currentBlock);
-      } else if (gap > 1000) {
-        // Medium gap - fast catch-up mode
+      } else if (gap > 10) {
+        // Gap > 10 blocks (~20 seconds) - fast catch-up mode
         logger.info(
           `📦 Gap detected: ${gap} blocks to catch up, starting catch-up mode`
         );
@@ -273,7 +273,7 @@ export class EventMonitor {
         needsCatchUp = true;
         await this.fastCatchUp(this.lastProcessedBlock, currentBlock);
       } else {
-        // Small gap or first run - skip catch-up, start real-time mode directly
+        // Small gap (≤10 blocks ~20 seconds) - real-time mode for near-realtime processing
         this.lastProcessedBlock = savedBlock > 0 ? savedBlock : currentBlock;
         logger.info(
           `✅ Small gap (${gap} blocks), starting real-time monitoring from block ${this.lastProcessedBlock}`
@@ -325,8 +325,22 @@ export class EventMonitor {
       const currentBlockNumber = await this.web3Service.getLatestBlockNumber();
 
       if (currentBlockNumber > this.lastProcessedBlock) {
-        const totalBlocksToProcess =
-          currentBlockNumber - this.lastProcessedBlock;
+        const gap = currentBlockNumber - this.lastProcessedBlock;
+
+        // If gap exceeds 10 blocks (~20 seconds), switch to catch-up mode for fast processing
+        if (gap > 10) {
+          logger.info(
+            `📦 Gap detected during polling: ${gap} blocks, switching to catch-up mode`
+          );
+          logger.info(
+            `📍 Catch-up range: ${this.lastProcessedBlock} → ${currentBlockNumber}`
+          );
+          await this.fastCatchUp(this.lastProcessedBlock, currentBlockNumber);
+          return; // fastCatchUp already updates lastProcessedBlock and saves to Redis
+        }
+
+        // Normal polling for small gaps (≤100 blocks)
+        const totalBlocksToProcess = gap;
         const maxBlocksThisPoll = Math.min(
           totalBlocksToProcess,
           config.monitoring.maxBlocksPerPoll
