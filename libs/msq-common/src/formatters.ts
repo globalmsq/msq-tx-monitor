@@ -78,7 +78,7 @@ export function formatNumber(
     const value = num / 1e9;
     const formatted = value.toLocaleString('en-US', {
       minimumFractionDigits: 0,
-      maximumFractionDigits: precision
+      maximumFractionDigits: precision,
     });
     return removeTrailingZeros(`${formatted}B`);
   }
@@ -86,7 +86,7 @@ export function formatNumber(
     const value = num / 1e6;
     const formatted = value.toLocaleString('en-US', {
       minimumFractionDigits: 0,
-      maximumFractionDigits: precision
+      maximumFractionDigits: precision,
     });
     return removeTrailingZeros(`${formatted}M`);
   }
@@ -94,7 +94,7 @@ export function formatNumber(
     const value = num / 1e3;
     const formatted = value.toLocaleString('en-US', {
       minimumFractionDigits: 0,
-      maximumFractionDigits: precision
+      maximumFractionDigits: precision,
     });
     return removeTrailingZeros(`${formatted}K`);
   }
@@ -141,7 +141,7 @@ export function formatVolume(
       const value = actualValue / 1e9;
       const valueFormatted = value.toLocaleString('en-US', {
         minimumFractionDigits: 0,
-        maximumFractionDigits: 1
+        maximumFractionDigits: 1,
       });
       formatted = removeTrailingZeros(`${valueFormatted}B`);
     } else if (actualValue >= 1e6) {
@@ -149,7 +149,7 @@ export function formatVolume(
       const value = actualValue / 1e6;
       const valueFormatted = value.toLocaleString('en-US', {
         minimumFractionDigits: 0,
-        maximumFractionDigits: 1
+        maximumFractionDigits: 1,
       });
       formatted = removeTrailingZeros(`${valueFormatted}M`);
     } else {

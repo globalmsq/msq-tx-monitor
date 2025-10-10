@@ -79,8 +79,8 @@ export class PolygonScanClient {
 
         throw new Error(
           `PolygonScan API Error: ${response.data.message}\n` +
-          `Result: ${JSON.stringify(response.data.result)}\n` +
-          `Contract: ${contractAddress}, Block Range: ${startBlock}-${endBlock}`
+            `Result: ${JSON.stringify(response.data.result)}\n` +
+            `Contract: ${contractAddress}, Block Range: ${startBlock}-${endBlock}`
         );
       }
 
@@ -111,7 +111,9 @@ export class PolygonScanClient {
     const pageSize = 10000; // Max results per request
 
     while (true) {
-      console.log(`  📄 Fetching batch ${iteration} (from block ${currentStartBlock})...`);
+      console.log(
+        `  📄 Fetching batch ${iteration} (from block ${currentStartBlock})...`
+      );
 
       const transactions = await this.getTokenTransfers(
         contractAddress,
@@ -132,7 +134,9 @@ export class PolygonScanClient {
         onProgress(iteration, allTransactions.length);
       }
 
-      console.log(`  ✅ Batch ${iteration}: ${transactions.length} transactions (Total: ${allTransactions.length})`);
+      console.log(
+        `  ✅ Batch ${iteration}: ${transactions.length} transactions (Total: ${allTransactions.length})`
+      );
 
       // If we got less than pageSize, we've reached the end
       if (transactions.length < pageSize) {
@@ -164,7 +168,10 @@ export class PolygonScanClient {
     contractAddress: string,
     startBlock: number,
     endBlock: number | undefined,
-    onBatch: (batch: PolygonScanTransaction[], iteration: number) => Promise<void>
+    onBatch: (
+      batch: PolygonScanTransaction[],
+      iteration: number
+    ) => Promise<void>
   ): Promise<number> {
     let currentStartBlock = startBlock;
     let iteration = 1;
@@ -173,7 +180,9 @@ export class PolygonScanClient {
     const targetEndBlock = endBlock ?? 999999999;
 
     while (true) {
-      console.log(`  📄 Fetching batch ${iteration} (from block ${currentStartBlock})...`);
+      console.log(
+        `  📄 Fetching batch ${iteration} (from block ${currentStartBlock})...`
+      );
 
       const transactions = await this.getTokenTransfers(
         contractAddress,
@@ -190,7 +199,9 @@ export class PolygonScanClient {
 
       totalProcessed += transactions.length;
 
-      console.log(`  ✅ Batch ${iteration}: ${transactions.length} transactions`);
+      console.log(
+        `  ✅ Batch ${iteration}: ${transactions.length} transactions`
+      );
 
       // Process batch immediately (streaming approach)
       await onBatch(transactions, iteration);

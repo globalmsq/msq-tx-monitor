@@ -47,7 +47,7 @@ async function saveTransactionsBatch(
 
     try {
       // Wrap each batch in a database transaction for atomicity
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async tx => {
         return await tx.transaction.createMany({
           data: chunk.map(transaction => ({
             hash: transaction.hash,
@@ -98,7 +98,9 @@ async function getCurrentBlockNumber(): Promise<number> {
     const blockNumberHex = response.data.result;
     const blockNumber = parseInt(blockNumberHex, 16);
 
-    console.log(`📍 Current Polygon block number: ${formatNumber(blockNumber)}`);
+    console.log(
+      `📍 Current Polygon block number: ${formatNumber(blockNumber)}`
+    );
     return blockNumber;
   } catch (error) {
     console.error('❌ Error fetching current block number:', error);
@@ -127,7 +129,9 @@ async function updateBlockProcessingStatus(blockNumber: number): Promise<void> {
       },
     });
 
-    console.log(`✅ Updated BlockProcessingStatus: lastProcessedBlock = ${formatNumber(blockNumber)}`);
+    console.log(
+      `✅ Updated BlockProcessingStatus: lastProcessedBlock = ${formatNumber(blockNumber)}`
+    );
   } catch (error) {
     console.error('❌ Error updating BlockProcessingStatus:', error);
     throw error;
@@ -155,7 +159,10 @@ async function getLastProcessedBlock(
 
     return lastTx ? Number(lastTx.blockNumber) : null;
   } catch (error) {
-    console.error(`❌ Error fetching last processed block for ${tokenAddress}:`, error);
+    console.error(
+      `❌ Error fetching last processed block for ${tokenAddress}:`,
+      error
+    );
     return null;
   }
 }
@@ -181,7 +188,9 @@ async function syncToken(
 
   // Check if already up-to-date
   if (startBlock > endBlock) {
-    console.log(`   ✅ Already up-to-date at block ${formatNumber(lastProcessedBlock!)}`);
+    console.log(
+      `   ✅ Already up-to-date at block ${formatNumber(lastProcessedBlock!)}`
+    );
     console.log(`${'='.repeat(60)}\n`);
     return;
   }
@@ -189,7 +198,9 @@ async function syncToken(
   // Display sync information
   if (lastProcessedBlock) {
     console.log(`   Last Processed Block: ${formatNumber(lastProcessedBlock)}`);
-    console.log(`   Resume From Block: ${formatNumber(startBlock)} (incremental sync)`);
+    console.log(
+      `   Resume From Block: ${formatNumber(startBlock)} (incremental sync)`
+    );
   } else {
     console.log(`   Deployment Block: ${formatNumber(token.deploymentBlock)}`);
     console.log(`   Start From Block: ${formatNumber(startBlock)} (full sync)`);
@@ -213,12 +224,16 @@ async function syncToken(
         const dbTransactions = batch.map(convertToTransactionData);
 
         // Filter out zero-value transactions
-        const validTransactions = dbTransactions.filter(tx => BigInt(tx.value) > 0n);
+        const validTransactions = dbTransactions.filter(
+          tx => BigInt(tx.value) > 0n
+        );
 
         totalFiltered += dbTransactions.length - validTransactions.length;
 
         if (validTransactions.length === 0) {
-          console.log(`    ⏭️  Batch ${iteration}: All transactions have zero value, skipping save`);
+          console.log(
+            `    ⏭️  Batch ${iteration}: All transactions have zero value, skipping save`
+          );
           return;
         }
 
@@ -229,10 +244,10 @@ async function syncToken(
 
         console.log(
           `  📊 Batch ${iteration} summary: ` +
-          `Fetched ${batch.length}, ` +
-          `Valid ${validTransactions.length}, ` +
-          `Saved ${savedCount}, ` +
-          `Zero-value ${dbTransactions.length - validTransactions.length}\n`
+            `Fetched ${batch.length}, ` +
+            `Valid ${validTransactions.length}, ` +
+            `Saved ${savedCount}, ` +
+            `Zero-value ${dbTransactions.length - validTransactions.length}\n`
         );
       }
     );
@@ -241,7 +256,9 @@ async function syncToken(
     console.log(`     Total fetched: ${formatNumber(totalFetched)}`);
     console.log(`     Total saved: ${formatNumber(totalSaved)}`);
     console.log(`     Zero-value filtered: ${formatNumber(totalFiltered)}`);
-    console.log(`     Duplicates skipped: ${formatNumber(totalFetched - totalFiltered - totalSaved)}\n`);
+    console.log(
+      `     Duplicates skipped: ${formatNumber(totalFetched - totalFiltered - totalSaved)}\n`
+    );
   } catch (error) {
     console.error(`\n  ❌ Error syncing ${token.symbol}:`, error);
     throw error;
@@ -277,7 +294,9 @@ async function main() {
   // Check API key
   const apiKey = process.env.POLYGONSCAN_API_KEY;
   if (!apiKey) {
-    console.error('❌ Error: POLYGONSCAN_API_KEY not found in environment variables');
+    console.error(
+      '❌ Error: POLYGONSCAN_API_KEY not found in environment variables'
+    );
     console.log('Please create a .env file with your PolygonScan API key');
     process.exit(1);
   }
@@ -300,15 +319,15 @@ async function main() {
 
     // Determine which tokens to sync
     const tokensToSync: TokenConfig[] =
-      tokenArg === 'ALL'
-        ? Object.values(TOKENS)
-        : [TOKENS[tokenArg]];
+      tokenArg === 'ALL' ? Object.values(TOKENS) : [TOKENS[tokenArg]];
 
     // Get current block number (required for both single and ALL mode)
     const syncEndBlock = await getCurrentBlockNumber();
 
     if (tokenArg === 'ALL') {
-      console.log(`\n🎯 Syncing ALL tokens to block ${formatNumber(syncEndBlock)}\n`);
+      console.log(
+        `\n🎯 Syncing ALL tokens to block ${formatNumber(syncEndBlock)}\n`
+      );
     } else {
       console.log(`\n🎯 Target end block: ${formatNumber(syncEndBlock)}\n`);
     }
@@ -329,7 +348,9 @@ async function main() {
     console.log(`🎯 All tokens synced to block: ${formatNumber(syncEndBlock)}`);
     if (tokenArg === 'ALL') {
       console.log(`✅ BlockProcessingStatus updated`);
-      console.log(`📡 chain-scanner will continue from block ${formatNumber(syncEndBlock + 1)}`);
+      console.log(
+        `📡 chain-scanner will continue from block ${formatNumber(syncEndBlock + 1)}`
+      );
     }
     console.log('='.repeat(60) + '\n');
   } catch (error) {
