@@ -1,6 +1,7 @@
 {
   "name": "@msq-tx-monitor/tx-dashboard",
   "version": "1.0.0",
+  "type": "module",
   "description": "Modern React dashboard for MSQ transaction monitoring",
   "private": true,
   "main": "dist/index.html",

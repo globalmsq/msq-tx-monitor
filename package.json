@@ -20,7 +20,7 @@
   },
   "scripts": {
     "dev": "nx run-many --target=serve --projects=tx-api,chain-scanner,tx-analyzer --parallel",
-    "build": "nx run-many --target=build --projects=tx-types,chain-utils,msq-common,tx-dashboard,tx-analyzer && cd apps/tx-api && pnpm build && cd ../.. && cd apps/chain-scanner && pnpm build",
+    "build": "nx run-many --target=build --all",
     "test": "nx run-many --target=test --all",
     "lint": "nx run-many --target=lint --all",
     "lint:fix": "nx run-many --target=lint --all --fix",

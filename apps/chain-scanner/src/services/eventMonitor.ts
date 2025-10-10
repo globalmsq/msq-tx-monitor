@@ -701,17 +701,17 @@ export class EventMonitor {
         `Batch fetch completed in ${elapsed}ms (${Math.round(events.length / (elapsed / 1000))} events/sec)`
       );
 
-      // Convert arrays to Maps for fast lookup
-      const blockMap = new Map(
-        blocks.filter(b => b !== null).map(b => [Number(b!.number), b])
+      // Convert arrays to Maps for fast lookup (filter out null values)
+      const blockMap = new Map<number, Block>(
+        blocks.filter(b => b !== null).map(b => [Number(b!.number), b!])
       );
 
-      const txMap = new Map(
-        transactions.filter(t => t !== null).map(t => [t!.hash, t])
+      const txMap = new Map<string, Transaction>(
+        transactions.filter(t => t !== null).map(t => [t!.hash, t!])
       );
 
-      const receiptMap = new Map(
-        receipts.filter(r => r !== null).map(r => [r!.transactionHash, r])
+      const receiptMap = new Map<string, TransactionReceipt>(
+        receipts.filter(r => r !== null).map(r => [r!.transactionHash, r!])
       );
 
       return { blocks: blockMap, transactions: txMap, receipts: receiptMap };
