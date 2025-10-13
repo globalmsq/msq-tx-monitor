@@ -3,6 +3,8 @@
  * Handles initial data loading and pagination
  */
 
+import { TX_API_BASE_URL } from '../config/api';
+
 export interface ApiConfig {
   baseURL: string;
   timeout: number;
@@ -252,8 +254,11 @@ class ApiService {
   }
 }
 
-// Singleton instance
-export const apiService = new ApiService();
+// Singleton instance with environment-aware base URL
+// Uses TX_API_BASE_URL from config/api.ts which supports:
+// - Development: http://localhost:8000/api/v1 (direct)
+// - Production: /api/v1 (through nginx)
+export const apiService = new ApiService({ baseURL: TX_API_BASE_URL });
 
 // Export utilities
 export { ApiService };

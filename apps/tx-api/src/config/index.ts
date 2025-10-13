@@ -24,7 +24,14 @@ export const config = {
   },
 
   cors: {
-    origin: process.env.CORS_ORIGIN || '*', // Configured via environment variable
+    // CORS origin configuration
+    // Development: Allow localhost:3000 for direct frontend access
+    // Production: Allow all origins (can be restricted via CORS_ORIGIN env var)
+    origin:
+      process.env.CORS_ORIGIN ||
+      (process.env.NODE_ENV === 'development'
+        ? ['http://localhost:3000', 'http://127.0.0.1:3000']
+        : '*'),
     methods: process.env.CORS_METHODS || 'GET,POST,PUT,DELETE,OPTIONS',
     allowedHeaders:
       process.env.CORS_ALLOWED_HEADERS ||

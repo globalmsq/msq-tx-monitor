@@ -124,6 +124,78 @@ All services are accessible through **http://localhost** via Nginx reverse proxy
 
 > **Note**: Individual service ports (3000, 8000, 8001, 8002) are internal only and not exposed externally.
 
+## 🎯 Execution Modes
+
+The system supports two execution modes depending on your development workflow:
+
+### Mode 1: Docker Compose + Nginx (Recommended for Production)
+
+**Features:**
+- Unified entry point through Nginx reverse proxy at port 80
+- All services containerized and orchestrated
+- No CORS issues - all services accessed through same origin
+- Production-like environment
+
+**Configuration:**
+```bash
+# Use .env.production for tx-dashboard
+cp apps/tx-dashboard/.env.production apps/tx-dashboard/.env
+
+# Start all services
+npm run docker:up
+```
+
+**Access:**
+- Dashboard: http://localhost
+- All APIs: http://localhost/api/v1/*
+- WebSocket: ws://localhost/ws
+
+### Mode 2: Direct Execution (for Active Development)
+
+**Features:**
+- Run services directly with `pnpm dev` for hot reload
+- No Docker overhead
+- Direct access to individual services on different ports
+- CORS automatically configured for localhost:3000
+
+**Configuration:**
+```bash
+# Use .env.development for tx-dashboard
+cp apps/tx-dashboard/.env.development apps/tx-dashboard/.env
+
+# Start services manually
+pnpm --filter=tx-api dev          # Port 8000
+pnpm --filter=tx-analyzer dev      # Port 8002
+pnpm --filter=chain-scanner dev    # Port 8001
+pnpm --filter=tx-dashboard dev     # Port 3000
+```
+
+**Access:**
+- Dashboard: http://localhost:3000
+- TX API: http://localhost:8000/api/v1/*
+- TX Analyzer: http://localhost:8002/api/v1/*
+- WebSocket: ws://localhost:8001
+
+**Environment Variables:**
+
+For **Mode 1 (Docker + Nginx)**:
+```env
+# apps/tx-dashboard/.env.production
+VITE_TX_API_URL=/api/v1
+VITE_TX_ANALYZER_URL=/api/v1
+VITE_WS_URL=/ws
+```
+
+For **Mode 2 (Direct Execution)**:
+```env
+# apps/tx-dashboard/.env.development
+VITE_TX_API_URL=http://localhost:8000/api/v1
+VITE_TX_ANALYZER_URL=http://localhost:8002/api/v1
+VITE_WS_URL=ws://localhost:8001
+```
+
+> **Note**: Backend services automatically enable CORS for `http://localhost:3000` in development mode.
+
 ## 🔧 Development
 
 ### NX Commands

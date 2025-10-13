@@ -58,11 +58,36 @@ export class WebSocketService {
   }
 
   /**
-   * Build WebSocket URL based on current window location
-   * Uses wss:// for https, ws:// for http
-   * Defaults to /ws path when accessed through Nginx
+   * Build WebSocket URL based on environment configuration or current window location
+   *
+   * Priority:
+   * 1. VITE_WS_URL environment variable (e.g., ws://localhost:8001 or /ws)
+   * 2. Auto-detect from window.location (for nginx proxy mode)
+   * 3. Fallback to localhost:8001 (SSR mode)
+   *
+   * Environment Variable:
+   * - VITE_WS_URL: WebSocket URL (absolute or relative path)
+   *   - Development: ws://localhost:8001
+   *   - Production (nginx): /ws (auto-detects ws:// or wss://)
    */
   private buildWebSocketUrl(): string {
+    // 1. Check environment variable first
+    const envWsUrl = import.meta.env.VITE_WS_URL;
+    if (envWsUrl) {
+      // If it's a relative path, build full URL based on current location
+      if (envWsUrl.startsWith('/')) {
+        if (typeof window === 'undefined') {
+          return `ws://localhost:8001`;
+        }
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        return `${protocol}//${host}${envWsUrl}`;
+      }
+      // Absolute URL provided
+      return envWsUrl;
+    }
+
+    // 2. Fallback: Auto-detect from window.location (nginx proxy mode)
     if (typeof window === 'undefined') {
       return 'ws://localhost:8001';
     }
@@ -279,6 +304,8 @@ export class WebSocketService {
   }
 }
 
-// Singleton instance - Uses Nginx reverse proxy at /ws
-// buildWebSocketUrl() automatically constructs: ws://localhost/ws or wss://domain/ws
+// Singleton instance
+// Environment-aware WebSocket connection:
+// - Development: ws://localhost:8001 (direct connection)
+// - Production: /ws through nginx (auto-detects ws:// or wss://)
 export const wsService = new WebSocketService();

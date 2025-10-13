@@ -17,9 +17,15 @@ export function createApp(): Application {
   app.use(helmet());
 
   // CORS middleware
+  // Development: Allow localhost:3000 for direct frontend access
+  // Production: Allow all origins (can be restricted via CORS_ORIGIN env var)
   app.use(
     cors({
-      origin: process.env.CORS_ORIGIN || '*',
+      origin:
+        process.env.CORS_ORIGIN ||
+        (process.env.NODE_ENV === 'development'
+          ? ['http://localhost:3000', 'http://127.0.0.1:3000']
+          : '*'),
       credentials: true,
     })
   );
