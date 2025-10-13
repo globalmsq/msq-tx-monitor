@@ -1175,7 +1175,7 @@ export function Analytics() {
               </h3>
               <LazyTransactionChart
                 data={data.hourlyVolume}
-                height={300}
+                height={350}
                 showGrid={true}
                 tokenSymbol={activeTab}
               />
