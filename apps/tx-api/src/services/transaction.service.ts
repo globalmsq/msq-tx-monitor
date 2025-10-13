@@ -395,8 +395,19 @@ export class TransactionService {
   ): Prisma.TransactionWhereInput {
     const where: Prisma.TransactionWhereInput = {};
 
+    // Token filter - support comma-separated tokens (e.g., "KWT,SUT")
     if (filters.token) {
-      where.tokenSymbol = filters.token;
+      const tokens = filters.token.includes(',')
+        ? filters.token.split(',').map(t => t.trim())
+        : [filters.token];
+
+      if (tokens.length === 1) {
+        // Single token: WHERE tokenSymbol = 'KWT'
+        where.tokenSymbol = tokens[0];
+      } else {
+        // Multiple tokens: WHERE tokenSymbol IN ('KWT', 'SUT')
+        where.tokenSymbol = { in: tokens };
+      }
     }
 
     // Handle address filtering with OR logic when both from_address and to_address are the same

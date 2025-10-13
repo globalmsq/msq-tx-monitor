@@ -168,9 +168,9 @@ function convertFiltersForAPI(filters: FilterState): TransactionFilters {
   }
 
   // Apply token filter if specific tokens are selected
+  // Support multiple tokens by joining with comma (e.g., "KWT,SUT")
   if (filters.tokens && filters.tokens.length > 0) {
-    // API expects single token, use first selected token
-    apiFilters.token = filters.tokens[0];
+    apiFilters.token = filters.tokens.join(',');
   }
 
   // Apply amount range filters
@@ -448,8 +448,15 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       dispatch({ type: 'CLEAR_ERROR' });
 
       try {
+        // Parse URL filters first to ensure they are applied on initial load
+        const urlFilters = parseFiltersFromUrl();
+        const filtersToUse = {
+          ...state.filters,
+          ...urlFilters, // Override with URL filters if present
+        };
+
         // Convert frontend filters to API filters for server-side filtering
-        const apiFilters = convertFiltersForAPI(state.filters);
+        const apiFilters = convertFiltersForAPI(filtersToUse);
         const response = await apiService.getTransactionsCursor(apiFilters, {
           limit: 50,
         });
@@ -482,7 +489,53 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
     };
 
     loadInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.isInitialLoad]);
+
+  // Reload data when token filter changes (after initial load)
+  useEffect(() => {
+    // Skip if initial load is not complete
+    if (state.isInitialLoad) return;
+
+    const reloadWithTokenFilter = async () => {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'CLEAR_ERROR' });
+
+      try {
+        // Convert frontend filters to API filters
+        const apiFilters = convertFiltersForAPI(state.filters);
+        const response = await apiService.getTransactionsCursor(apiFilters, {
+          limit: 50,
+        });
+
+        const uiTransactions = response.data.map(adaptApiTransactionForUI);
+        const lastId =
+          uiTransactions.length > 0
+            ? Number(uiTransactions[uiTransactions.length - 1].id)
+            : undefined;
+
+        dispatch({
+          type: 'SET_INITIAL_DATA',
+          payload: {
+            transactions: uiTransactions,
+            totalCount: response.cursor.total,
+            hasMore: response.cursor.hasNext,
+            lastId,
+          },
+        });
+      } catch (error) {
+        dispatch({
+          type: 'SET_ERROR',
+          payload:
+            error instanceof Error ? error.message : 'Failed to reload data',
+        });
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+    };
+
+    reloadWithTokenFilter();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.filters.tokens]); // Only reload when token filter changes
 
   // Update URL when filters change (not on initial mount to avoid infinite loop)
   useEffect(() => {
