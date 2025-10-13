@@ -314,9 +314,7 @@ export class AnalyticsController {
     next: NextFunction
   ) => {
     try {
-      const hours = req.query.hours
-        ? parseInt(req.query.hours as string)
-        : 24;
+      const hours = req.query.hours ? parseInt(req.query.hours as string) : 24;
       const filters: StatisticsFilters = {
         startDate: new Date(Date.now() - hours * 60 * 60 * 1000).toISOString(),
         endDate: new Date().toISOString(),

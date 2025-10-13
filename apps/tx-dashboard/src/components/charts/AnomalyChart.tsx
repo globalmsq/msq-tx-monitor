@@ -46,12 +46,16 @@ function CustomTooltip({ active, payload }: TooltipProps) {
     return (
       <div className='bg-gray-900/95 backdrop-blur border border-white/20 rounded-lg p-3 shadow-xl'>
         <p className='text-white font-medium mb-2'>
-          {data.timestamp ? new Date(data.timestamp).toLocaleString() : data.hour}
+          {data.timestamp
+            ? new Date(data.timestamp).toLocaleString()
+            : data.hour}
         </p>
         <div className='space-y-1'>
           <div className='flex items-center justify-between gap-4'>
             <span className='text-red-400 text-sm'>Anomalies:</span>
-            <span className='text-white font-bold'>{data.anomalyCount ?? 0}</span>
+            <span className='text-white font-bold'>
+              {data.anomalyCount ?? 0}
+            </span>
           </div>
           <div className='flex items-center justify-between gap-4'>
             <span className='text-yellow-400 text-sm'>Risk Score:</span>

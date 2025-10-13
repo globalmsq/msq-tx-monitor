@@ -388,18 +388,17 @@ export class AnalyticsService {
 
       // Enrich with address metadata from AddressStatistics
       const addresses = results.map(r => r.address);
-      const addressStats = addresses.length > 0
-        ? await prisma.$queryRawUnsafe<any[]>(
-            `SELECT address, MAX(riskScore) as riskScore, MAX(isWhale) as isWhale, MAX(isSuspicious) as isSuspicious
+      const addressStats =
+        addresses.length > 0
+          ? await prisma.$queryRawUnsafe<any[]>(
+              `SELECT address, MAX(riskScore) as riskScore, MAX(isWhale) as isWhale, MAX(isSuspicious) as isSuspicious
              FROM address_statistics
              WHERE address IN (${addresses.map(a => `'${a}'`).join(',')})
              GROUP BY address`
-          )
-        : [];
+            )
+          : [];
 
-      const statsMap = new Map(
-        addressStats.map(s => [s.address, s])
-      );
+      const statsMap = new Map(addressStats.map(s => [s.address, s]));
 
       const topAddresses = results.map(result => {
         const stats = statsMap.get(result.address);
@@ -668,18 +667,17 @@ export class AnalyticsService {
 
       // Enrich with address metadata from AddressStatistics
       const addresses = results.map(r => r.address);
-      const addressStats = addresses.length > 0
-        ? await prisma.$queryRawUnsafe<any[]>(
-            `SELECT address, MAX(riskScore) as riskScore, MAX(isWhale) as isWhale, MAX(isSuspicious) as isSuspicious
+      const addressStats =
+        addresses.length > 0
+          ? await prisma.$queryRawUnsafe<any[]>(
+              `SELECT address, MAX(riskScore) as riskScore, MAX(isWhale) as isWhale, MAX(isSuspicious) as isSuspicious
              FROM address_statistics
              WHERE address IN (${addresses.map(a => `'${a}'`).join(',')})
              GROUP BY address`
-          )
-        : [];
+            )
+          : [];
 
-      const statsMap = new Map(
-        addressStats.map(s => [s.address, s])
-      );
+      const statsMap = new Map(addressStats.map(s => [s.address, s]));
 
       const topReceivers = results.map(result => {
         const stats = statsMap.get(result.address);
@@ -771,18 +769,17 @@ export class AnalyticsService {
 
       // Enrich with address metadata from AddressStatistics
       const addresses = results.map(r => r.address);
-      const addressStats = addresses.length > 0
-        ? await prisma.$queryRawUnsafe<any[]>(
-            `SELECT address, MAX(riskScore) as riskScore, MAX(isWhale) as isWhale, MAX(isSuspicious) as isSuspicious
+      const addressStats =
+        addresses.length > 0
+          ? await prisma.$queryRawUnsafe<any[]>(
+              `SELECT address, MAX(riskScore) as riskScore, MAX(isWhale) as isWhale, MAX(isSuspicious) as isSuspicious
              FROM address_statistics
              WHERE address IN (${addresses.map(a => `'${a}'`).join(',')})
              GROUP BY address`
-          )
-        : [];
+            )
+          : [];
 
-      const statsMap = new Map(
-        addressStats.map(s => [s.address, s])
-      );
+      const statsMap = new Map(addressStats.map(s => [s.address, s]));
 
       const topSenders = results.map(result => {
         const stats = statsMap.get(result.address);

@@ -151,10 +151,15 @@ export class RedisConnection {
         }
       } while (cursor !== 0);
 
-      logger.info(`✅ Redis purged ${deletedCount} keys matching pattern: ${pattern}`);
+      logger.info(
+        `✅ Redis purged ${deletedCount} keys matching pattern: ${pattern}`
+      );
       return deletedCount;
     } catch (error) {
-      logger.error(`❌ Redis deleteByPattern error for pattern ${pattern}:`, error);
+      logger.error(
+        `❌ Redis deleteByPattern error for pattern ${pattern}:`,
+        error
+      );
       return 0;
     }
   }

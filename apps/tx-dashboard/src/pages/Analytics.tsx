@@ -55,11 +55,7 @@ function processHourlyVolumeData(
   apiResponse: ApiResponse<HourlyVolumeApiItem[]>,
   _token: string
 ): HourlyVolumeData[] {
-  if (
-    apiResponse &&
-    apiResponse.data &&
-    apiResponse.data.length > 0
-  ) {
+  if (apiResponse && apiResponse.data && apiResponse.data.length > 0) {
     return apiResponse.data.map((item: HourlyVolumeApiItem) => ({
       timestamp: item.hour,
       hour: item.hour,
@@ -76,11 +72,7 @@ function processHourlyVolumeData(
 function processAnomalyTimeData(
   apiResponse: ApiResponse<AnomalyTimeApiItem[]>
 ): AnomalyTimeData[] {
-  if (
-    apiResponse &&
-    apiResponse.data &&
-    apiResponse.data.length > 0
-  ) {
+  if (apiResponse && apiResponse.data && apiResponse.data.length > 0) {
     return apiResponse.data.map((item: AnomalyTimeApiItem) => ({
       timestamp: item.timestamp || item.hour,
       hour: item.hour,
