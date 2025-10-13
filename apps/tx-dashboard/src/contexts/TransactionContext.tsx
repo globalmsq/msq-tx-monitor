@@ -38,6 +38,7 @@ interface TransactionStats {
   successRate: number;
   transactionsChange24h: number;
   addressesChange24h: number;
+  updatedAt?: Date;
 }
 
 interface TransactionState {
@@ -308,6 +309,11 @@ function transactionReducer(
 
     case 'UPDATE_STATS': {
       const updatedStats = { ...state.stats, ...action.payload };
+
+      // Convert updatedAt string to Date object if it exists
+      if (updatedStats.updatedAt && typeof updatedStats.updatedAt === 'string') {
+        updatedStats.updatedAt = new Date(updatedStats.updatedAt);
+      }
 
       // If totalTransactions is updated via stats, also update totalCount
       const newTotalCount =

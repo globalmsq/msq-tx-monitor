@@ -5,6 +5,7 @@ import Web3 from 'web3';
 import { formatUnits } from 'ethers';
 import { TokenService } from './tokenService';
 import { logger } from '@msq-tx-monitor/msq-common';
+import { AddressStatsCacheService } from './addressStatsCacheService';
 
 // Type for Prisma Decimal values
 type PrismaDecimal = { toString(): string };
@@ -24,6 +25,7 @@ export interface DashboardStats {
   successRate: number;
   transactionsChange24h: number;
   addressesChange24h: number;
+  updatedAt: Date;
 }
 
 export class StatisticsService {
@@ -75,7 +77,32 @@ export class StatisticsService {
       await this.initialize();
     }
 
+    const CACHE_KEY = 'dashboard_stats:main';
+    const CACHE_TTL = 300; // 5 minutes in seconds
+
     try {
+      // Try to get from Redis cache first
+      const cacheService = AddressStatsCacheService.getInstance();
+
+      if (cacheService.isReady()) {
+        try {
+          const cached = await cacheService['client']?.get(CACHE_KEY);
+          if (cached) {
+            const cachedStats = JSON.parse(cached) as DashboardStats;
+            // Convert updatedAt string back to Date object
+            cachedStats.updatedAt = new Date(cachedStats.updatedAt);
+
+            if (config.logging.enableDatabaseLogs) {
+              logger.info('📊 Dashboard stats loaded from cache');
+            }
+
+            return cachedStats;
+          }
+        } catch (cacheError) {
+          logger.warn('⚠️ Cache read failed, falling back to database:', cacheError);
+        }
+      }
+
       // Execute parallel queries for general stats and token stats
       const [
         totalTransactionsResult,
@@ -98,6 +125,7 @@ export class StatisticsService {
         successRate: 100, // All stored transactions are successful by definition
         transactionsChange24h,
         addressesChange24h,
+        updatedAt: new Date(), // Add current timestamp
       };
 
       if (config.logging.enableDatabaseLogs) {
@@ -106,6 +134,22 @@ export class StatisticsService {
           activeAddresses: stats.activeAddresses,
           tokenCount: stats.tokenStats.length,
         });
+      }
+
+      // Cache the result with 5-minute TTL
+      if (cacheService.isReady()) {
+        try {
+          await cacheService['client']?.setEx(
+            CACHE_KEY,
+            CACHE_TTL,
+            JSON.stringify(stats)
+          );
+          if (config.logging.enableDatabaseLogs) {
+            logger.info('✅ Dashboard stats cached for 5 minutes');
+          }
+        } catch (cacheError) {
+          logger.warn('⚠️ Cache write failed:', cacheError);
+        }
       }
 
       return stats;
@@ -119,6 +163,7 @@ export class StatisticsService {
         successRate: 0,
         transactionsChange24h: 0,
         addressesChange24h: 0,
+        updatedAt: new Date(),
       };
     }
   }

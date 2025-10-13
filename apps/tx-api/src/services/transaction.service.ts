@@ -164,11 +164,9 @@ export class TransactionService {
     // Build Prisma where clause
     const where = this.buildPrismaWhereClause(filters);
 
-    // Get total count for initial requests (when no cursor is provided)
-    let total: number | undefined;
-    if (!pagination.afterId && !pagination.beforeId) {
-      total = await prisma.transaction.count({ where });
-    }
+    // Skip COUNT query to improve initial load performance
+    // Cursor pagination doesn't require total count - only hasNext/hasPrev
+    const total: number | undefined = undefined;
 
     // Add cursor conditions
     if (pagination.afterId) {

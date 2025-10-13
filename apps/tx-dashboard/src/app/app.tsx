@@ -82,12 +82,53 @@ function StatsCards() {
     },
   ];
 
+  // Format update time
+  const formatUpdateTime = (date: Date | string | undefined) => {
+    if (!date) return null;
+
+    // Convert to Date object if it's a string
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+    // Validate Date object
+    if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+      return null;
+    }
+
+    const now = new Date();
+    const diffMs = now.getTime() - dateObj.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+
+    // Fallback to formatted date/time
+    return dateObj.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const updateTime = formatUpdateTime(stats.updatedAt);
+
   if (statsLoading) {
     return <InitialStatsLoadingSkeleton />;
   }
 
   return (
     <div className='space-y-6'>
+      {/* Update timestamp - subtle display */}
+      {updateTime && (
+        <div className='flex justify-end'>
+          <span className='text-xs text-white/40 italic'>
+            Updated {updateTime}
+          </span>
+        </div>
+      )}
       {/* General Statistics */}
       <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-6'>
         {generalStats.map((stat, index) => (
