@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { transactionRoutes } from './transaction.routes';
 import { addressRoutes } from './address.routes';
 import { analyticsRoutes } from './analytics.routes';
+import { cacheRoutes } from './cache.routes';
 
 export const apiRoutes = Router();
 
@@ -13,6 +14,9 @@ apiRoutes.use('/addresses', addressRoutes);
 
 // Mount analytics routes
 apiRoutes.use('/analytics', analyticsRoutes);
+
+// Mount cache routes
+apiRoutes.use('/cache', cacheRoutes);
 
 /**
  * @swagger

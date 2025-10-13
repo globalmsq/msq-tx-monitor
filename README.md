@@ -31,13 +31,43 @@ MSQ Transaction Monitor is a comprehensive real-time monitoring platform that tr
 
 ## 🏗️ Architecture
 
+### Unified Nginx Reverse Proxy
+
+All services are accessed through a single Nginx reverse proxy on **port 80**, eliminating CORS issues and providing unified routing:
+
+```
+                  ┌─────────────────────────────────┐
+                  │    Nginx Reverse Proxy (80)     │
+                  │      http://localhost           │
+                  └──────────────┬──────────────────┘
+                                 │
+         ┌───────────────────────┼───────────────────────┐
+         │                       │                       │
+         ▼                       ▼                       ▼
+  ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+  │ tx-dashboard │      │   tx-api     │      │chain-scanner │
+  │   (3000)     │      │   (8000)     │      │   (8001)     │
+  └──────────────┘      └──────────────┘      └──────┬───────┘
+         │                       │                    │
+         │                       │                    ▼
+         │                       │           ┌──────────────┐
+         │                       │           │ tx-analyzer  │
+         │                       │           │   (8002)     │
+         │                       │           └──────────────┘
+         │                       ▼
+         │              ┌──────────────────┐
+         └─────────────►│  MySQL + Redis   │
+                        └──────────────────┘
+```
+
 ### Applications
 
-| App               | Role               | Technology              | Port |
-| ----------------- | ------------------ | ----------------------- | ---- |
-| **tx-api**        | REST API Server    | Express.js + TypeScript | 8000 |
-| **chain-scanner** | Blockchain Monitor | Node.js + Web3.js       | 8001 |
-| **tx-analyzer**   | Analytics Engine   | Express.js + TypeScript | 8002 |
+| App               | Role               | Technology              | Internal Port | Nginx Route          |
+| ----------------- | ------------------ | ----------------------- | ------------- | -------------------- |
+| **tx-dashboard**  | React Frontend     | React 18 + TypeScript   | 3000          | `/`                  |
+| **tx-api**        | REST API Server    | Express.js + TypeScript | 8000          | `/api/v1/transactions`, `/api/v1/addresses` |
+| **chain-scanner** | Blockchain Monitor | Node.js + Web3.js       | 8001          | `/ws`                |
+| **tx-analyzer**   | Analytics Engine   | Express.js + TypeScript | 8002          | `/api/v1/analyze`, `/api/v1/statistics` |
 
 ### Data Flow
 
@@ -45,6 +75,10 @@ MSQ Transaction Monitor is a comprehensive real-time monitoring platform that tr
 Polygon Network → chain-scanner → MySQL → tx-api
                       ↓
                  tx-analyzer (Real-time Analysis)
+                      ↓
+                 Nginx (Unified Access)
+                      ↓
+                 tx-dashboard (React UI)
 ```
 
 ## 🚀 Quick Start
@@ -78,11 +112,17 @@ npm run docker:up
 
 ### 4. Access Services
 
-- **Dashboard**: http://localhost:3000
-- **API Docs**: http://localhost:8000/api-docs
-- **WebSocket**: ws://localhost:8001
-- **Analytics**: http://localhost:8002/docs
-- **Database Admin**: http://localhost:8080
+All services are accessible through **http://localhost** via Nginx reverse proxy:
+
+- **Dashboard**: http://localhost (React UI)
+- **Transaction API**: http://localhost/api/v1/transactions
+- **Address API**: http://localhost/api/v1/addresses
+- **Analysis API**: http://localhost/api/v1/analyze
+- **Statistics API**: http://localhost/api/v1/statistics
+- **WebSocket**: ws://localhost/ws
+- **Database (Direct)**: http://localhost:3306
+
+> **Note**: Individual service ports (3000, 8000, 8001, 8002) are internal only and not exposed externally.
 
 ## 🔧 Development
 
@@ -106,6 +146,19 @@ nx test-all
 
 ### Environment Variables
 
+#### Nginx Configuration
+
+```nginx
+# All services routed through Nginx on port 80
+# Configuration: docker/nginx.conf
+
+Upstreams:
+- tx-dashboard:3000  → /
+- tx-api:8000        → /api/v1/transactions, /api/v1/addresses
+- chain-scanner:8001 → /ws
+- tx-analyzer:8002   → /api/v1/analyze, /api/v1/statistics
+```
+
 #### tx-api
 
 ```env
@@ -113,6 +166,7 @@ PORT=8000
 MYSQL_HOST=mysql
 MYSQL_DATABASE=msq_monitor
 REDIS_HOST=redis
+CORS_ORIGIN=http://localhost  # Simplified via Nginx
 ```
 
 #### chain-scanner
@@ -124,6 +178,7 @@ TOKEN_SUT=0x...
 TOKEN_KWT=0x...
 TOKEN_P2UC=0x...
 WS_PORT=8001
+CORS_ORIGIN=http://localhost  # Simplified via Nginx
 ```
 
 #### tx-analyzer
@@ -132,6 +187,14 @@ WS_PORT=8001
 PORT=8002
 ANOMALY_THRESHOLD=0.85
 WHALE_THRESHOLD=1000000
+CORS_ORIGIN=http://localhost  # Simplified via Nginx
+```
+
+#### tx-dashboard
+
+```env
+VITE_API_ENDPOINT=/api/v1      # Relative path for Nginx routing
+VITE_WS_URL=/ws                # Relative path for Nginx routing
 ```
 
 ## 📁 Project Structure
@@ -139,12 +202,14 @@ WHALE_THRESHOLD=1000000
 ```
 msq-tx-monitor/
 ├── apps/
-│   ├── tx-api/           # Express.js API
-│   ├── chain-scanner/    # Blockchain scanner
-│   └── tx-analyzer/      # Analytics service
+│   ├── tx-dashboard/     # React frontend (port 3000)
+│   ├── tx-api/           # Express.js API (port 8000)
+│   ├── chain-scanner/    # Blockchain scanner (port 8001)
+│   └── tx-analyzer/      # Analytics service (port 8002)
 ├── docker/
-│   ├── docker-compose.yml
-│   ├── Dockerfile.packages
+│   ├── docker-compose.yml      # Orchestrates all services + Nginx
+│   ├── nginx.conf              # Nginx reverse proxy config
+│   ├── Dockerfile.packages     # Multi-stage build
 │   └── volumes/
 ├── libs/
 │   ├── tx-types/         # Shared TypeScript types
@@ -165,7 +230,9 @@ The system monitors these MSQ ecosystem tokens:
 
 ## 🔍 API Endpoints
 
-### Transaction API
+All endpoints accessed through **http://localhost** via Nginx:
+
+### Transaction API (tx-api)
 
 ```bash
 GET /api/v1/transactions           # List transactions
@@ -175,16 +242,41 @@ GET /api/v1/statistics             # Global statistics
 GET /api/v1/anomalies             # Detected anomalies
 ```
 
+### Analysis API (tx-analyzer)
+
+```bash
+GET /api/v1/analyze/summary              # Transaction summary
+GET /api/v1/analyze/trends/hourly        # Hourly trends
+GET /api/v1/analyze/trends/daily         # Daily trends
+GET /api/v1/analyze/tokens               # Token analysis
+GET /api/v1/analyze/volume               # Volume analysis
+```
+
+### Statistics API (tx-analyzer)
+
+```bash
+GET /api/v1/statistics/realtime          # Real-time statistics
+GET /api/v1/statistics/volume/hourly     # Hourly volume stats
+GET /api/v1/statistics/volume/daily      # Daily volume stats
+GET /api/v1/statistics/tokens            # Token statistics
+GET /api/v1/statistics/addresses/top     # Top addresses
+GET /api/v1/statistics/anomalies         # Anomaly statistics
+GET /api/v1/statistics/network           # Network statistics
+GET /api/v1/statistics/distribution/token # Token distribution
+```
+
 ### WebSocket Events
 
 ```javascript
-// Real-time transaction feed
-ws://localhost:8001/scanner
+// Real-time transaction feed (through Nginx)
+ws://localhost/ws
 
 // Events:
-// - new_transaction
-// - anomaly_detected
-// - statistics_updated
+// - new_transaction: Real-time transaction updates
+// - stats_update: Statistics changes
+// - heartbeat: Connection health check
+// - connection: Initial connection confirmation
+// - error: Error notifications
 ```
 
 ## 🧠 AI Features
@@ -205,17 +297,27 @@ ws://localhost:8001/scanner
 
 ## 🐳 Docker Services
 
-### Core Services
+### Infrastructure Services
 
-- **MySQL 8.0**: Transaction database
-- **Redis 7**: Caching and real-time data
-- **PHPMyAdmin**: Database management UI
+- **Nginx**: Reverse proxy and unified entry point (port 80)
+- **MySQL 8.0**: Transaction database (port 3306)
+- **Redis 7**: Caching and real-time data (port 6379)
 
 ### Application Services
 
-- All apps containerized with hot-reload for development
+All services are internally networked through Docker Compose:
+
+- **tx-dashboard** (3000): React frontend with Vite dev server
+- **tx-api** (8000): Express.js REST API with MySQL/Redis
+- **chain-scanner** (8001): Blockchain scanner with WebSocket server
+- **tx-analyzer** (8002): Analytics service with real-time processing
+
+**Features:**
+- Hot-reload enabled for development
 - Production-ready multi-stage builds
 - Health checks and automatic restart policies
+- Service-to-service communication via Docker network
+- External access only through Nginx reverse proxy
 
 ## 📊 Monitoring & Observability
 
@@ -226,10 +328,13 @@ ws://localhost:8001/scanner
 
 ## 🔐 Security
 
+- **Unified Access Control**: All traffic routed through Nginx reverse proxy
+- **Simplified CORS**: Single origin (http://localhost) eliminates cross-origin issues
 - **API Rate Limiting**: 100 requests/minute per IP
-- **CORS Protection**: Configurable origins
+- **Internal Service Isolation**: Application ports not exposed externally
 - **Input Validation**: All API inputs validated
 - **SQL Injection Prevention**: Parameterized queries only
+- **WebSocket Security**: Proper upgrade headers and timeout configuration
 
 ## 📄 License
 

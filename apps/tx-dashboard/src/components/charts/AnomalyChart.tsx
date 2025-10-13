@@ -46,35 +46,39 @@ function CustomTooltip({ active, payload }: TooltipProps) {
     return (
       <div className='bg-gray-900/95 backdrop-blur border border-white/20 rounded-lg p-3 shadow-xl'>
         <p className='text-white font-medium mb-2'>
-          {new Date(data.timestamp).toLocaleString()}
+          {data.timestamp ? new Date(data.timestamp).toLocaleString() : data.hour}
         </p>
         <div className='space-y-1'>
           <div className='flex items-center justify-between gap-4'>
             <span className='text-red-400 text-sm'>Anomalies:</span>
-            <span className='text-white font-bold'>{data.anomalyCount}</span>
+            <span className='text-white font-bold'>{data.anomalyCount ?? 0}</span>
           </div>
           <div className='flex items-center justify-between gap-4'>
             <span className='text-yellow-400 text-sm'>Risk Score:</span>
             <span className='text-white'>
-              {formatPercentage(data.averageScore * 100, 1)}
+              {formatPercentage((data.averageScore ?? 0) * 100, 1)}
             </span>
           </div>
           <div className='flex items-center justify-between gap-4'>
             <span className='text-orange-400 text-sm'>High Risk:</span>
-            <span className='text-white'>{data.highRiskCount}</span>
+            <span className='text-white'>{data.highRiskCount ?? 0}</span>
           </div>
-          <div className='flex items-center justify-between gap-4'>
-            <span className='text-blue-400 text-sm'>Total Txs:</span>
-            <span className='text-white'>
-              {data.totalTransactions.toLocaleString()}
-            </span>
-          </div>
-          <div className='flex items-center justify-between gap-4'>
-            <span className='text-purple-400 text-sm'>Anomaly Rate:</span>
-            <span className='text-white'>
-              {formatPercentage(data.anomalyRate, 1)}
-            </span>
-          </div>
+          {data.totalTransactions !== undefined && (
+            <div className='flex items-center justify-between gap-4'>
+              <span className='text-blue-400 text-sm'>Total Txs:</span>
+              <span className='text-white'>
+                {data.totalTransactions.toLocaleString()}
+              </span>
+            </div>
+          )}
+          {data.anomalyRate !== undefined && (
+            <div className='flex items-center justify-between gap-4'>
+              <span className='text-purple-400 text-sm'>Anomaly Rate:</span>
+              <span className='text-white'>
+                {formatPercentage(data.anomalyRate, 1)}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     );

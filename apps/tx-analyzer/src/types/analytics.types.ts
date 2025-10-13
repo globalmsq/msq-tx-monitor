@@ -46,9 +46,9 @@ export interface HourlyVolumeStats {
   hour: string;
   tokenSymbol: string;
   transactionCount: number;
-  volume: string;
+  totalVolume: string;
   uniqueAddresses: number;
-  averageTransactionSize: string;
+  averageVolume: string;
   gasUsed: string;
   anomalyCount: number;
 }
@@ -57,9 +57,9 @@ export interface DailyVolumeStats {
   date: string;
   tokenSymbol: string;
   transactionCount: number;
-  volume: string;
+  totalVolume: string;
   uniqueAddresses: number;
-  averageTransactionSize: string;
+  averageVolume: string;
   gasUsed: string;
   anomalyCount: number;
   highestTransaction: string;
@@ -123,6 +123,8 @@ export interface TopAddressFilters {
 export interface TopAddress {
   address: string;
   totalVolume: string;
+  totalSent: string;
+  totalReceived: string;
   transactionCount: number;
   uniqueInteractions: number;
   firstSeen: Date;
@@ -155,10 +157,14 @@ export interface AnomalyStats {
 }
 
 export interface AnomalyTrendPoint {
+  timestamp: string;
   hour: string;
+  totalTransactions: number;
   anomalyCount: number;
-  averageRiskScore: number;
+  averageScore: number;
+  averageRiskScore: number; // For backward compatibility
   highRiskCount: number;
+  anomalyRate: number;
 }
 
 export interface RiskDistribution {

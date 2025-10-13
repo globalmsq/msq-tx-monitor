@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { logger } from '@msq-tx-monitor/msq-common';
 import { analyzeRoutes } from './routes/analyze.routes';
-import statisticsRoutes from './routes/statistics.routes';
+import analyticsRoutes from './routes/analytics.routes';
 
 export function createApp(): Application {
   const app = express();
@@ -39,7 +39,7 @@ export function createApp(): Application {
 
   // API routes
   app.use('/api/v1/analyze', analyzeRoutes);
-  app.use('/api/v1/statistics', statisticsRoutes);
+  app.use('/api/v1/analytics', analyticsRoutes);
 
   // Root endpoint
   app.get('/', (req, res) => {
@@ -52,14 +52,14 @@ export function createApp(): Application {
         'GET /api/v1/analyze/trends/daily',
         'GET /api/v1/analyze/tokens',
         'GET /api/v1/analyze/volume',
-        'GET /api/v1/statistics/realtime',
-        'GET /api/v1/statistics/volume/hourly',
-        'GET /api/v1/statistics/volume/daily',
-        'GET /api/v1/statistics/tokens',
-        'GET /api/v1/statistics/addresses/top',
-        'GET /api/v1/statistics/anomalies',
-        'GET /api/v1/statistics/network',
-        'GET /api/v1/statistics/distribution/token',
+        'GET /api/v1/analytics/realtime',
+        'GET /api/v1/analytics/volume/hourly',
+        'GET /api/v1/analytics/volume/daily',
+        'GET /api/v1/analytics/tokens',
+        'GET /api/v1/analytics/addresses/top',
+        'GET /api/v1/analytics/anomalies',
+        'GET /api/v1/analytics/network',
+        'GET /api/v1/analytics/distribution/token',
       ],
     });
   });

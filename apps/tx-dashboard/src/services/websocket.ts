@@ -46,12 +46,30 @@ export class WebSocketService {
   private stateCallbacks: Set<ConnectionStateCallback> = new Set();
 
   constructor(config: Partial<WebSocketConfig> = {}) {
+    // Build WebSocket URL based on current location when using Nginx
+    const wsUrl = config.url || this.buildWebSocketUrl();
+
     this.config = {
-      url: config.url || 'ws://localhost:8001/ws',
+      url: wsUrl,
       reconnectInterval: config.reconnectInterval || 3000,
       maxReconnectAttempts: config.maxReconnectAttempts || 10,
       heartbeatInterval: config.heartbeatInterval || 30000,
     };
+  }
+
+  /**
+   * Build WebSocket URL based on current window location
+   * Uses wss:// for https, ws:// for http
+   * Defaults to /ws path when accessed through Nginx
+   */
+  private buildWebSocketUrl(): string {
+    if (typeof window === 'undefined') {
+      return 'ws://localhost:8001';
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    return `${protocol}//${host}/ws`;
   }
 
   /**
@@ -261,7 +279,6 @@ export class WebSocketService {
   }
 }
 
-// Singleton instance
-export const wsService = new WebSocketService({
-  url: import.meta.env.VITE_WS_ENDPOINT || 'ws://localhost:8001',
-});
+// Singleton instance - Uses Nginx reverse proxy at /ws
+// buildWebSocketUrl() automatically constructs: ws://localhost/ws or wss://domain/ws
+export const wsService = new WebSocketService();

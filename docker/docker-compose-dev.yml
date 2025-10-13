@@ -72,6 +72,9 @@ services:
       timeout: 10s
       retries: 5
 
+  # =============================================================================
+  # Application Services (Development Mode with Hot Reload)
+  # =============================================================================
   tx-dashboard:
     build:
       context: ..
@@ -79,9 +82,15 @@ services:
       target: tx-dashboard
     container_name: msq-tx-monitor-dashboard
     restart: unless-stopped
-    # No external port exposure - accessed through Nginx
+    command: ["pnpm", "dev"]
     expose:
       - "3000"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ../:/app
+      - /app/node_modules
+      - /app/apps/tx-dashboard/node_modules
     networks:
       - msq-tx-monitor-network
     depends_on:
@@ -99,10 +108,11 @@ services:
       target: tx-api
     container_name: msq-tx-monitor-api
     restart: unless-stopped
-    # No external port exposure - accessed through Nginx
+    command: ["pnpm", "dev"]
     expose:
       - "8000"
     environment:
+      - NODE_ENV=development
       - PORT=8000
       - MYSQL_HOST=mysql
       - MYSQL_PORT=3306
@@ -111,6 +121,10 @@ services:
       - MYSQL_PASSWORD=pass
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+    volumes:
+      - ../:/app
+      - /app/node_modules
+      - /app/apps/tx-api/node_modules
     networks:
       - msq-tx-monitor-network
     depends_on:
@@ -130,10 +144,11 @@ services:
       target: chain-scanner
     container_name: msq-tx-monitor-chain-scanner
     restart: unless-stopped
-    # No external port exposure - accessed through Nginx
+    command: ["pnpm", "dev"]
     expose:
       - "8001"
     environment:
+      - NODE_ENV=development
       - CHAIN_SCANNER_PORT=8001
       # HTTP RPC endpoints (no API keys needed)
       - PRIMARY_RPC_ENDPOINT=https://polygon-rpc.com
@@ -158,6 +173,10 @@ services:
       - IGNORE_ZERO_VALUE_TRANSFERS=true
       - BLOCK_POLLING_INTERVAL=10000
       - REQUEST_DELAY=500
+    volumes:
+      - ../:/app
+      - /app/node_modules
+      - /app/apps/chain-scanner/node_modules
     networks:
       - msq-tx-monitor-network
     depends_on:
@@ -177,10 +196,11 @@ services:
       target: tx-analyzer
     container_name: msq-tx-monitor-analyzer
     restart: unless-stopped
-    # No external port exposure - accessed through Nginx
+    command: ["pnpm", "dev"]
     expose:
       - "8002"
     environment:
+      - NODE_ENV=development
       - PORT=8002
       - MYSQL_HOST=mysql
       - MYSQL_PORT=3306
@@ -189,6 +209,10 @@ services:
       - MYSQL_PASSWORD=pass
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+    volumes:
+      - ../:/app
+      - /app/node_modules
+      - /app/apps/tx-analyzer/node_modules
     networks:
       - msq-tx-monitor-network
     depends_on:

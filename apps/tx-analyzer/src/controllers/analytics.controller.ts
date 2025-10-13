@@ -1,15 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
-import { StatisticsService } from '../services/statistics.service';
+import { AnalyticsService } from '../services/analytics.service';
 import {
   StatisticsFilters,
   StatisticsResponse,
-} from '../types/statistics.types';
+} from '../types/analytics.types';
 
-export class StatisticsController {
-  private statisticsService: StatisticsService;
+export class AnalyticsController {
+  private analyticsService: AnalyticsService;
 
   constructor() {
-    this.statisticsService = new StatisticsService();
+    this.analyticsService = new AnalyticsService();
   }
 
   /**
@@ -22,7 +22,7 @@ export class StatisticsController {
     next: NextFunction
   ) => {
     try {
-      const stats = await this.statisticsService.getRealtimeStats();
+      const stats = await this.analyticsService.getRealtimeStats();
 
       const response: StatisticsResponse<typeof stats> = {
         data: stats,
@@ -53,7 +53,7 @@ export class StatisticsController {
         limit: req.query.limit ? parseInt(req.query.limit as string) : 24,
       };
 
-      const stats = await this.statisticsService.getHourlyVolumeStats(filters);
+      const stats = await this.analyticsService.getHourlyVolumeStats(filters);
 
       const response: StatisticsResponse<typeof stats> = {
         data: stats,
@@ -85,7 +85,7 @@ export class StatisticsController {
         limit: req.query.limit ? parseInt(req.query.limit as string) : 30,
       };
 
-      const stats = await this.statisticsService.getDailyVolumeStats(filters);
+      const stats = await this.analyticsService.getDailyVolumeStats(filters);
 
       const response: StatisticsResponse<typeof stats> = {
         data: stats,
@@ -112,7 +112,7 @@ export class StatisticsController {
         tokenSymbol: req.query.tokenSymbol as string,
       };
 
-      const stats = await this.statisticsService.getTokenStats(filters);
+      const stats = await this.analyticsService.getTokenStats(filters);
 
       const response: StatisticsResponse<typeof stats> = {
         data: stats,
@@ -138,12 +138,14 @@ export class StatisticsController {
           | 'volume'
           | 'transactions'
           | 'unique_interactions',
-        tokenSymbol: req.query.tokenSymbol as string,
+        tokenSymbol: req.query.token as string,
         limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
-        timeframe: req.query.timeframe as '24h' | '7d' | '30d' | 'all',
+        timeframe: (req.query.hours
+          ? this.hoursToTimeframe(parseInt(req.query.hours as string))
+          : '24h') as '24h' | '7d' | '30d' | 'all',
       };
 
-      const stats = await this.statisticsService.getTopAddresses(filters);
+      const stats = await this.analyticsService.getTopAddresses(filters);
 
       const response: StatisticsResponse<typeof stats> = {
         data: stats,
@@ -170,7 +172,7 @@ export class StatisticsController {
         tokenSymbol: req.query.tokenSymbol as string,
       };
 
-      const stats = await this.statisticsService.getAnomalyStats(filters);
+      const stats = await this.analyticsService.getAnomalyStats(filters);
 
       const response: StatisticsResponse<typeof stats> = {
         data: stats,
@@ -197,7 +199,7 @@ export class StatisticsController {
         limit: req.query.limit ? parseInt(req.query.limit as string) : 24,
       };
 
-      const stats = await this.statisticsService.getNetworkStats(filters);
+      const stats = await this.analyticsService.getNetworkStats(filters);
 
       const response: StatisticsResponse<typeof stats> = {
         data: stats,
@@ -227,7 +229,7 @@ export class StatisticsController {
         endDate: req.query.endDate as string,
       };
 
-      const stats = await this.statisticsService.getTokenDistribution(filters);
+      const stats = await this.analyticsService.getTokenDistribution(filters);
 
       const response: StatisticsResponse<typeof stats> = {
         data: stats,
@@ -241,4 +243,109 @@ export class StatisticsController {
       next(error);
     }
   };
+
+  /**
+   * GET /api/v1/analytics/addresses/receivers
+   * Get top receivers (addresses receiving the most transactions)
+   */
+  getTopReceivers = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const filters = {
+        metric: 'transactions' as const,
+        tokenSymbol: req.query.token as string,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        timeframe: (req.query.hours
+          ? this.hoursToTimeframe(parseInt(req.query.hours as string))
+          : '24h') as '24h' | '7d' | '30d' | 'all',
+      };
+
+      const stats = await this.analyticsService.getTopReceivers(filters);
+
+      const response: StatisticsResponse<typeof stats> = {
+        data: stats,
+        filters,
+        timestamp: new Date(),
+        cached: false,
+      };
+
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/analytics/addresses/senders
+   * Get top senders (addresses sending the most transactions)
+   */
+  getTopSenders = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const filters = {
+        metric: 'transactions' as const,
+        tokenSymbol: req.query.token as string,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        timeframe: (req.query.hours
+          ? this.hoursToTimeframe(parseInt(req.query.hours as string))
+          : '24h') as '24h' | '7d' | '30d' | 'all',
+      };
+
+      const stats = await this.analyticsService.getTopSenders(filters);
+
+      const response: StatisticsResponse<typeof stats> = {
+        data: stats,
+        filters,
+        timestamp: new Date(),
+        cached: false,
+      };
+
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/analytics/anomalies/timeseries
+   * Get anomaly time series data
+   */
+  getAnomalyTimeSeries = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const hours = req.query.hours
+        ? parseInt(req.query.hours as string)
+        : 24;
+      const filters: StatisticsFilters = {
+        startDate: new Date(Date.now() - hours * 60 * 60 * 1000).toISOString(),
+        endDate: new Date().toISOString(),
+        tokenSymbol: req.query.token as string,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 24,
+      };
+
+      const stats = await this.analyticsService.getAnomalyTimeSeries(filters);
+
+      const response: StatisticsResponse<typeof stats> = {
+        data: stats,
+        filters,
+        timestamp: new Date(),
+        cached: false,
+      };
+
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Helper: Convert hours to timeframe string
+   */
+  private hoursToTimeframe(hours: number): string {
+    if (hours <= 24) return '24h';
+    if (hours <= 168) return '7d';
+    if (hours <= 720) return '30d';
+    return 'all';
+  }
 }
