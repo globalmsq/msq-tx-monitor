@@ -10,13 +10,14 @@ import {
   TopAddress,
   TopAddressFilters,
   AnomalyStats,
+  AnomalyTrendPoint,
   NetworkStats,
   TokenDistribution,
   CACHE_KEYS,
   CACHE_TTL,
-} from '../types/statistics.types';
+} from '../types/analytics.types';
 
-export class StatisticsService {
+export class AnalyticsService {
   /**
    * Get real-time statistics with caching
    */
@@ -178,9 +179,9 @@ export class StatisticsService {
       hour: result.hour,
       tokenSymbol: result.tokenSymbol,
       transactionCount: Number(result.transactionCount),
-      volume: result.volume?.toString() || '0',
+      totalVolume: result.volume?.toString() || '0',
       uniqueAddresses: Number(result.uniqueAddresses),
-      averageTransactionSize: result.averageTransactionSize?.toString() || '0',
+      averageVolume: result.averageTransactionSize?.toString() || '0',
       gasUsed: result.gasUsed?.toString() || '0',
       anomalyCount: Number(result.anomalyCount),
     }));
@@ -230,9 +231,9 @@ export class StatisticsService {
       date: result.date,
       tokenSymbol: result.tokenSymbol,
       transactionCount: Number(result.transactionCount),
-      volume: result.volume?.toString() || '0',
+      totalVolume: result.volume?.toString() || '0',
       uniqueAddresses: Number(result.uniqueAddresses),
-      averageTransactionSize: result.averageTransactionSize?.toString() || '0',
+      averageVolume: result.averageTransactionSize?.toString() || '0',
       gasUsed: result.gasUsed?.toString() || '0',
       anomalyCount: Number(result.anomalyCount),
       highestTransaction: result.highestTransaction?.toString() || '0',
@@ -289,94 +290,145 @@ export class StatisticsService {
   }
 
   /**
-   * Get top addresses by various metrics
+   * Get top addresses by various metrics (period-specific with transactions table)
    */
   async getTopAddresses(filters: TopAddressFilters): Promise<TopAddress[]> {
-    let timeFilter = '';
-    const now = new Date();
+    // Generate cache key
+    const cacheKey = `stats:addresses:top:${filters.metric}:${filters.timeframe}:${filters.tokenSymbol || 'all'}:${filters.limit}`;
 
-    switch (filters.timeframe) {
-      case '24h':
-        timeFilter = `AND timestamp >= '${new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()}'`;
-        break;
-      case '7d':
-        timeFilter = `AND timestamp >= '${new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()}'`;
-        break;
-      case '30d':
-        timeFilter = `AND timestamp >= '${new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()}'`;
-        break;
-      default:
-        timeFilter = '';
-    }
+    try {
+      // Try to get from cache first (only for non-'all' timeframes)
+      if (filters.timeframe !== 'all') {
+        const cached = await redisService.get<TopAddress[]>(cacheKey);
+        if (cached) {
+          logger.info(`Cache hit for top addresses: ${cacheKey}`);
+          return cached;
+        }
+      }
 
-    const tokenFilter = filters.tokenSymbol
-      ? `AND tokenSymbol = '${filters.tokenSymbol}'`
-      : '';
+      // Calculate timestamp boundaries based on timeframe
+      const now = new Date();
+      let startDate: Date;
 
-    let orderBy = '';
-    switch (filters.metric) {
-      case 'volume':
-        orderBy = 'totalVolume DESC';
-        break;
-      case 'transactions':
-        orderBy = 'transactionCount DESC';
-        break;
-      case 'unique_interactions':
-        orderBy = 'uniqueInteractions DESC';
-        break;
-    }
+      switch (filters.timeframe) {
+        case '24h':
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case '7d':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30d':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(0); // 'all' time
+      }
 
-    const query = `
-      SELECT
-        address,
-        SUM(volume) as totalVolume,
-        SUM(transactionCount) as transactionCount,
-        COUNT(DISTINCT tokenSymbol) as uniqueInteractions,
-        MIN(firstSeen) as firstSeen,
-        MAX(lastSeen) as lastSeen
-      FROM (
+      const tokenFilter = filters.tokenSymbol
+        ? `AND tokenSymbol = '${filters.tokenSymbol}'`
+        : '';
+
+      let orderBy = '';
+      switch (filters.metric) {
+        case 'volume':
+          orderBy = 'totalVolume DESC';
+          break;
+        case 'transactions':
+          orderBy = 'transactionCount DESC';
+          break;
+        case 'unique_interactions':
+          orderBy = 'uniqueInteractions DESC';
+          break;
+      }
+
+      // Query transactions table for period-specific data with sent/received breakdown
+      const query = `
         SELECT
-          fromAddress as address,
-          SUM(value) as volume,
-          COUNT(*) as transactionCount,
-          tokenSymbol,
-          MIN(timestamp) as firstSeen,
-          MAX(timestamp) as lastSeen
-        FROM transactions
-        WHERE 1=1 ${timeFilter} ${tokenFilter}
-        GROUP BY fromAddress, tokenSymbol
-        UNION ALL
-        SELECT
-          toAddress as address,
-          SUM(value) as volume,
-          COUNT(*) as transactionCount,
-          tokenSymbol,
-          MIN(timestamp) as firstSeen,
-          MAX(timestamp) as lastSeen
-        FROM transactions
-        WHERE 1=1 ${timeFilter} ${tokenFilter}
-        GROUP BY toAddress, tokenSymbol
-      ) as combined
-      GROUP BY address
-      ORDER BY ${orderBy}
-      LIMIT ${filters.limit}
-    `;
+          combined.address,
+          SUM(combined.volume) as totalVolume,
+          SUM(combined.sent) as total_sent,
+          SUM(combined.received) as total_received,
+          SUM(combined.transactionCount) as transactionCount,
+          COUNT(DISTINCT combined.tokenAddress) as uniqueInteractions,
+          MIN(combined.firstSeen) as firstSeen,
+          MAX(combined.lastSeen) as lastSeen
+        FROM (
+          SELECT
+            fromAddress as address,
+            SUM(value) as volume,
+            SUM(value) as sent,
+            0 as received,
+            COUNT(*) as transactionCount,
+            tokenAddress,
+            MIN(timestamp) as firstSeen,
+            MAX(timestamp) as lastSeen
+          FROM transactions
+          WHERE timestamp >= '${startDate.toISOString()}' AND timestamp <= '${now.toISOString()}' ${tokenFilter}
+          GROUP BY fromAddress, tokenAddress
+          UNION ALL
+          SELECT
+            toAddress as address,
+            SUM(value) as volume,
+            0 as sent,
+            SUM(value) as received,
+            COUNT(*) as transactionCount,
+            tokenAddress,
+            MIN(timestamp) as firstSeen,
+            MAX(timestamp) as lastSeen
+          FROM transactions
+          WHERE timestamp >= '${startDate.toISOString()}' AND timestamp <= '${now.toISOString()}' ${tokenFilter}
+          GROUP BY toAddress, tokenAddress
+        ) as combined
+        GROUP BY combined.address
+        ORDER BY ${orderBy}
+        LIMIT ${filters.limit}
+      `;
 
-    const results = await prisma.$queryRawUnsafe<any[]>(query);
+      const results = await prisma.$queryRawUnsafe<any[]>(query);
 
-    return results.map(result => ({
-      address: result.address,
-      totalVolume: result.totalVolume?.toString() || '0',
-      transactionCount: Number(result.transactionCount),
-      uniqueInteractions: Number(result.uniqueInteractions),
-      firstSeen: new Date(result.firstSeen),
-      lastSeen: new Date(result.lastSeen),
-      isWhale: false, // This would need additional logic
-      isSuspicious: false, // This would need additional logic
-      riskScore: 0, // This would need additional calculation
-      behavioralFlags: [], // This would need additional analysis
-      tokenBreakdown: [], // This would need additional query
-    }));
+      // Enrich with address metadata from AddressStatistics
+      const addresses = results.map(r => r.address);
+      const addressStats =
+        addresses.length > 0
+          ? await prisma.$queryRawUnsafe<any[]>(
+              `SELECT address, MAX(riskScore) as riskScore, MAX(isWhale) as isWhale, MAX(isSuspicious) as isSuspicious
+             FROM address_statistics
+             WHERE address IN (${addresses.map(a => `'${a}'`).join(',')})
+             GROUP BY address`
+            )
+          : [];
+
+      const statsMap = new Map(addressStats.map(s => [s.address, s]));
+
+      const topAddresses = results.map(result => {
+        const stats = statsMap.get(result.address);
+        return {
+          address: result.address,
+          totalVolume: result.totalVolume?.toString() || '0',
+          totalSent: result.total_sent?.toString() || '0',
+          totalReceived: result.total_received?.toString() || '0',
+          transactionCount: Number(result.transactionCount),
+          uniqueInteractions: Number(result.uniqueInteractions),
+          firstSeen: new Date(result.firstSeen),
+          lastSeen: new Date(result.lastSeen),
+          isWhale: stats ? Boolean(stats.isWhale) : false,
+          isSuspicious: stats ? Boolean(stats.isSuspicious) : false,
+          riskScore: stats ? Number(stats.riskScore) : 0,
+          behavioralFlags: [],
+          tokenBreakdown: [],
+        };
+      });
+
+      // Cache for 5 minutes (only for non-'all' timeframes)
+      if (filters.timeframe !== 'all') {
+        await redisService.set(cacheKey, topAddresses, CACHE_TTL.HOURLY);
+      }
+
+      return topAddresses;
+    } catch (error) {
+      logger.error('Error getting top addresses:', error);
+      throw error;
+    }
   }
 
   /**
@@ -420,9 +472,13 @@ export class StatisticsService {
           let query = `
           SELECT
             DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00') as hour,
+            DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00') as timestamp,
+            COUNT(*) as totalTransactions,
             COUNT(CASE WHEN isAnomaly = true THEN 1 END) as anomalyCount,
+            AVG(anomalyScore) as averageScore,
             AVG(anomalyScore) as averageRiskScore,
-            COUNT(CASE WHEN anomalyScore > 0.7 THEN 1 END) as highRiskCount
+            COUNT(CASE WHEN anomalyScore > 0.7 THEN 1 END) as highRiskCount,
+            ROUND((COUNT(CASE WHEN isAnomaly = true THEN 1 END) / COUNT(*) * 100), 2) as anomalyRate
           FROM transactions
           WHERE timestamp >= ? AND timestamp <= ?
         `;
@@ -455,9 +511,13 @@ export class StatisticsService {
       suspiciousAddresses: suspiciousAddresses[0]?.count || 0,
       anomalyTrends: hourlyTrends.map(trend => ({
         hour: trend.hour,
+        timestamp: trend.timestamp,
+        totalTransactions: Number(trend.totalTransactions),
         anomalyCount: Number(trend.anomalyCount),
+        averageScore: Number(trend.averageScore),
         averageRiskScore: Number(trend.averageRiskScore),
         highRiskCount: Number(trend.highRiskCount),
+        anomalyRate: Number(trend.anomalyRate),
       })),
       riskDistribution: [], // This would need additional calculation
       flaggedPatterns: [], // This would need additional analysis
@@ -545,6 +605,262 @@ export class StatisticsService {
       volume: (result._sum.value || BigInt(0)).toString(),
       percentage: (result._count / total) * 100,
       color: colors[index % colors.length],
+    }));
+  }
+
+  /**
+   * Get top receivers (addresses receiving the most transactions) - period-specific
+   */
+  async getTopReceivers(filters: TopAddressFilters): Promise<TopAddress[]> {
+    // Generate cache key
+    const cacheKey = `stats:addresses:receivers:${filters.timeframe}:${filters.tokenSymbol || 'all'}:${filters.limit}`;
+
+    try {
+      // Try to get from cache first (only for non-'all' timeframes)
+      if (filters.timeframe !== 'all') {
+        const cached = await redisService.get<TopAddress[]>(cacheKey);
+        if (cached) {
+          logger.info(`Cache hit for top receivers: ${cacheKey}`);
+          return cached;
+        }
+      }
+
+      // Calculate timestamp boundaries based on timeframe
+      const now = new Date();
+      let startDate: Date;
+
+      switch (filters.timeframe) {
+        case '24h':
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case '7d':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30d':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(0); // 'all' time
+      }
+
+      const tokenFilter = filters.tokenSymbol
+        ? `AND tokenSymbol = '${filters.tokenSymbol}'`
+        : '';
+
+      // Query transactions table for period-specific receiver data
+      const query = `
+        SELECT
+          toAddress as address,
+          SUM(value) as totalVolume,
+          COUNT(*) as transactionCount,
+          COUNT(DISTINCT tokenAddress) as uniqueInteractions,
+          MIN(timestamp) as firstSeen,
+          MAX(timestamp) as lastSeen
+        FROM transactions
+        WHERE timestamp >= '${startDate.toISOString()}' AND timestamp <= '${now.toISOString()}' ${tokenFilter}
+        GROUP BY toAddress
+        ORDER BY transactionCount DESC
+        LIMIT ${filters.limit}
+      `;
+
+      const results = await prisma.$queryRawUnsafe<any[]>(query);
+
+      // Enrich with address metadata from AddressStatistics
+      const addresses = results.map(r => r.address);
+      const addressStats =
+        addresses.length > 0
+          ? await prisma.$queryRawUnsafe<any[]>(
+              `SELECT address, MAX(riskScore) as riskScore, MAX(isWhale) as isWhale, MAX(isSuspicious) as isSuspicious
+             FROM address_statistics
+             WHERE address IN (${addresses.map(a => `'${a}'`).join(',')})
+             GROUP BY address`
+            )
+          : [];
+
+      const statsMap = new Map(addressStats.map(s => [s.address, s]));
+
+      const topReceivers = results.map(result => {
+        const stats = statsMap.get(result.address);
+        return {
+          address: result.address,
+          totalVolume: result.totalVolume?.toString() || '0',
+          totalSent: '0', // Receivers endpoint: sent is 0
+          totalReceived: result.totalVolume?.toString() || '0', // All volume is received
+          transactionCount: Number(result.transactionCount),
+          uniqueInteractions: Number(result.uniqueInteractions),
+          firstSeen: new Date(result.firstSeen),
+          lastSeen: new Date(result.lastSeen),
+          isWhale: stats ? Boolean(stats.isWhale) : false,
+          isSuspicious: stats ? Boolean(stats.isSuspicious) : false,
+          riskScore: stats ? Number(stats.riskScore) : 0,
+          behavioralFlags: [],
+          tokenBreakdown: [],
+        };
+      });
+
+      // Cache for 5 minutes (only for non-'all' timeframes)
+      if (filters.timeframe !== 'all') {
+        await redisService.set(cacheKey, topReceivers, CACHE_TTL.HOURLY);
+      }
+
+      return topReceivers;
+    } catch (error) {
+      logger.error('Error getting top receivers:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get top senders (addresses sending the most transactions) - period-specific
+   */
+  async getTopSenders(filters: TopAddressFilters): Promise<TopAddress[]> {
+    // Generate cache key
+    const cacheKey = `stats:addresses:senders:${filters.timeframe}:${filters.tokenSymbol || 'all'}:${filters.limit}`;
+
+    try {
+      // Try to get from cache first (only for non-'all' timeframes)
+      if (filters.timeframe !== 'all') {
+        const cached = await redisService.get<TopAddress[]>(cacheKey);
+        if (cached) {
+          logger.info(`Cache hit for top senders: ${cacheKey}`);
+          return cached;
+        }
+      }
+
+      // Calculate timestamp boundaries based on timeframe
+      const now = new Date();
+      let startDate: Date;
+
+      switch (filters.timeframe) {
+        case '24h':
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case '7d':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30d':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(0); // 'all' time
+      }
+
+      const tokenFilter = filters.tokenSymbol
+        ? `AND tokenSymbol = '${filters.tokenSymbol}'`
+        : '';
+
+      // Query transactions table for period-specific sender data
+      const query = `
+        SELECT
+          fromAddress as address,
+          SUM(value) as totalVolume,
+          COUNT(*) as transactionCount,
+          COUNT(DISTINCT tokenAddress) as uniqueInteractions,
+          MIN(timestamp) as firstSeen,
+          MAX(timestamp) as lastSeen
+        FROM transactions
+        WHERE timestamp >= '${startDate.toISOString()}' AND timestamp <= '${now.toISOString()}' ${tokenFilter}
+        GROUP BY fromAddress
+        ORDER BY transactionCount DESC
+        LIMIT ${filters.limit}
+      `;
+
+      const results = await prisma.$queryRawUnsafe<any[]>(query);
+
+      // Enrich with address metadata from AddressStatistics
+      const addresses = results.map(r => r.address);
+      const addressStats =
+        addresses.length > 0
+          ? await prisma.$queryRawUnsafe<any[]>(
+              `SELECT address, MAX(riskScore) as riskScore, MAX(isWhale) as isWhale, MAX(isSuspicious) as isSuspicious
+             FROM address_statistics
+             WHERE address IN (${addresses.map(a => `'${a}'`).join(',')})
+             GROUP BY address`
+            )
+          : [];
+
+      const statsMap = new Map(addressStats.map(s => [s.address, s]));
+
+      const topSenders = results.map(result => {
+        const stats = statsMap.get(result.address);
+        return {
+          address: result.address,
+          totalVolume: result.totalVolume?.toString() || '0',
+          totalSent: result.totalVolume?.toString() || '0', // All volume is sent
+          totalReceived: '0', // Senders endpoint: received is 0
+          transactionCount: Number(result.transactionCount),
+          uniqueInteractions: Number(result.uniqueInteractions),
+          firstSeen: new Date(result.firstSeen),
+          lastSeen: new Date(result.lastSeen),
+          isWhale: stats ? Boolean(stats.isWhale) : false,
+          isSuspicious: stats ? Boolean(stats.isSuspicious) : false,
+          riskScore: stats ? Number(stats.riskScore) : 0,
+          behavioralFlags: [],
+          tokenBreakdown: [],
+        };
+      });
+
+      // Cache for 5 minutes (only for non-'all' timeframes)
+      if (filters.timeframe !== 'all') {
+        await redisService.set(cacheKey, topSenders, CACHE_TTL.HOURLY);
+      }
+
+      return topSenders;
+    } catch (error) {
+      logger.error('Error getting top senders:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get anomaly time series data
+   */
+  async getAnomalyTimeSeries(
+    filters: StatisticsFilters
+  ): Promise<AnomalyTrendPoint[]> {
+    const startDate = filters.startDate
+      ? new Date(filters.startDate)
+      : new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
+    const limit = filters.limit || 24;
+
+    let query = `
+      SELECT
+        DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00') as hour,
+        DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00') as timestamp,
+        COUNT(*) as totalTransactions,
+        COUNT(CASE WHEN isAnomaly = true THEN 1 END) as anomalyCount,
+        AVG(anomalyScore) as averageScore,
+        COUNT(CASE WHEN anomalyScore > 0.7 THEN 1 END) as highRiskCount,
+        ROUND((COUNT(CASE WHEN isAnomaly = true THEN 1 END) / COUNT(*) * 100), 2) as anomalyRate
+      FROM transactions
+      WHERE timestamp >= ? AND timestamp <= ?
+    `;
+    const params: any[] = [startDate, endDate];
+
+    if (filters.tokenSymbol) {
+      query += ` AND tokenSymbol = ?`;
+      params.push(filters.tokenSymbol);
+    }
+
+    query += `
+      GROUP BY hour
+      ORDER BY hour DESC
+      LIMIT ?
+    `;
+    params.push(limit);
+
+    const results = await prisma.$queryRawUnsafe<any[]>(query, ...params);
+
+    return results.map(trend => ({
+      hour: trend.hour,
+      timestamp: trend.timestamp,
+      totalTransactions: Number(trend.totalTransactions),
+      anomalyCount: Number(trend.anomalyCount),
+      averageScore: Number(trend.averageScore),
+      averageRiskScore: Number(trend.averageScore), // Keep for backward compatibility
+      highRiskCount: Number(trend.highRiskCount),
+      anomalyRate: Number(trend.anomalyRate),
     }));
   }
 }

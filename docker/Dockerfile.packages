@@ -5,7 +5,7 @@ ARG SERVICE_NAME
 # =============================================================================
 # Base stage - Common base for all Node.js services
 # =============================================================================
-FROM node:18-alpine AS base
+FROM node:24-alpine AS base
 WORKDIR /app
 
 # Install pnpm
@@ -40,6 +40,15 @@ EXPOSE 8000
 CMD ["pnpm", "start"]
 
 # =============================================================================
+# Development stage for tx-dashboard (React + Vite)
+# =============================================================================
+FROM base AS tx-dashboard
+WORKDIR /app/apps/tx-dashboard
+
+EXPOSE 3000
+CMD ["pnpm", "start"]
+
+# =============================================================================
 # Development stage for chain-scanner (Node.js)
 # =============================================================================
 FROM base AS chain-scanner
@@ -49,19 +58,10 @@ EXPOSE 8001
 CMD ["pnpm", "start"]
 
 # =============================================================================
-# Development stage for tx-analyzer (Python FastAPI)
+# Development stage for tx-analyzer (Express.js)
 # =============================================================================
-FROM python:3.11-slim AS tx-analyzer
-WORKDIR /app
-RUN apt-get update && apt-get install -y \
-    gcc \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+FROM base AS tx-analyzer
+WORKDIR /app/apps/tx-analyzer
 
-# Copy only tx-analyzer
-COPY apps/tx-analyzer/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY apps/tx-analyzer ./
 EXPOSE 8002
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
+CMD ["pnpm", "start"]

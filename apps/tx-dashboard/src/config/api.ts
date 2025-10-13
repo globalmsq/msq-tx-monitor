@@ -1,11 +1,13 @@
 /**
  * API Configuration
  * Central configuration for all API endpoints
+ *
+ * Uses relative paths when accessed through Nginx reverse proxy
+ * Falls back to direct service URL for development
  */
 
-// API Base URL from environment variable
-export const API_BASE_URL =
-  import.meta.env.VITE_API_ENDPOINT || 'http://localhost:8000/api/v1';
+// API Base URL - Uses Nginx reverse proxy at /api/v1
+export const API_BASE_URL = '/api/v1';
 
 // API Endpoints
 export const API_ENDPOINTS = {

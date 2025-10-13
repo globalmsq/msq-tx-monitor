@@ -94,6 +94,14 @@ export class Web3Service {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
+      // Check Content-Type to detect HTML error pages
+      const contentType = response.headers.get('content-type');
+      if (contentType && !contentType.includes('application/json')) {
+        throw new Error(
+          `Non-JSON response received (Content-Type: ${contentType}). Likely HTML error page (rate limit or service error)`
+        );
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data = (await response.json()) as any;
       if (data.error) {
@@ -190,6 +198,18 @@ export class Web3Service {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
+      // Check Content-Type to detect HTML error pages
+      const contentType = response.headers.get('content-type');
+      if (contentType && !contentType.includes('application/json')) {
+        logger.warn(
+          `Non-JSON response for eth_getLogs (Content-Type: ${contentType}). Triggering reconnection...`
+        );
+        this.handleDisconnection();
+        throw new Error(
+          `Non-JSON response received. Likely HTML error page (rate limit or service error)`
+        );
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data = (await response.json()) as any;
 
@@ -229,6 +249,18 @@ export class Web3Service {
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Check Content-Type to detect HTML error pages
+      const contentType = response.headers.get('content-type');
+      if (contentType && !contentType.includes('application/json')) {
+        logger.warn(
+          `Non-JSON response for eth_blockNumber (Content-Type: ${contentType}). Triggering reconnection...`
+        );
+        this.handleDisconnection();
+        throw new Error(
+          `Non-JSON response received. Likely HTML error page (rate limit or service error)`
+        );
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

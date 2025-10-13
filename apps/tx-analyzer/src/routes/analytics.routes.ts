@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { StatisticsController } from '../controllers/statistics.controller';
+import { AnalyticsController } from '../controllers/analytics.controller';
 
 const router = Router();
-const statisticsController = new StatisticsController();
+const analyticsController = new AnalyticsController();
 
 /**
  * @swagger
@@ -34,7 +34,7 @@ const statisticsController = new StatisticsController();
  *                 cached:
  *                   type: boolean
  */
-router.get('/realtime', statisticsController.getRealtimeStats);
+router.get('/realtime', analyticsController.getRealtimeStats);
 
 /**
  * @swagger
@@ -80,7 +80,7 @@ router.get('/realtime', statisticsController.getRealtimeStats);
  *                   items:
  *                     $ref: '#/components/schemas/HourlyVolumeStats'
  */
-router.get('/volume/hourly', statisticsController.getHourlyVolumeStats);
+router.get('/volume/hourly', analyticsController.getHourlyVolumeStats);
 
 /**
  * @swagger
@@ -117,7 +117,7 @@ router.get('/volume/hourly', statisticsController.getHourlyVolumeStats);
  *       200:
  *         description: Daily volume statistics
  */
-router.get('/volume/daily', statisticsController.getDailyVolumeStats);
+router.get('/volume/daily', analyticsController.getDailyVolumeStats);
 
 /**
  * @swagger
@@ -148,7 +148,7 @@ router.get('/volume/daily', statisticsController.getDailyVolumeStats);
  *       200:
  *         description: Token statistics
  */
-router.get('/tokens', statisticsController.getTokenStats);
+router.get('/tokens', analyticsController.getTokenStats);
 
 /**
  * @swagger
@@ -187,7 +187,69 @@ router.get('/tokens', statisticsController.getTokenStats);
  *       200:
  *         description: Top addresses
  */
-router.get('/addresses/top', statisticsController.getTopAddresses);
+router.get('/addresses/top', analyticsController.getTopAddresses);
+
+/**
+ * @swagger
+ * /analytics/addresses/receivers:
+ *   get:
+ *     summary: Get top receivers by transaction count
+ *     description: Get addresses that receive the most transactions
+ *     tags: [Statistics]
+ *     parameters:
+ *       - name: token
+ *         in: query
+ *         description: Filter by token symbol
+ *         schema:
+ *           type: string
+ *       - name: hours
+ *         in: query
+ *         description: Time period in hours
+ *         schema:
+ *           type: integer
+ *           default: 24
+ *       - name: limit
+ *         in: query
+ *         description: Maximum number of results
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Top receivers
+ */
+router.get('/addresses/receivers', analyticsController.getTopReceivers);
+
+/**
+ * @swagger
+ * /analytics/addresses/senders:
+ *   get:
+ *     summary: Get top senders by transaction count
+ *     description: Get addresses that send the most transactions
+ *     tags: [Statistics]
+ *     parameters:
+ *       - name: token
+ *         in: query
+ *         description: Filter by token symbol
+ *         schema:
+ *           type: string
+ *       - name: hours
+ *         in: query
+ *         description: Time period in hours
+ *         schema:
+ *           type: integer
+ *           default: 24
+ *       - name: limit
+ *         in: query
+ *         description: Maximum number of results
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Top senders
+ */
+router.get('/addresses/senders', analyticsController.getTopSenders);
 
 /**
  * @swagger
@@ -218,7 +280,38 @@ router.get('/addresses/top', statisticsController.getTopAddresses);
  *       200:
  *         description: Anomaly statistics
  */
-router.get('/anomalies', statisticsController.getAnomalyStats);
+router.get('/anomalies', analyticsController.getAnomalyStats);
+
+/**
+ * @swagger
+ * /analytics/anomalies/timeseries:
+ *   get:
+ *     summary: Get anomaly time series data
+ *     description: Get hourly anomaly counts and risk scores over time
+ *     tags: [Statistics]
+ *     parameters:
+ *       - name: token
+ *         in: query
+ *         description: Filter by token symbol
+ *         schema:
+ *           type: string
+ *       - name: hours
+ *         in: query
+ *         description: Time period in hours
+ *         schema:
+ *           type: integer
+ *           default: 24
+ *       - name: limit
+ *         in: query
+ *         description: Maximum number of data points
+ *         schema:
+ *           type: integer
+ *           default: 24
+ *     responses:
+ *       200:
+ *         description: Anomaly time series data
+ */
+router.get('/anomalies/timeseries', analyticsController.getAnomalyTimeSeries);
 
 /**
  * @swagger
@@ -250,7 +343,7 @@ router.get('/anomalies', statisticsController.getAnomalyStats);
  *       200:
  *         description: Network statistics
  */
-router.get('/network', statisticsController.getNetworkStats);
+router.get('/network', analyticsController.getNetworkStats);
 
 /**
  * @swagger
@@ -276,6 +369,6 @@ router.get('/network', statisticsController.getNetworkStats);
  *       200:
  *         description: Token distribution data
  */
-router.get('/distribution/token', statisticsController.getTokenDistribution);
+router.get('/distribution/token', analyticsController.getTokenDistribution);
 
 export default router;

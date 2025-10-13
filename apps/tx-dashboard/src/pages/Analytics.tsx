@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   BarChart3,
   TrendingUp,
@@ -55,12 +55,7 @@ function processHourlyVolumeData(
   apiResponse: ApiResponse<HourlyVolumeApiItem[]>,
   _token: string
 ): HourlyVolumeData[] {
-  if (
-    apiResponse &&
-    apiResponse.success &&
-    apiResponse.data &&
-    apiResponse.data.length > 0
-  ) {
+  if (apiResponse && apiResponse.data && apiResponse.data.length > 0) {
     return apiResponse.data.map((item: HourlyVolumeApiItem) => ({
       timestamp: item.hour,
       hour: item.hour,
@@ -77,20 +72,15 @@ function processHourlyVolumeData(
 function processAnomalyTimeData(
   apiResponse: ApiResponse<AnomalyTimeApiItem[]>
 ): AnomalyTimeData[] {
-  if (
-    apiResponse &&
-    apiResponse.success &&
-    apiResponse.data &&
-    apiResponse.data.length > 0
-  ) {
+  if (apiResponse && apiResponse.data && apiResponse.data.length > 0) {
     return apiResponse.data.map((item: AnomalyTimeApiItem) => ({
-      timestamp: item.timestamp,
+      timestamp: item.timestamp || item.hour,
       hour: item.hour,
       anomalyCount: item.anomalyCount,
-      averageScore: item.averageScore,
+      averageScore: item.averageScore ?? item.averageRiskScore ?? 0,
       highRiskCount: item.highRiskCount,
-      totalTransactions: item.totalTransactions,
-      anomalyRate: item.anomalyRate,
+      totalTransactions: item.totalTransactions ?? 0,
+      anomalyRate: item.anomalyRate ?? 0,
     }));
   }
   return [];
@@ -174,10 +164,13 @@ interface MetricCardProps {
   isVolume?: boolean; // Whether this is a volume metric that needs tooltip
 }
 
-// API Response types
+// API Response types - matches backend StatisticsResponse
 interface ApiResponse<T> {
-  success: boolean;
   data: T;
+  filters?: Record<string, any>;
+  timestamp: string;
+  cached: boolean;
+  ttl?: number;
 }
 
 interface HourlyVolumeApiItem {
@@ -189,13 +182,14 @@ interface HourlyVolumeApiItem {
 }
 
 interface AnomalyTimeApiItem {
-  timestamp: string;
+  timestamp?: string;
   hour: string;
   anomalyCount: number;
-  averageScore: number;
+  averageScore?: number;
+  averageRiskScore?: number; // Backward compatibility
   highRiskCount: number;
-  totalTransactions: number;
-  anomalyRate: number;
+  totalTransactions?: number;
+  anomalyRate?: number;
 }
 
 interface TokenStatApiItem {
@@ -325,6 +319,9 @@ export function Analytics() {
   const [modalLoading, setModalLoading] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
+  // Create ref to store the latest fetchAnalyticsData function to break dependency chains
+  const fetchAnalyticsDataRef = useRef<(token?: string) => Promise<void>>();
+
   // Convert timeRange to hours
   const getHoursFromTimeRange = (range: TimeRange): number | undefined => {
     switch (range) {
@@ -453,7 +450,9 @@ export function Analytics() {
             setData(prev => ({ ...prev, realtime: tokenSpecificRealtime }));
             setLoadingStates(prev => ({ ...prev, realtime: false }));
           })
-          .catch(err => logger.error('Realtime fetch error:', err));
+          .catch(err => {
+            logger.error('Realtime fetch error:', err);
+          });
 
         // Fetch hourly volume
         fetch(
@@ -468,7 +467,9 @@ export function Analytics() {
             setData(prev => ({ ...prev, hourlyVolume: hourlyVolumeData }));
             setLoadingStates(prev => ({ ...prev, hourlyVolume: false }));
           })
-          .catch(err => logger.error('Hourly volume fetch error:', err));
+          .catch(err => {
+            logger.error('Hourly volume fetch error:', err);
+          });
 
         // Fetch token distribution
         fetch(
@@ -482,7 +483,9 @@ export function Analytics() {
             }));
             setLoadingStates(prev => ({ ...prev, tokenDistribution: false }));
           })
-          .catch(err => logger.error('Token distribution fetch error:', err));
+          .catch(err => {
+            logger.error('Token distribution fetch error:', err);
+          });
 
         // Fetch top addresses (slowest API)
         fetch(
@@ -496,7 +499,9 @@ export function Analytics() {
             }));
             setLoadingStates(prev => ({ ...prev, topAddresses: false }));
           })
-          .catch(err => logger.error('Top addresses fetch error:', err));
+          .catch(err => {
+            logger.error('Top addresses fetch error:', err);
+          });
 
         // Fetch top receivers
         fetch(
@@ -510,7 +515,9 @@ export function Analytics() {
             }));
             setLoadingStates(prev => ({ ...prev, topReceivers: false }));
           })
-          .catch(err => logger.error('Top receivers fetch error:', err));
+          .catch(err => {
+            logger.error('Top receivers fetch error:', err);
+          });
 
         // Fetch top senders
         fetch(
@@ -524,7 +531,9 @@ export function Analytics() {
             }));
             setLoadingStates(prev => ({ ...prev, topSenders: false }));
           })
-          .catch(err => logger.error('Top senders fetch error:', err));
+          .catch(err => {
+            logger.error('Top senders fetch error:', err);
+          });
 
         // Fetch anomaly stats
         fetch(
@@ -535,7 +544,9 @@ export function Analytics() {
             setData(prev => ({ ...prev, anomalyStats: anomalyStatsRes.data }));
             setLoadingStates(prev => ({ ...prev, anomalyStats: false }));
           })
-          .catch(err => logger.error('Anomaly stats fetch error:', err));
+          .catch(err => {
+            logger.error('Anomaly stats fetch error:', err);
+          });
 
         // Fetch anomaly time series
         fetch(
@@ -548,7 +559,9 @@ export function Analytics() {
             setData(prev => ({ ...prev, anomalyTimeData }));
             setLoadingStates(prev => ({ ...prev, anomalyTimeData: false }));
           })
-          .catch(err => logger.error('Anomaly time series fetch error:', err));
+          .catch(err => {
+            logger.error('Anomaly time series fetch error:', err);
+          });
 
         // Fetch network stats
         fetch(
@@ -559,7 +572,9 @@ export function Analytics() {
             setData(prev => ({ ...prev, networkStats: networkStatsRes.data }));
             setLoadingStates(prev => ({ ...prev, networkStats: false }));
           })
-          .catch(err => logger.error('Network stats fetch error:', err));
+          .catch(err => {
+            logger.error('Network stats fetch error:', err);
+          });
 
         setLastUpdated(new Date());
       } catch (err) {
@@ -571,6 +586,11 @@ export function Analytics() {
     },
     [activeTab, timeRange]
   );
+
+  // Update ref whenever fetchAnalyticsData changes
+  useEffect(() => {
+    fetchAnalyticsDataRef.current = fetchAnalyticsData;
+  }, [fetchAnalyticsData]);
 
   // WebSocket message handler for real-time updates
   const handleWebSocketMessage = useCallback(
@@ -598,11 +618,11 @@ export function Analytics() {
 
         // Only refresh if last update was more than 30 seconds ago
         if (now - lastUpdate > 30000) {
-          fetchAnalyticsData(activeTab);
+          fetchAnalyticsDataRef.current?.(activeTab);
         }
       }
     },
-    [autoRefresh, lastUpdated, activeTab, fetchAnalyticsData] // Remove timeRange as it's not used in the callback
+    [autoRefresh, lastUpdated, activeTab]
   );
 
   // WebSocket connection management
@@ -651,13 +671,13 @@ export function Analytics() {
 
   // Data fetching effect
   useEffect(() => {
-    fetchAnalyticsData(activeTab);
+    fetchAnalyticsDataRef.current?.(activeTab);
 
     // Auto-refresh interval (only when auto-refresh is enabled)
     let interval: NodeJS.Timeout | null = null;
     if (autoRefresh) {
       interval = setInterval(
-        () => fetchAnalyticsData(activeTab),
+        () => fetchAnalyticsDataRef.current?.(activeTab),
         5 * 60 * 1000
       );
     }
@@ -665,11 +685,11 @@ export function Analytics() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [autoRefresh, activeTab, timeRange, fetchAnalyticsData]);
+  }, [autoRefresh, activeTab, timeRange]);
 
   const handleRefresh = useCallback(() => {
-    fetchAnalyticsData(activeTab);
-  }, [fetchAnalyticsData, activeTab]);
+    fetchAnalyticsDataRef.current?.(activeTab);
+  }, [activeTab]);
 
   const handleTimeRangeChange = (range: TimeRange) => {
     setTimeRange(range);

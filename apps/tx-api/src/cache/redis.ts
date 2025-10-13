@@ -130,4 +130,37 @@ export class RedisConnection {
       return false;
     }
   }
+
+  public static async deleteByPattern(pattern: string): Promise<number> {
+    try {
+      const client = await RedisConnection.getInstance();
+      let cursor = 0;
+      let deletedCount = 0;
+
+      do {
+        const reply = await client.scan(cursor, {
+          MATCH: pattern,
+          COUNT: 100,
+        });
+
+        cursor = reply.cursor;
+
+        if (reply.keys.length > 0) {
+          await client.del(reply.keys);
+          deletedCount += reply.keys.length;
+        }
+      } while (cursor !== 0);
+
+      logger.info(
+        `✅ Redis purged ${deletedCount} keys matching pattern: ${pattern}`
+      );
+      return deletedCount;
+    } catch (error) {
+      logger.error(
+        `❌ Redis deleteByPattern error for pattern ${pattern}:`,
+        error
+      );
+      return 0;
+    }
+  }
 }
