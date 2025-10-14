@@ -311,7 +311,10 @@ function transactionReducer(
       const updatedStats = { ...state.stats, ...action.payload };
 
       // Convert updatedAt string to Date object if it exists
-      if (updatedStats.updatedAt && typeof updatedStats.updatedAt === 'string') {
+      if (
+        updatedStats.updatedAt &&
+        typeof updatedStats.updatedAt === 'string'
+      ) {
         updatedStats.updatedAt = new Date(updatedStats.updatedAt);
       }
 

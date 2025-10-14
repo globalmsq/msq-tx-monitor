@@ -322,8 +322,32 @@ export function Analytics() {
   // Create ref to store the latest fetchAnalyticsData function to break dependency chains
   const fetchAnalyticsDataRef = useRef<(token?: string) => Promise<void>>();
 
-  // Convert timeRange to hours
-  const getHoursFromTimeRange = (range: TimeRange): number | undefined => {
+  // Calculate appropriate limit based on time range
+  const getLimitFromTimeRange = (range: TimeRange): number => {
+    switch (range) {
+      case '1h':
+        return 60; // 1-minute intervals = 60 points
+      case '24h':
+        return 24; // Hourly = 24 points
+      case '7d':
+        return 168; // Hourly = 168 points (7 * 24)
+      case '30d':
+        return 30; // Daily = 30 points
+      case '3m':
+        return 90; // Daily = 90 points
+      case '6m':
+        return 26; // Weekly = ~26 points
+      case '1y':
+        return 52; // Weekly = 52 points
+      case 'all':
+        return 104; // Weekly = 104 points (~2 years)
+      default:
+        return 24;
+    }
+  };
+
+  // Convert TimeRange to actual hours for API timeframe parameter
+  const getHoursFromTimeRange = (range: TimeRange): number => {
     switch (range) {
       case '1h':
         return 1;
@@ -340,31 +364,7 @@ export function Analytics() {
       case '1y':
         return 8760; // 365 * 24
       case 'all':
-        return undefined; // No time filter
-      default:
-        return 24;
-    }
-  };
-
-  // Calculate appropriate limit based on time range
-  const getLimitFromTimeRange = (range: TimeRange): number => {
-    switch (range) {
-      case '1h':
-        return 12; // 5-minute intervals = 12 points
-      case '24h':
-        return 24; // Hourly = 24 points
-      case '7d':
-        return 168; // Hourly = 168 points
-      case '30d':
-        return 30; // Daily = 30 points
-      case '3m':
-        return 90; // Daily = 90 points
-      case '6m':
-        return 26; // Weekly = ~26 points
-      case '1y':
-        return 52; // Weekly = 52 points
-      case 'all':
-        return 24; // Monthly = 24 points (2 years)
+        return 43800; // 365 * 24 * 5 (~5 years)
       default:
         return 24;
     }
@@ -412,15 +412,12 @@ export function Analytics() {
         });
         setError(null);
 
-        const hours = getHoursFromTimeRange(timeRange);
         const limit = getLimitFromTimeRange(timeRange);
+        const hours = getHoursFromTimeRange(timeRange);
         const tokenParam = `&token=${token}`;
-        const hoursParam = hours !== undefined ? `&hours=${hours}` : '';
 
         // Fetch realtime stats
-        fetch(
-          `${API_BASE_URL}/analytics/realtime?${tokenParam.slice(1)}${hoursParam}`
-        )
+        fetch(`${API_BASE_URL}/analytics/realtime?${tokenParam.slice(1)}`)
           .then(res => res.json())
           .then((realtimeRes: ApiResponse<unknown>) => {
             const tokenStats = (
@@ -454,10 +451,23 @@ export function Analytics() {
             logger.error('Realtime fetch error:', err);
           });
 
-        // Fetch hourly volume
-        fetch(
-          `${API_BASE_URL}/analytics/volume/hourly?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`
-        )
+        // Smart API selection based on time range for volume data
+        let volumeEndpoint: string;
+        if (timeRange === '1h') {
+          // Use minute-level API for 1 hour (1-minute intervals)
+          volumeEndpoint = `${API_BASE_URL}/analytics/volume/minutes`;
+        } else if (timeRange === '24h' || timeRange === '7d') {
+          // Use hourly API for 24h and 7d
+          volumeEndpoint = `${API_BASE_URL}/analytics/volume/hourly`;
+        } else if (timeRange === '30d' || timeRange === '3m') {
+          // Use daily API for 30d and 3m
+          volumeEndpoint = `${API_BASE_URL}/analytics/volume/daily`;
+        } else {
+          // Use weekly API for 6m, 1y, all
+          volumeEndpoint = `${API_BASE_URL}/analytics/volume/weekly`;
+        }
+
+        fetch(`${volumeEndpoint}?limit=${limit}${tokenParam}`)
           .then(res => res.json())
           .then((hourlyVolumeRes: ApiResponse<HourlyVolumeApiItem[]>) => {
             const hourlyVolumeData = processHourlyVolumeData(
@@ -468,12 +478,12 @@ export function Analytics() {
             setLoadingStates(prev => ({ ...prev, hourlyVolume: false }));
           })
           .catch(err => {
-            logger.error('Hourly volume fetch error:', err);
+            logger.error('Volume fetch error:', err);
           });
 
         // Fetch token distribution
         fetch(
-          `${API_BASE_URL}/analytics/distribution/token?${tokenParam.slice(1)}${hoursParam}`
+          `${API_BASE_URL}/analytics/distribution/token?${tokenParam.slice(1)}`
         )
           .then(res => res.json())
           .then((tokenDistributionRes: ApiResponse<TokenDistribution[]>) => {
@@ -489,7 +499,7 @@ export function Analytics() {
 
         // Fetch top addresses (slowest API)
         fetch(
-          `${API_BASE_URL}/analytics/addresses/top?metric=volume&limit=5${tokenParam}${hoursParam}`
+          `${API_BASE_URL}/analytics/addresses/top?metric=volume&limit=5${tokenParam}&hours=${hours}`
         )
           .then(res => res.json())
           .then((topAddressesRes: ApiResponse<TopAddress[]>) => {
@@ -505,7 +515,7 @@ export function Analytics() {
 
         // Fetch top receivers
         fetch(
-          `${API_BASE_URL}/analytics/addresses/receivers?limit=5${tokenParam}${hoursParam}`
+          `${API_BASE_URL}/analytics/addresses/receivers?limit=5${tokenParam}&hours=${hours}`
         )
           .then(res => res.json())
           .then((topReceiversRes: ApiResponse<TopAddress[]>) => {
@@ -521,7 +531,7 @@ export function Analytics() {
 
         // Fetch top senders
         fetch(
-          `${API_BASE_URL}/analytics/addresses/senders?limit=5${tokenParam}${hoursParam}`
+          `${API_BASE_URL}/analytics/addresses/senders?limit=5${tokenParam}&hours=${hours}`
         )
           .then(res => res.json())
           .then((topSendersRes: ApiResponse<TopAddress[]>) => {
@@ -536,9 +546,7 @@ export function Analytics() {
           });
 
         // Fetch anomaly stats
-        fetch(
-          `${API_BASE_URL}/analytics/anomalies?${tokenParam.slice(1)}${hoursParam}`
-        )
+        fetch(`${API_BASE_URL}/analytics/anomalies?${tokenParam.slice(1)}`)
           .then(res => res.json())
           .then((anomalyStatsRes: ApiResponse<AnomalyStats>) => {
             setData(prev => ({ ...prev, anomalyStats: anomalyStatsRes.data }));
@@ -548,10 +556,23 @@ export function Analytics() {
             logger.error('Anomaly stats fetch error:', err);
           });
 
-        // Fetch anomaly time series
-        fetch(
-          `${API_BASE_URL}/analytics/anomalies/timeseries?${hours !== undefined ? `hours=${hours}&` : ''}limit=${limit}${tokenParam}`
-        )
+        // Smart API selection based on time range for anomaly timeseries
+        let anomalyEndpoint: string;
+        if (timeRange === '1h') {
+          // Use minute-level API for 1 hour (1-minute intervals)
+          anomalyEndpoint = `${API_BASE_URL}/analytics/anomalies/timeseries/minutes`;
+        } else if (timeRange === '24h' || timeRange === '7d') {
+          // Use hourly API for 24h and 7d
+          anomalyEndpoint = `${API_BASE_URL}/analytics/anomalies/timeseries/hourly`;
+        } else if (timeRange === '30d' || timeRange === '3m') {
+          // Use daily API for 30d and 3m
+          anomalyEndpoint = `${API_BASE_URL}/analytics/anomalies/timeseries/daily`;
+        } else {
+          // Use weekly API for 6m, 1y, all
+          anomalyEndpoint = `${API_BASE_URL}/analytics/anomalies/timeseries/weekly`;
+        }
+
+        fetch(`${anomalyEndpoint}?limit=${limit}${tokenParam}`)
           .then(res => res.json())
           .then((anomalyTimeSeriesRes: ApiResponse<AnomalyTimeApiItem[]>) => {
             const anomalyTimeData =
@@ -564,9 +585,7 @@ export function Analytics() {
           });
 
         // Fetch network stats
-        fetch(
-          `${API_BASE_URL}/analytics/network?${tokenParam.slice(1)}${hoursParam}`
-        )
+        fetch(`${API_BASE_URL}/analytics/network?${tokenParam.slice(1)}`)
           .then(res => res.json())
           .then((networkStatsRes: ApiResponse<unknown>) => {
             setData(prev => ({ ...prev, networkStats: networkStatsRes.data }));

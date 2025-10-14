@@ -44,26 +44,14 @@ router.get('/realtime', analyticsController.getRealtimeStats);
  *     description: Get transaction volume statistics aggregated by hour
  *     tags: [Statistics]
  *     parameters:
- *       - name: startDate
- *         in: query
- *         description: Start date (ISO string)
- *         schema:
- *           type: string
- *           format: date-time
- *       - name: endDate
- *         in: query
- *         description: End date (ISO string)
- *         schema:
- *           type: string
- *           format: date-time
- *       - name: tokenSymbol
+ *       - name: token
  *         in: query
  *         description: Filter by token symbol
  *         schema:
  *           type: string
  *       - name: limit
  *         in: query
- *         description: Maximum number of results
+ *         description: Maximum number of results (number of hours from now)
  *         schema:
  *           type: integer
  *           default: 24
@@ -84,32 +72,54 @@ router.get('/volume/hourly', analyticsController.getHourlyVolumeStats);
 
 /**
  * @swagger
- * /statistics/volume/daily:
+ * /statistics/volume/minutes:
  *   get:
- *     summary: Get daily volume statistics
- *     description: Get transaction volume statistics aggregated by day
+ *     summary: Get minute-level volume statistics
+ *     description: Get transaction volume statistics aggregated by 1-minute intervals (for 1-hour time range)
  *     tags: [Statistics]
  *     parameters:
- *       - name: startDate
- *         in: query
- *         description: Start date (ISO string)
- *         schema:
- *           type: string
- *           format: date-time
- *       - name: endDate
- *         in: query
- *         description: End date (ISO string)
- *         schema:
- *           type: string
- *           format: date-time
- *       - name: tokenSymbol
+ *       - name: token
  *         in: query
  *         description: Filter by token symbol
  *         schema:
  *           type: string
  *       - name: limit
  *         in: query
- *         description: Maximum number of results
+ *         description: Maximum number of results (number of minutes from now)
+ *         schema:
+ *           type: integer
+ *           default: 60
+ *     responses:
+ *       200:
+ *         description: Minute-level volume statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/HourlyVolumeStats'
+ */
+router.get('/volume/minutes', analyticsController.getMinuteVolumeStats);
+
+/**
+ * @swagger
+ * /statistics/volume/daily:
+ *   get:
+ *     summary: Get daily volume statistics
+ *     description: Get transaction volume statistics aggregated by day
+ *     tags: [Statistics]
+ *     parameters:
+ *       - name: token
+ *         in: query
+ *         description: Filter by token symbol
+ *         schema:
+ *           type: string
+ *       - name: limit
+ *         in: query
+ *         description: Maximum number of results (number of days from now)
  *         schema:
  *           type: integer
  *           default: 30
@@ -118,6 +128,40 @@ router.get('/volume/hourly', analyticsController.getHourlyVolumeStats);
  *         description: Daily volume statistics
  */
 router.get('/volume/daily', analyticsController.getDailyVolumeStats);
+
+/**
+ * @swagger
+ * /statistics/volume/weekly:
+ *   get:
+ *     summary: Get weekly volume statistics
+ *     description: Get transaction volume statistics aggregated by week (ISO week format)
+ *     tags: [Statistics]
+ *     parameters:
+ *       - name: token
+ *         in: query
+ *         description: Filter by token symbol
+ *         schema:
+ *           type: string
+ *       - name: limit
+ *         in: query
+ *         description: Maximum number of results (number of weeks from now)
+ *         schema:
+ *           type: integer
+ *           default: 52
+ *     responses:
+ *       200:
+ *         description: Weekly volume statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/WeeklyVolumeStats'
+ */
+router.get('/volume/weekly', analyticsController.getWeeklyVolumeStats);
 
 /**
  * @swagger
@@ -284,10 +328,10 @@ router.get('/anomalies', analyticsController.getAnomalyStats);
 
 /**
  * @swagger
- * /analytics/anomalies/timeseries:
+ * /analytics/anomalies/timeseries/minutes:
  *   get:
- *     summary: Get anomaly time series data
- *     description: Get hourly anomaly counts and risk scores over time
+ *     summary: Get minute-level anomaly time series data
+ *     description: Get anomaly counts aggregated by 1-minute intervals (for 1-hour time range)
  *     tags: [Statistics]
  *     parameters:
  *       - name: token
@@ -295,23 +339,104 @@ router.get('/anomalies', analyticsController.getAnomalyStats);
  *         description: Filter by token symbol
  *         schema:
  *           type: string
- *       - name: hours
- *         in: query
- *         description: Time period in hours
- *         schema:
- *           type: integer
- *           default: 24
  *       - name: limit
  *         in: query
- *         description: Maximum number of data points
+ *         description: Maximum number of data points (number of minutes from now)
+ *         schema:
+ *           type: integer
+ *           default: 60
+ *     responses:
+ *       200:
+ *         description: Minute-level anomaly time series data
+ */
+router.get(
+  '/anomalies/timeseries/minutes',
+  analyticsController.getAnomalyTimeSeriesMinutes
+);
+
+/**
+ * @swagger
+ * /analytics/anomalies/timeseries/hourly:
+ *   get:
+ *     summary: Get hourly anomaly time series data
+ *     description: Get hourly anomaly counts and risk scores over time (for 24h and 7d ranges)
+ *     tags: [Statistics]
+ *     parameters:
+ *       - name: token
+ *         in: query
+ *         description: Filter by token symbol
+ *         schema:
+ *           type: string
+ *       - name: limit
+ *         in: query
+ *         description: Maximum number of data points (number of hours from now)
  *         schema:
  *           type: integer
  *           default: 24
  *     responses:
  *       200:
- *         description: Anomaly time series data
+ *         description: Hourly anomaly time series data
  */
-router.get('/anomalies/timeseries', analyticsController.getAnomalyTimeSeries);
+router.get(
+  '/anomalies/timeseries/hourly',
+  analyticsController.getAnomalyTimeSeries
+);
+
+/**
+ * @swagger
+ * /analytics/anomalies/timeseries/daily:
+ *   get:
+ *     summary: Get daily anomaly time series data
+ *     description: Get daily anomaly counts and risk scores over time (for 30d+ ranges)
+ *     tags: [Statistics]
+ *     parameters:
+ *       - name: token
+ *         in: query
+ *         description: Filter by token symbol
+ *         schema:
+ *           type: string
+ *       - name: limit
+ *         in: query
+ *         description: Maximum number of data points (number of days from now)
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *     responses:
+ *       200:
+ *         description: Daily anomaly time series data
+ */
+router.get(
+  '/anomalies/timeseries/daily',
+  analyticsController.getAnomalyTimeSeriesDaily
+);
+
+/**
+ * @swagger
+ * /analytics/anomalies/timeseries/weekly:
+ *   get:
+ *     summary: Get weekly anomaly time series data
+ *     description: Get weekly anomaly counts and risk scores over time (for 6m, 1y, all ranges)
+ *     tags: [Statistics]
+ *     parameters:
+ *       - name: token
+ *         in: query
+ *         description: Filter by token symbol
+ *         schema:
+ *           type: string
+ *       - name: limit
+ *         in: query
+ *         description: Maximum number of data points (number of weeks from now)
+ *         schema:
+ *           type: integer
+ *           default: 52
+ *     responses:
+ *       200:
+ *         description: Weekly anomaly time series data
+ */
+router.get(
+  '/anomalies/timeseries/weekly',
+  analyticsController.getAnomalyTimeSeriesWeekly
+);
 
 /**
  * @swagger

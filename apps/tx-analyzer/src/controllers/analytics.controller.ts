@@ -22,7 +22,20 @@ export class AnalyticsController {
     next: NextFunction
   ) => {
     try {
-      const stats = await this.analyticsService.getRealtimeStats();
+      const hours = req.query.hours
+        ? parseInt(req.query.hours as string)
+        : undefined;
+      const filters: StatisticsFilters | undefined = hours
+        ? {
+            startDate: new Date(
+              Date.now() - hours * 60 * 60 * 1000
+            ).toISOString(),
+            endDate: new Date().toISOString(),
+            tokenSymbol: req.query.token as string,
+          }
+        : undefined;
+
+      const stats = await this.analyticsService.getRealtimeStats(filters);
 
       const response: StatisticsResponse<typeof stats> = {
         data: stats,
@@ -39,6 +52,7 @@ export class AnalyticsController {
   /**
    * GET /api/v1/statistics/volume/hourly
    * Get hourly volume statistics
+   * Time range calculated as: limit hours from now
    */
   getHourlyVolumeStats = async (
     req: Request,
@@ -46,11 +60,10 @@ export class AnalyticsController {
     next: NextFunction
   ) => {
     try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 24;
       const filters: StatisticsFilters = {
-        startDate: req.query.startDate as string,
-        endDate: req.query.endDate as string,
-        tokenSymbol: req.query.tokenSymbol as string,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 24,
+        tokenSymbol: req.query.token as string,
+        limit: limit,
       };
 
       const stats = await this.analyticsService.getHourlyVolumeStats(filters);
@@ -69,8 +82,41 @@ export class AnalyticsController {
   };
 
   /**
+   * GET /api/v1/statistics/volume/minutes
+   * Get minute-level volume statistics (1-minute intervals)
+   * Time range calculated as: limit minutes from now
+   */
+  getMinuteVolumeStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 60;
+      const filters: StatisticsFilters = {
+        tokenSymbol: req.query.token as string,
+        limit: limit,
+      };
+
+      const stats = await this.analyticsService.getMinuteVolumeStats(filters);
+
+      const response: StatisticsResponse<typeof stats> = {
+        data: stats,
+        filters,
+        timestamp: new Date(),
+        cached: false,
+      };
+
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * GET /api/v1/statistics/volume/daily
    * Get daily volume statistics
+   * Time range calculated as: limit days from now
    */
   getDailyVolumeStats = async (
     req: Request,
@@ -78,14 +124,45 @@ export class AnalyticsController {
     next: NextFunction
   ) => {
     try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 30;
       const filters: StatisticsFilters = {
-        startDate: req.query.startDate as string,
-        endDate: req.query.endDate as string,
-        tokenSymbol: req.query.tokenSymbol as string,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 30,
+        tokenSymbol: req.query.token as string,
+        limit: limit,
       };
 
       const stats = await this.analyticsService.getDailyVolumeStats(filters);
+
+      const response: StatisticsResponse<typeof stats> = {
+        data: stats,
+        filters,
+        timestamp: new Date(),
+        cached: false,
+      };
+
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/statistics/volume/weekly
+   * Get weekly volume statistics
+   * Time range calculated as: limit weeks from now
+   */
+  getWeeklyVolumeStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 52;
+      const filters: StatisticsFilters = {
+        tokenSymbol: req.query.token as string,
+        limit: limit,
+      };
+
+      const stats = await this.analyticsService.getWeeklyVolumeStats(filters);
 
       const response: StatisticsResponse<typeof stats> = {
         data: stats,
@@ -305,8 +382,42 @@ export class AnalyticsController {
   };
 
   /**
+   * GET /api/v1/analytics/anomalies/timeseries/minutes
+   * Get minute-level anomaly time series data (1-minute intervals)
+   * Time range calculated as: limit minutes from now
+   */
+  getAnomalyTimeSeriesMinutes = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 60;
+      const filters: StatisticsFilters = {
+        tokenSymbol: req.query.token as string,
+        limit: limit,
+      };
+
+      const stats =
+        await this.analyticsService.getAnomalyTimeSeriesMinutes(filters);
+
+      const response: StatisticsResponse<typeof stats> = {
+        data: stats,
+        filters,
+        timestamp: new Date(),
+        cached: false,
+      };
+
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * GET /api/v1/analytics/anomalies/timeseries
-   * Get anomaly time series data
+   * Get hourly anomaly time series data
+   * Time range calculated as: limit hours from now
    */
   getAnomalyTimeSeries = async (
     req: Request,
@@ -314,15 +425,79 @@ export class AnalyticsController {
     next: NextFunction
   ) => {
     try {
-      const hours = req.query.hours ? parseInt(req.query.hours as string) : 24;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 24;
       const filters: StatisticsFilters = {
-        startDate: new Date(Date.now() - hours * 60 * 60 * 1000).toISOString(),
-        endDate: new Date().toISOString(),
         tokenSymbol: req.query.token as string,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 24,
+        limit: limit,
       };
 
       const stats = await this.analyticsService.getAnomalyTimeSeries(filters);
+
+      const response: StatisticsResponse<typeof stats> = {
+        data: stats,
+        filters,
+        timestamp: new Date(),
+        cached: false,
+      };
+
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/analytics/anomalies/timeseries/daily
+   * Get daily anomaly time series data
+   * Time range calculated as: limit days from now
+   */
+  getAnomalyTimeSeriesDaily = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 30;
+      const filters: StatisticsFilters = {
+        tokenSymbol: req.query.token as string,
+        limit: limit,
+      };
+
+      const stats =
+        await this.analyticsService.getAnomalyTimeSeriesDaily(filters);
+
+      const response: StatisticsResponse<typeof stats> = {
+        data: stats,
+        filters,
+        timestamp: new Date(),
+        cached: false,
+      };
+
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v1/analytics/anomalies/timeseries/weekly
+   * Get weekly anomaly time series data
+   * Time range calculated as: limit weeks from now
+   */
+  getAnomalyTimeSeriesWeekly = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 52;
+      const filters: StatisticsFilters = {
+        tokenSymbol: req.query.token as string,
+        limit: limit,
+      };
+
+      const stats =
+        await this.analyticsService.getAnomalyTimeSeriesWeekly(filters);
 
       const response: StatisticsResponse<typeof stats> = {
         data: stats,

@@ -54,7 +54,7 @@ export interface HourlyVolumeStats {
 }
 
 export interface DailyVolumeStats {
-  date: string;
+  hour: string; // Standardized to 'hour' for consistency across all timeseries endpoints
   tokenSymbol: string;
   transactionCount: number;
   totalVolume: string;
@@ -64,6 +64,19 @@ export interface DailyVolumeStats {
   anomalyCount: number;
   highestTransaction: string;
   peakHour: number;
+}
+
+export interface WeeklyVolumeStats {
+  hour: string; // ISO week number format 'YYYY-WW'
+  tokenSymbol: string;
+  transactionCount: number;
+  totalVolume: string;
+  uniqueAddresses: number;
+  averageVolume: string;
+  gasUsed: string;
+  anomalyCount: number;
+  highestTransaction: string;
+  peakDay: number; // 1-7 (MySQL DAYOFWEEK: 1=Sunday, 7=Saturday)
 }
 
 // Token statistics

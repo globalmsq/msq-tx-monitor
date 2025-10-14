@@ -210,7 +210,7 @@ export function TransactionChart({
             top: 10,
             right: 30,
             left: 20,
-            bottom: 5, // Minimized to keep box height constant
+            bottom: 30, // Increased to prevent x-axis label truncation
           }}
           barCategoryGap={2}
         >
@@ -229,7 +229,7 @@ export function TransactionChart({
             interval={xAxisInterval}
             angle={-45}
             textAnchor='end'
-            height={35}
+            height={70}
           />
 
           <YAxis

@@ -6,6 +6,7 @@ import {
   RealtimeStats,
   HourlyVolumeStats,
   DailyVolumeStats,
+  WeeklyVolumeStats,
   TokenStats,
   TopAddress,
   TopAddressFilters,
@@ -19,10 +20,164 @@ import {
 
 export class AnalyticsService {
   /**
+   * Helper: Get ISO week number for a date
+   */
+  private getWeekNumber(date: Date): number {
+    const d = new Date(
+      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+    );
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+    return weekNo;
+  }
+
+  /**
+   * Helper: Fill missing time slots with zero values for volume stats
+   */
+  private fillMissingTimeSlots<T extends { hour: string }>(
+    data: T[],
+    limit: number,
+    interval: 'minute' | 'hour' | 'day' | 'week',
+    tokenSymbol?: string,
+    zeroTemplate?: Partial<T>
+  ): T[] {
+    const now = new Date();
+    const filledData: T[] = [];
+    const dataMap = new Map(data.map(d => [d.hour, d]));
+
+    // Generate all expected time slots based on limit and interval
+    for (let i = limit - 1; i >= 0; i--) {
+      let slotDate: Date;
+      let hourFormat: string;
+
+      switch (interval) {
+        case 'minute': {
+          slotDate = new Date(now.getTime() - i * 60 * 1000);
+          hourFormat =
+            slotDate.toISOString().substring(0, 16).replace('T', ' ') + ':00';
+          break;
+        }
+        case 'hour': {
+          slotDate = new Date(now.getTime() - i * 60 * 60 * 1000);
+          hourFormat =
+            slotDate.toISOString().substring(0, 13).replace('T', ' ') +
+            ':00:00';
+          break;
+        }
+        case 'day': {
+          slotDate = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          hourFormat = slotDate.toISOString().substring(0, 10);
+          break;
+        }
+        case 'week': {
+          slotDate = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+          const year = slotDate.getFullYear();
+          const week = this.getWeekNumber(slotDate);
+          hourFormat = `${year}-${String(week).padStart(2, '0')}`;
+          break;
+        }
+      }
+
+      // Find existing data for this time slot
+      const existing = dataMap.get(hourFormat);
+
+      if (existing) {
+        filledData.push(existing);
+      } else {
+        // Create zero-filled entry
+        const zeroEntry = {
+          hour: hourFormat,
+          tokenSymbol: tokenSymbol || 'ALL',
+          transactionCount: 0,
+          totalVolume: '0',
+          uniqueAddresses: 0,
+          averageVolume: '0',
+          gasUsed: '0',
+          anomalyCount: 0,
+          ...zeroTemplate,
+        } as unknown as T;
+        filledData.push(zeroEntry);
+      }
+    }
+
+    return filledData;
+  }
+
+  /**
+   * Helper: Fill missing time slots with zero values for anomaly stats
+   */
+  private fillMissingAnomalySlots(
+    data: AnomalyTrendPoint[],
+    limit: number,
+    interval: 'minute' | 'hour' | 'day' | 'week'
+  ): AnomalyTrendPoint[] {
+    const now = new Date();
+    const filledData: AnomalyTrendPoint[] = [];
+    const dataMap = new Map(data.map(d => [d.hour, d]));
+
+    // Generate all expected time slots
+    for (let i = limit - 1; i >= 0; i--) {
+      let slotDate: Date;
+      let hourFormat: string;
+
+      switch (interval) {
+        case 'minute': {
+          slotDate = new Date(now.getTime() - i * 60 * 1000);
+          hourFormat =
+            slotDate.toISOString().substring(0, 16).replace('T', ' ') + ':00';
+          break;
+        }
+        case 'hour': {
+          slotDate = new Date(now.getTime() - i * 60 * 60 * 1000);
+          hourFormat =
+            slotDate.toISOString().substring(0, 13).replace('T', ' ') +
+            ':00:00';
+          break;
+        }
+        case 'day': {
+          slotDate = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          hourFormat = slotDate.toISOString().substring(0, 10);
+          break;
+        }
+        case 'week': {
+          slotDate = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+          const year = slotDate.getFullYear();
+          const week = this.getWeekNumber(slotDate);
+          hourFormat = `${year}-${String(week).padStart(2, '0')}`;
+          break;
+        }
+      }
+
+      const existing = dataMap.get(hourFormat);
+
+      if (existing) {
+        filledData.push(existing);
+      } else {
+        filledData.push({
+          hour: hourFormat,
+          timestamp: hourFormat,
+          totalTransactions: 0,
+          anomalyCount: 0,
+          averageScore: 0,
+          averageRiskScore: 0,
+          highRiskCount: 0,
+          anomalyRate: 0,
+        });
+      }
+    }
+
+    return filledData;
+  }
+
+  /**
    * Get real-time statistics with caching
    */
-  async getRealtimeStats(): Promise<RealtimeStats> {
-    const cacheKey = CACHE_KEYS.REALTIME_STATS;
+  async getRealtimeStats(filters?: StatisticsFilters): Promise<RealtimeStats> {
+    const cacheKey = filters
+      ? `${CACHE_KEYS.REALTIME_STATS}:${filters.startDate}:${filters.endDate}:${filters.tokenSymbol || 'all'}`
+      : CACHE_KEYS.REALTIME_STATS;
 
     try {
       // Try to get from cache first
@@ -32,7 +187,7 @@ export class AnalyticsService {
       }
 
       // Calculate real-time stats
-      const stats = await this.calculateRealtimeStats();
+      const stats = await this.calculateRealtimeStats(filters);
 
       // Cache for 1 minute
       await redisService.set(cacheKey, stats, CACHE_TTL.REALTIME);
@@ -41,16 +196,27 @@ export class AnalyticsService {
     } catch (error) {
       logger.error('Error getting realtime stats:', error);
       // Fallback to direct calculation
-      return this.calculateRealtimeStats();
+      return this.calculateRealtimeStats(filters);
     }
   }
 
   /**
    * Calculate real-time statistics from database
    */
-  private async calculateRealtimeStats(): Promise<RealtimeStats> {
+  private async calculateRealtimeStats(
+    filters?: StatisticsFilters
+  ): Promise<RealtimeStats> {
     const now = new Date();
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    // Use filters if provided, otherwise default to 24h
+    const startDate = filters?.startDate
+      ? new Date(filters.startDate)
+      : new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const endDate = filters?.endDate ? new Date(filters.endDate) : now;
+
+    // Build token filter if specified
+    const tokenFilter = filters?.tokenSymbol
+      ? { tokenSymbol: filters.tokenSymbol }
+      : {};
 
     // Parallel queries for better performance
     const [
@@ -62,48 +228,86 @@ export class AnalyticsService {
       tokenStats,
       currentBlock,
     ] = await Promise.all([
-      // Total transactions
-      prisma.transaction.count(),
-
-      // Total volume (sum all tokens in wei)
-      prisma.transaction.aggregate({
-        _sum: { value: true },
-      }),
-
-      // Active addresses (unique addresses in last 24h)
-      prisma.$queryRaw<{ count: number }[]>`
-        SELECT COUNT(DISTINCT address) as count FROM (
-          SELECT fromAddress as address FROM transactions WHERE timestamp >= ${yesterday}
-          UNION
-          SELECT toAddress as address FROM transactions WHERE timestamp >= ${yesterday}
-        ) as unique_addresses
-      `,
-
-      // Transactions in last 24h
+      // Total transactions (filtered by token if specified)
       prisma.transaction.count({
-        where: { timestamp: { gte: yesterday } },
+        where: tokenFilter,
       }),
 
-      // Volume in last 24h
+      // Total volume (sum all tokens in wei, filtered by token if specified)
       prisma.transaction.aggregate({
-        where: { timestamp: { gte: yesterday } },
+        where: tokenFilter,
         _sum: { value: true },
       }),
 
-      // Token-specific stats
-      prisma.$queryRaw<any[]>`
-        SELECT
-          tokenSymbol,
-          tokenAddress,
-          COUNT(*) as transactionCount,
-          SUM(value) as totalVolume,
-          COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as uniqueAddresses,
-          AVG(value) as averageTransactionSize
-        FROM transactions
-        WHERE timestamp >= ${yesterday}
-        GROUP BY tokenSymbol, tokenAddress
-        ORDER BY totalVolume DESC
-      `,
+      // Active addresses (unique addresses in time range)
+      filters?.tokenSymbol
+        ? prisma.$queryRaw<{ count: number }[]>`
+            SELECT COUNT(DISTINCT address) as count FROM (
+              SELECT fromAddress as address FROM transactions
+              WHERE timestamp >= ${startDate} AND timestamp <= ${endDate}
+              AND tokenSymbol = ${filters.tokenSymbol}
+              UNION
+              SELECT toAddress as address FROM transactions
+              WHERE timestamp >= ${startDate} AND timestamp <= ${endDate}
+              AND tokenSymbol = ${filters.tokenSymbol}
+            ) as unique_addresses
+          `
+        : prisma.$queryRaw<{ count: number }[]>`
+            SELECT COUNT(DISTINCT address) as count FROM (
+              SELECT fromAddress as address FROM transactions
+              WHERE timestamp >= ${startDate} AND timestamp <= ${endDate}
+              UNION
+              SELECT toAddress as address FROM transactions
+              WHERE timestamp >= ${startDate} AND timestamp <= ${endDate}
+            ) as unique_addresses
+          `,
+
+      // Transactions in time range
+      prisma.transaction.count({
+        where: {
+          timestamp: { gte: startDate, lte: endDate },
+          ...tokenFilter,
+        },
+      }),
+
+      // Volume in time range
+      prisma.transaction.aggregate({
+        where: {
+          timestamp: { gte: startDate, lte: endDate },
+          ...tokenFilter,
+        },
+        _sum: { value: true },
+      }),
+
+      // Token-specific stats for time range
+      filters?.tokenSymbol
+        ? prisma.$queryRaw<any[]>`
+            SELECT
+              tokenSymbol,
+              tokenAddress,
+              COUNT(*) as transactionCount,
+              SUM(value) as totalVolume,
+              COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as uniqueAddresses,
+              AVG(value) as averageTransactionSize
+            FROM transactions
+            WHERE timestamp >= ${startDate} AND timestamp <= ${endDate}
+            AND tokenSymbol = ${filters.tokenSymbol}
+            GROUP BY tokenSymbol, tokenAddress
+            ORDER BY totalVolume DESC
+          `
+        : prisma.$queryRaw<any[]>`
+            SELECT
+              tokenSymbol,
+              tokenAddress,
+              COUNT(*) as transactionCount,
+              SUM(value) as totalVolume,
+              COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as uniqueAddresses,
+              AVG(value) as averageTransactionSize
+            FROM transactions
+            WHERE timestamp >= ${startDate} AND timestamp <= ${endDate}
+            GROUP BY tokenSymbol, tokenAddress
+            ORDER BY totalVolume DESC
+          `,
 
       // Current block number
       prisma.transaction.aggregate({
@@ -143,11 +347,20 @@ export class AnalyticsService {
   async getHourlyVolumeStats(
     filters: StatisticsFilters
   ): Promise<HourlyVolumeStats[]> {
+    const limit = filters.limit || 24;
     const startDate = filters.startDate
       ? new Date(filters.startDate)
-      : new Date(Date.now() - 24 * 60 * 60 * 1000);
+      : new Date(Date.now() - limit * 60 * 60 * 1000);
     const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
-    const limit = filters.limit || 24;
+
+    // DEBUG: Log parameters
+    logger.info('getHourlyVolumeStats parameters:', {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      limit,
+      tokenSymbol: filters.tokenSymbol,
+      timeDiff: (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60), // hours
+    });
 
     const query = `
       SELECT
@@ -163,7 +376,7 @@ export class AnalyticsService {
       WHERE timestamp >= ? AND timestamp <= ?
       ${filters.tokenSymbol ? 'AND tokenSymbol = ?' : ''}
       GROUP BY hour, tokenSymbol
-      ORDER BY hour DESC
+      ORDER BY hour ASC
       LIMIT ?
     `;
 
@@ -173,9 +386,17 @@ export class AnalyticsService {
     }
     params.push(limit);
 
+    logger.info('SQL Query:', query);
+    logger.info(
+      'SQL Params:',
+      params.map(p => (p instanceof Date ? p.toISOString() : p))
+    );
+
     const results = await prisma.$queryRawUnsafe<any[]>(query, ...params);
 
-    return results.map(result => ({
+    logger.info(`Query returned ${results.length} rows`);
+
+    const mappedResults = results.map(result => ({
       hour: result.hour,
       tokenSymbol: result.tokenSymbol,
       transactionCount: Number(result.transactionCount),
@@ -185,37 +406,45 @@ export class AnalyticsService {
       gasUsed: result.gasUsed?.toString() || '0',
       anomalyCount: Number(result.anomalyCount),
     }));
+
+    // Fill missing time slots with zero values
+    return this.fillMissingTimeSlots(
+      mappedResults,
+      limit,
+      'hour',
+      filters.tokenSymbol
+    );
   }
 
   /**
-   * Get daily volume statistics
+   * Get minute-level volume statistics (1-minute intervals)
+   * Used for 1-hour time range to provide finer granularity
    */
-  async getDailyVolumeStats(
+  async getMinuteVolumeStats(
     filters: StatisticsFilters
-  ): Promise<DailyVolumeStats[]> {
+  ): Promise<HourlyVolumeStats[]> {
+    const limit = filters.limit || 60; // Default 60 points for 1 hour (1-min intervals)
     const startDate = filters.startDate
       ? new Date(filters.startDate)
-      : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      : new Date(Date.now() - limit * 60 * 1000); // limit minutes
     const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
-    const limit = filters.limit || 30;
 
+    // Use 1-minute intervals
     const query = `
       SELECT
-        DATE_FORMAT(timestamp, '%Y-%m-%d') as date,
+        DATE_FORMAT(timestamp, '%Y-%m-%d %H:%i:00') as hour,
         tokenSymbol,
         COUNT(*) as transactionCount,
         SUM(value) as volume,
         COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as uniqueAddresses,
         AVG(value) as averageTransactionSize,
         SUM(gasUsed) as gasUsed,
-        SUM(CASE WHEN isAnomaly = true THEN 1 ELSE 0 END) as anomalyCount,
-        MAX(value) as highestTransaction,
-        HOUR(timestamp) as peakHour
+        SUM(CASE WHEN isAnomaly = true THEN 1 ELSE 0 END) as anomalyCount
       FROM transactions
       WHERE timestamp >= ? AND timestamp <= ?
       ${filters.tokenSymbol ? 'AND tokenSymbol = ?' : ''}
-      GROUP BY date, tokenSymbol
-      ORDER BY date DESC
+      GROUP BY hour, tokenSymbol
+      ORDER BY hour ASC
       LIMIT ?
     `;
 
@@ -227,8 +456,67 @@ export class AnalyticsService {
 
     const results = await prisma.$queryRawUnsafe<any[]>(query, ...params);
 
-    return results.map(result => ({
-      date: result.date,
+    const mappedResults = results.map(result => ({
+      hour: result.hour,
+      tokenSymbol: result.tokenSymbol,
+      transactionCount: Number(result.transactionCount),
+      totalVolume: result.volume?.toString() || '0',
+      uniqueAddresses: Number(result.uniqueAddresses),
+      averageVolume: result.averageTransactionSize?.toString() || '0',
+      gasUsed: result.gasUsed?.toString() || '0',
+      anomalyCount: Number(result.anomalyCount),
+    }));
+
+    // Fill missing time slots with zero values
+    return this.fillMissingTimeSlots(
+      mappedResults,
+      limit,
+      'minute',
+      filters.tokenSymbol
+    );
+  }
+
+  /**
+   * Get daily volume statistics
+   */
+  async getDailyVolumeStats(
+    filters: StatisticsFilters
+  ): Promise<DailyVolumeStats[]> {
+    const limit = filters.limit || 30;
+    const startDate = filters.startDate
+      ? new Date(filters.startDate)
+      : new Date(Date.now() - limit * 24 * 60 * 60 * 1000); // limit days
+    const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
+
+    const query = `
+      SELECT
+        DATE_FORMAT(timestamp, '%Y-%m-%d') as hour,
+        tokenSymbol,
+        COUNT(*) as transactionCount,
+        SUM(value) as volume,
+        COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as uniqueAddresses,
+        AVG(value) as averageTransactionSize,
+        SUM(gasUsed) as gasUsed,
+        SUM(CASE WHEN isAnomaly = true THEN 1 ELSE 0 END) as anomalyCount,
+        MAX(value) as highestTransaction
+      FROM transactions
+      WHERE timestamp >= ? AND timestamp <= ?
+      ${filters.tokenSymbol ? 'AND tokenSymbol = ?' : ''}
+      GROUP BY hour, tokenSymbol
+      ORDER BY hour ASC
+      LIMIT ?
+    `;
+
+    const params: any[] = [startDate, endDate];
+    if (filters.tokenSymbol) {
+      params.push(filters.tokenSymbol);
+    }
+    params.push(limit);
+
+    const results = await prisma.$queryRawUnsafe<any[]>(query, ...params);
+
+    const mappedResults = results.map(result => ({
+      hour: result.hour,
       tokenSymbol: result.tokenSymbol,
       transactionCount: Number(result.transactionCount),
       totalVolume: result.volume?.toString() || '0',
@@ -237,8 +525,117 @@ export class AnalyticsService {
       gasUsed: result.gasUsed?.toString() || '0',
       anomalyCount: Number(result.anomalyCount),
       highestTransaction: result.highestTransaction?.toString() || '0',
-      peakHour: Number(result.peakHour),
+      peakHour: 0, // Not applicable for daily aggregation
     }));
+
+    // Fill missing time slots with zero values
+    return this.fillMissingTimeSlots(
+      mappedResults,
+      limit,
+      'day',
+      filters.tokenSymbol,
+      {
+        highestTransaction: '0',
+        peakHour: 0,
+      }
+    );
+  }
+
+  /**
+   * Get weekly volume statistics
+   */
+  async getWeeklyVolumeStats(
+    filters: StatisticsFilters
+  ): Promise<WeeklyVolumeStats[]> {
+    const limit = filters.limit || 52;
+    const startDate = filters.startDate
+      ? new Date(filters.startDate)
+      : new Date(Date.now() - limit * 7 * 24 * 60 * 60 * 1000); // limit weeks
+    const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
+
+    // Subquery to find peak day per week
+    const query = `
+      WITH weekly_data AS (
+        SELECT
+          DATE_FORMAT(timestamp, '%X-%V') as week,
+          tokenSymbol,
+          COUNT(*) as transactionCount,
+          SUM(value) as volume,
+          COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as uniqueAddresses,
+          AVG(value) as averageTransactionSize,
+          SUM(gasUsed) as gasUsed,
+          SUM(CASE WHEN isAnomaly = true THEN 1 ELSE 0 END) as anomalyCount,
+          MAX(value) as highestTransaction
+        FROM transactions
+        WHERE timestamp >= ? AND timestamp <= ?
+        ${filters.tokenSymbol ? 'AND tokenSymbol = ?' : ''}
+        GROUP BY week, tokenSymbol
+      ),
+      peak_days AS (
+        SELECT
+          DATE_FORMAT(timestamp, '%X-%V') as week,
+          tokenSymbol,
+          DAYOFWEEK(timestamp) as dayOfWeek,
+          COUNT(*) as dayTransactionCount,
+          ROW_NUMBER() OVER (PARTITION BY DATE_FORMAT(timestamp, '%X-%V'), tokenSymbol ORDER BY COUNT(*) DESC) as rn
+        FROM transactions
+        WHERE timestamp >= ? AND timestamp <= ?
+        ${filters.tokenSymbol ? 'AND tokenSymbol = ?' : ''}
+        GROUP BY week, tokenSymbol, DAYOFWEEK(timestamp)
+      )
+      SELECT
+        wd.week as hour,
+        wd.tokenSymbol,
+        wd.transactionCount,
+        wd.volume,
+        wd.uniqueAddresses,
+        wd.averageTransactionSize,
+        wd.gasUsed,
+        wd.anomalyCount,
+        wd.highestTransaction,
+        COALESCE(pd.dayOfWeek, 1) as peakDay
+      FROM weekly_data wd
+      LEFT JOIN peak_days pd ON wd.week = pd.week AND wd.tokenSymbol = pd.tokenSymbol AND pd.rn = 1
+      ORDER BY wd.week ASC
+      LIMIT ?
+    `;
+
+    const params: any[] = [startDate, endDate];
+    if (filters.tokenSymbol) {
+      params.push(filters.tokenSymbol);
+    }
+    params.push(startDate, endDate);
+    if (filters.tokenSymbol) {
+      params.push(filters.tokenSymbol);
+    }
+    params.push(limit);
+
+    const results = await prisma.$queryRawUnsafe<any[]>(query, ...params);
+
+    const mappedResults = results.map(result => ({
+      hour: result.hour,
+      tokenSymbol: result.tokenSymbol,
+      transactionCount: Number(result.transactionCount),
+      totalVolume: result.volume?.toString() || '0',
+      uniqueAddresses: Number(result.uniqueAddresses),
+      averageVolume: result.averageTransactionSize?.toString() || '0',
+      gasUsed: result.gasUsed?.toString() || '0',
+      anomalyCount: Number(result.anomalyCount),
+      highestTransaction: result.highestTransaction?.toString() || '0',
+      peakDay: Number(result.peakDay),
+    }));
+
+    // Fill missing time slots with zero values
+    return this.fillMissingTimeSlots(
+      mappedResults,
+      limit,
+      'week',
+      filters.tokenSymbol,
+      {
+        highestTransaction: '0',
+        peakDay: 1,
+      }
+    );
   }
 
   /**
@@ -813,16 +1210,73 @@ export class AnalyticsService {
   }
 
   /**
-   * Get anomaly time series data
+   * Get anomaly time series data (minute-level, 1-minute intervals)
+   * Used for 1-hour time range
+   */
+  async getAnomalyTimeSeriesMinutes(
+    filters: StatisticsFilters
+  ): Promise<AnomalyTrendPoint[]> {
+    const limit = filters.limit || 60;
+    const startDate = filters.startDate
+      ? new Date(filters.startDate)
+      : new Date(Date.now() - limit * 60 * 1000); // limit minutes
+    const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
+
+    let query = `
+      SELECT
+        DATE_FORMAT(timestamp, '%Y-%m-%d %H:%i:00') as hour,
+        DATE_FORMAT(timestamp, '%Y-%m-%d %H:%i:00') as timestamp,
+        COUNT(*) as totalTransactions,
+        COUNT(CASE WHEN isAnomaly = true THEN 1 END) as anomalyCount,
+        AVG(anomalyScore) as averageScore,
+        COUNT(CASE WHEN anomalyScore > 0.7 THEN 1 END) as highRiskCount,
+        ROUND((COUNT(CASE WHEN isAnomaly = true THEN 1 END) / COUNT(*) * 100), 2) as anomalyRate
+      FROM transactions
+      WHERE timestamp >= ? AND timestamp <= ?
+    `;
+    const params: any[] = [startDate, endDate];
+
+    if (filters.tokenSymbol) {
+      query += ` AND tokenSymbol = ?`;
+      params.push(filters.tokenSymbol);
+    }
+
+    query += `
+      GROUP BY hour
+      ORDER BY hour ASC
+      LIMIT ?
+    `;
+    params.push(limit);
+
+    const results = await prisma.$queryRawUnsafe<any[]>(query, ...params);
+
+    const mappedResults = results.map(trend => ({
+      hour: trend.hour,
+      timestamp: trend.timestamp,
+      totalTransactions: Number(trend.totalTransactions),
+      anomalyCount: Number(trend.anomalyCount),
+      averageScore: Number(trend.averageScore),
+      averageRiskScore: Number(trend.averageScore), // Keep for backward compatibility
+      highRiskCount: Number(trend.highRiskCount),
+      anomalyRate: Number(trend.anomalyRate),
+    }));
+
+    // Fill missing time slots with zero values
+    return this.fillMissingAnomalySlots(mappedResults, limit, 'minute');
+  }
+
+  /**
+   * Get anomaly time series data (hourly)
+   * Used for 24h and 7d time ranges
    */
   async getAnomalyTimeSeries(
     filters: StatisticsFilters
   ): Promise<AnomalyTrendPoint[]> {
+    const limit = filters.limit || 24;
     const startDate = filters.startDate
       ? new Date(filters.startDate)
-      : new Date(Date.now() - 24 * 60 * 60 * 1000);
+      : new Date(Date.now() - limit * 60 * 60 * 1000); // limit hours
     const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
-    const limit = filters.limit || 24;
 
     let query = `
       SELECT
@@ -845,14 +1299,14 @@ export class AnalyticsService {
 
     query += `
       GROUP BY hour
-      ORDER BY hour DESC
+      ORDER BY hour ASC
       LIMIT ?
     `;
     params.push(limit);
 
     const results = await prisma.$queryRawUnsafe<any[]>(query, ...params);
 
-    return results.map(trend => ({
+    const mappedResults = results.map(trend => ({
       hour: trend.hour,
       timestamp: trend.timestamp,
       totalTransactions: Number(trend.totalTransactions),
@@ -862,5 +1316,120 @@ export class AnalyticsService {
       highRiskCount: Number(trend.highRiskCount),
       anomalyRate: Number(trend.anomalyRate),
     }));
+
+    // Fill missing time slots with zero values
+    return this.fillMissingAnomalySlots(mappedResults, limit, 'hour');
+  }
+
+  /**
+   * Get anomaly time series data (daily)
+   * Used for 30d+ time ranges
+   */
+  async getAnomalyTimeSeriesDaily(
+    filters: StatisticsFilters
+  ): Promise<AnomalyTrendPoint[]> {
+    const limit = filters.limit || 30;
+    const startDate = filters.startDate
+      ? new Date(filters.startDate)
+      : new Date(Date.now() - limit * 24 * 60 * 60 * 1000); // limit days
+    const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
+
+    let query = `
+      SELECT
+        DATE_FORMAT(timestamp, '%Y-%m-%d') as hour,
+        DATE_FORMAT(timestamp, '%Y-%m-%d') as timestamp,
+        COUNT(*) as totalTransactions,
+        COUNT(CASE WHEN isAnomaly = true THEN 1 END) as anomalyCount,
+        AVG(anomalyScore) as averageScore,
+        COUNT(CASE WHEN anomalyScore > 0.7 THEN 1 END) as highRiskCount,
+        ROUND((COUNT(CASE WHEN isAnomaly = true THEN 1 END) / COUNT(*) * 100), 2) as anomalyRate
+      FROM transactions
+      WHERE timestamp >= ? AND timestamp <= ?
+    `;
+    const params: any[] = [startDate, endDate];
+
+    if (filters.tokenSymbol) {
+      query += ` AND tokenSymbol = ?`;
+      params.push(filters.tokenSymbol);
+    }
+
+    query += `
+      GROUP BY hour
+      ORDER BY hour ASC
+      LIMIT ?
+    `;
+    params.push(limit);
+
+    const results = await prisma.$queryRawUnsafe<any[]>(query, ...params);
+
+    const mappedResults = results.map(trend => ({
+      hour: trend.hour,
+      timestamp: trend.timestamp,
+      totalTransactions: Number(trend.totalTransactions),
+      anomalyCount: Number(trend.anomalyCount),
+      averageScore: Number(trend.averageScore),
+      averageRiskScore: Number(trend.averageScore), // Keep for backward compatibility
+      highRiskCount: Number(trend.highRiskCount),
+      anomalyRate: Number(trend.anomalyRate),
+    }));
+
+    // Fill missing time slots with zero values
+    return this.fillMissingAnomalySlots(mappedResults, limit, 'day');
+  }
+
+  /**
+   * Get anomaly time series data (weekly)
+   * Used for 6m, 1y, all time ranges
+   */
+  async getAnomalyTimeSeriesWeekly(
+    filters: StatisticsFilters
+  ): Promise<AnomalyTrendPoint[]> {
+    const limit = filters.limit || 52;
+    const startDate = filters.startDate
+      ? new Date(filters.startDate)
+      : new Date(Date.now() - limit * 7 * 24 * 60 * 60 * 1000); // limit weeks
+    const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
+
+    let query = `
+      SELECT
+        DATE_FORMAT(timestamp, '%Y-%u') as hour,
+        DATE_FORMAT(timestamp, '%Y-%u') as timestamp,
+        COUNT(*) as totalTransactions,
+        COUNT(CASE WHEN isAnomaly = true THEN 1 END) as anomalyCount,
+        AVG(anomalyScore) as averageScore,
+        COUNT(CASE WHEN anomalyScore > 0.7 THEN 1 END) as highRiskCount,
+        ROUND((COUNT(CASE WHEN isAnomaly = true THEN 1 END) / COUNT(*) * 100), 2) as anomalyRate
+      FROM transactions
+      WHERE timestamp >= ? AND timestamp <= ?
+    `;
+    const params: any[] = [startDate, endDate];
+
+    if (filters.tokenSymbol) {
+      query += ` AND tokenSymbol = ?`;
+      params.push(filters.tokenSymbol);
+    }
+
+    query += `
+      GROUP BY hour
+      ORDER BY hour ASC
+      LIMIT ?
+    `;
+    params.push(limit);
+
+    const results = await prisma.$queryRawUnsafe<any[]>(query, ...params);
+
+    const mappedResults = results.map(trend => ({
+      hour: trend.hour,
+      timestamp: trend.timestamp,
+      totalTransactions: Number(trend.totalTransactions),
+      anomalyCount: Number(trend.anomalyCount),
+      averageScore: Number(trend.averageScore),
+      averageRiskScore: Number(trend.averageScore), // Keep for backward compatibility
+      highRiskCount: Number(trend.highRiskCount),
+      anomalyRate: Number(trend.anomalyRate),
+    }));
+
+    // Fill missing time slots with zero values
+    return this.fillMissingAnomalySlots(mappedResults, limit, 'week');
   }
 }
