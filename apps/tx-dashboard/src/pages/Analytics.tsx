@@ -417,7 +417,7 @@ export function Analytics() {
         const tokenParam = `&token=${token}`;
 
         // Fetch realtime stats
-        fetch(`${API_BASE_URL}/analytics/realtime?${tokenParam.slice(1)}`)
+        fetch(`${API_BASE_URL}/analytics/realtime?${tokenParam.slice(1)}&hours=${hours}`)
           .then(res => res.json())
           .then((realtimeRes: ApiResponse<unknown>) => {
             const tokenStats = (

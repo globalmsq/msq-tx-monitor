@@ -15,8 +15,12 @@
 11. [done] Address Detail에서 Trend 구현
 12. [done] depcheck 문제
 13. [done] 실제 DB에 저장된 tx와 dashboard와 다른 이유
-14. API Cache 문제
+14. API Cache 문제, Cache Flag
 15. [done] Transaction 주소 검색후 More Transaction 문제
 16. [done] Analytics에 Time Range 변경
 17. [done] Analytics Volume, Transaction 이 Time Range에 달라도 똑같음
 18. [done] 토큰 배포 블록넘버 이후부터만 스캔하도록 최적화
+19. Address 페이지에 Top Whales, Active Traders, Suspicious 구현.
+20. tx-analyzer의 역할 구성
+21. Anomaly Detection
+22. Risk Assessment
