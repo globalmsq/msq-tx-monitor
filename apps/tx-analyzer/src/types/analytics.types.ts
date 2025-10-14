@@ -130,7 +130,7 @@ export interface TopAddressFilters {
   metric: 'volume' | 'transactions' | 'unique_interactions';
   tokenSymbol?: string;
   limit: number;
-  timeframe: '24h' | '7d' | '30d' | 'all';
+  timeframe: '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
 }
 
 export interface TopAddress {

@@ -726,14 +726,8 @@ export function Analytics() {
     async (address: string) => {
       setModalLoading(true);
       try {
-        // Convert local timeRange to UtilTimeRange
-        const utilTimeRange: UtilTimeRange =
-          timeRange === '1h' ||
-          timeRange === '24h' ||
-          timeRange === '7d' ||
-          timeRange === '30d'
-            ? timeRange
-            : '24h'; // Default to 24h for longer ranges
+        // Use timeRange directly - all time ranges are now supported
+        const utilTimeRange: UtilTimeRange = timeRange;
 
         const detailedData = await fetchAddressDetailsUtil(
           address,
@@ -757,14 +751,8 @@ export function Analytics() {
         return { transactions: [], pagination: {} };
       }
 
-      // Convert local timeRange to UtilTimeRange
-      const utilTimeRange: UtilTimeRange =
-        timeRange === '1h' ||
-        timeRange === '24h' ||
-        timeRange === '7d' ||
-        timeRange === '30d'
-          ? timeRange
-          : '24h';
+      // Use timeRange directly - all time ranges are now supported
+      const utilTimeRange: UtilTimeRange = timeRange;
 
       return fetchTransactionsPageUtil(
         modalData.identifier,

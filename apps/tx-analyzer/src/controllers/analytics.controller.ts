@@ -219,7 +219,7 @@ export class AnalyticsController {
         limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
         timeframe: (req.query.hours
           ? this.hoursToTimeframe(parseInt(req.query.hours as string))
-          : '24h') as '24h' | '7d' | '30d' | 'all',
+          : '24h') as '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all',
       };
 
       const stats = await this.analyticsService.getTopAddresses(filters);
@@ -333,7 +333,7 @@ export class AnalyticsController {
         limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
         timeframe: (req.query.hours
           ? this.hoursToTimeframe(parseInt(req.query.hours as string))
-          : '24h') as '24h' | '7d' | '30d' | 'all',
+          : '24h') as '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all',
       };
 
       const stats = await this.analyticsService.getTopReceivers(filters);
@@ -363,7 +363,7 @@ export class AnalyticsController {
         limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
         timeframe: (req.query.hours
           ? this.hoursToTimeframe(parseInt(req.query.hours as string))
-          : '24h') as '24h' | '7d' | '30d' | 'all',
+          : '24h') as '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all',
       };
 
       const stats = await this.analyticsService.getTopSenders(filters);
@@ -517,8 +517,11 @@ export class AnalyticsController {
    */
   private hoursToTimeframe(hours: number): string {
     if (hours <= 24) return '24h';
-    if (hours <= 168) return '7d';
-    if (hours <= 720) return '30d';
+    if (hours <= 168) return '7d'; // 7 days
+    if (hours <= 720) return '30d'; // 30 days
+    if (hours <= 2160) return '3m'; // 90 days (3 months)
+    if (hours <= 4320) return '6m'; // 180 days (6 months)
+    if (hours <= 8760) return '1y'; // 365 days (1 year)
     return 'all';
   }
 }

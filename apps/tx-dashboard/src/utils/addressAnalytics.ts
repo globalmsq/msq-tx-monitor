@@ -2,7 +2,7 @@ import { DetailedData } from '../components/DetailedAnalysisModal';
 import { logger } from '@msq-tx-monitor/msq-common';
 import { API_BASE_URL } from '../config/api';
 
-export type TimeRange = '1h' | '24h' | '7d' | '30d' | 'custom';
+export type TimeRange = '1h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
 
 interface StatsResponse {
   data?: {
@@ -61,10 +61,38 @@ export const getHoursFromTimeRange = (range: TimeRange): number => {
       return 168; // 7 * 24
     case '30d':
       return 720; // 30 * 24
-    case 'custom':
-      return 24; // Default fallback
+    case '3m':
+      return 2160; // 90 * 24
+    case '6m':
+      return 4320; // 180 * 24
+    case '1y':
+      return 8760; // 365 * 24
+    case 'all':
+      return 43800; // 365 * 24 * 5 (~5 years)
     default:
       return 24;
+  }
+};
+
+export const getIntervalFromTimeRange = (
+  range: TimeRange
+): 'minutes' | 'hourly' | 'daily' | 'weekly' => {
+  switch (range) {
+    case '1h':
+      return 'minutes'; // 60 data points (1-minute intervals)
+    case '24h':
+    case '7d':
+      return 'hourly'; // 24-168 data points
+    case '30d':
+    case '3m':
+      return 'daily'; // 30-90 data points
+    case '6m':
+    case '1y':
+      return 'weekly'; // ~26-52 data points
+    case 'all':
+      return 'daily'; // Backend will auto-switch to monthly
+    default:
+      return 'hourly';
   }
 };
 
@@ -97,9 +125,10 @@ export const fetchAddressDetails = async (
   }
 
   try {
-    // Fetch trends data
+    // Fetch trends data with dynamic interval based on time range
+    const interval = getIntervalFromTimeRange(timeRangeParam);
     const trendsResponse = await fetch(
-      `${API_BASE_URL}/addresses/${address}/trends?token=${token}&hours=${hours}&interval=daily`
+      `${API_BASE_URL}/addresses/${address}/trends?token=${token}&hours=${hours}&interval=${interval}`
     );
     if (trendsResponse.ok) {
       const trends = await trendsResponse.json();

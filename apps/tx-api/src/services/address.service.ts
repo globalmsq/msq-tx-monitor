@@ -610,22 +610,6 @@ export class AddressService {
     }
 
     // Fallback: calculate statistics from transaction table directly
-    // Get token address from symbol if provided (consistent with Analytics API)
-    let tokenAddress: string | undefined;
-    if (tokenSymbol) {
-      const token = await prisma.token.findFirst({
-        where: { symbol: tokenSymbol },
-        select: { address: true },
-      });
-      tokenAddress = token?.address;
-      if (!tokenAddress) {
-        apiLogger.warn(
-          `Token not found for symbol: ${tokenSymbol} in getAddressStatistics`
-        );
-        return null;
-      }
-    }
-
     // Build time filter if hours is provided
     const cutoffDate = hours
       ? new Date(Date.now() - hours * 60 * 60 * 1000)
@@ -644,7 +628,7 @@ export class AddressService {
         FROM transactions
         WHERE (fromAddress = '${address}' OR toAddress = '${address}')
           AND timestamp >= '${cutoffDate.toISOString()}'
-          ${tokenAddress ? `AND tokenAddress = '${tokenAddress}'` : ''}
+          ${tokenSymbol ? `AND tokenSymbol = '${tokenSymbol}'` : ''}
       `
       : `
         SELECT
@@ -657,7 +641,7 @@ export class AddressService {
           MAX(timestamp) as last_transaction_date
         FROM transactions
         WHERE (fromAddress = '${address}' OR toAddress = '${address}')
-          ${tokenAddress ? `AND tokenAddress = '${tokenAddress}'` : ''}
+          ${tokenSymbol ? `AND tokenSymbol = '${tokenSymbol}'` : ''}
       `;
 
     const stats =
@@ -689,7 +673,7 @@ export class AddressService {
         FROM transactions
         WHERE (fromAddress = '${address}' OR toAddress = '${address}')
           AND timestamp >= '${cutoffDate.toISOString()}'
-          ${tokenAddress ? `AND tokenAddress = '${tokenAddress}'` : ''}
+          ${tokenSymbol ? `AND tokenSymbol = '${tokenSymbol}'` : ''}
         GROUP BY tokenSymbol
       `
       : `
@@ -701,7 +685,7 @@ export class AddressService {
           SUM(CASE WHEN toAddress = '${address}' THEN 1 ELSE 0 END) as received_count
         FROM transactions
         WHERE (fromAddress = '${address}' OR toAddress = '${address}')
-          ${tokenAddress ? `AND tokenAddress = '${tokenAddress}'` : ''}
+          ${tokenSymbol ? `AND tokenSymbol = '${tokenSymbol}'` : ''}
         GROUP BY tokenSymbol
       `;
 
@@ -1513,7 +1497,7 @@ export class AddressService {
     address: string,
     hours?: number,
     tokenSymbol?: string,
-    interval: 'hourly' | 'daily' = 'hourly'
+    interval: 'minutes' | 'hourly' | 'daily' | 'weekly' = 'hourly'
   ): Promise<{
     trends: Array<{
       timestamp: string;
@@ -1554,10 +1538,21 @@ export class AddressService {
     if (!hours) {
       // All Time uses monthly aggregation
       dateFormat = '%Y-%m';
+    } else if (interval === 'minutes') {
+      // 1h range: 1-minute intervals
+      dateFormat = '%Y-%m-%d %H:%i:00';
     } else if (interval === 'hourly') {
+      // 24h-7d range: hourly intervals
       dateFormat = '%Y-%m-%d %H:00:00';
+    } else if (interval === 'daily') {
+      // 30d-3m range: daily intervals
+      dateFormat = '%Y-%m-%d';
+    } else if (interval === 'weekly') {
+      // 6m-1y range: weekly intervals (ISO week format)
+      dateFormat = '%Y-%u';
     } else {
-      dateFormat = '%Y-%m-%d 00:00:00';
+      // Fallback to daily
+      dateFormat = '%Y-%m-%d';
     }
 
     // Build the DATE_FORMAT expression

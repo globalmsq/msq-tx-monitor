@@ -717,6 +717,15 @@ export class AnalyticsService {
         case '30d':
           startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
           break;
+        case '3m':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); // 3 months
+          break;
+        case '6m':
+          startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000); // 6 months
+          break;
+        case '1y':
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // 1 year
+          break;
         default:
           startDate = new Date(0); // 'all' time
       }
@@ -1036,6 +1045,15 @@ export class AnalyticsService {
         case '30d':
           startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
           break;
+        case '3m':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); // 3 months
+          break;
+        case '6m':
+          startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000); // 6 months
+          break;
+        case '1y':
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // 1 year
+          break;
         default:
           startDate = new Date(0); // 'all' time
       }
@@ -1137,6 +1155,15 @@ export class AnalyticsService {
           break;
         case '30d':
           startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case '3m':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); // 3 months
+          break;
+        case '6m':
+          startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000); // 6 months
+          break;
+        case '1y':
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // 1 year
           break;
         default:
           startDate = new Date(0); // 'all' time

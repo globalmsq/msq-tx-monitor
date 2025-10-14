@@ -1009,7 +1009,7 @@ export class AddressController {
   ): Promise<void> => {
     try {
       const { address } = req.params;
-      const { hours, tokenSymbol, interval } = req.query;
+      const { hours, token, interval } = req.query;
 
       // Validate address format
       if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
@@ -1040,10 +1040,10 @@ export class AddressController {
         return;
       }
 
-      // Validate tokenSymbol if provided
+      // Validate token if provided
       if (
-        tokenSymbol &&
-        !['MSQ', 'SUT', 'KWT', 'P2UC'].includes(tokenSymbol as string)
+        token &&
+        !['MSQ', 'SUT', 'KWT', 'P2UC'].includes(token as string)
       ) {
         res.status(400).json({
           error: {
@@ -1057,13 +1057,13 @@ export class AddressController {
       }
 
       // Validate interval if provided
-      const intervalParam = (interval as 'hourly' | 'daily') || 'hourly';
-      if (!['hourly', 'daily'].includes(intervalParam)) {
+      const intervalParam = (interval as 'minutes' | 'hourly' | 'daily' | 'weekly') || 'hourly';
+      if (!['minutes', 'hourly', 'daily', 'weekly'].includes(intervalParam)) {
         res.status(400).json({
           error: {
             code: 400,
             message: 'Invalid interval parameter',
-            details: 'Interval must be either hourly or daily',
+            details: 'Interval must be one of: minutes, hourly, daily, weekly',
             timestamp: new Date().toISOString(),
           },
         });
@@ -1073,7 +1073,7 @@ export class AddressController {
       const trends = await this.addressService.getAddressTrends(
         address,
         hoursParam,
-        tokenSymbol as string,
+        token as string,
         intervalParam
       );
 
