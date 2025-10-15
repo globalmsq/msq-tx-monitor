@@ -27,8 +27,6 @@ services:
         condition: service_healthy
       chain-scanner:
         condition: service_healthy
-      tx-analyzer:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "nginx", "-t"]
       interval: 30s
@@ -171,34 +169,29 @@ services:
       timeout: 10s
       retries: 5
 
-  tx-analyzer:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.packages
-      target: tx-analyzer
-    container_name: msq-tx-monitor-analyzer
-    restart: unless-stopped
-    # No external port exposure - accessed through Nginx
-    expose:
-      - "8002"
-    environment:
-      - PORT=8002
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=msq-tx-monitor
-      - MYSQL_USERNAME=root
-      - MYSQL_PASSWORD=pass
-      - REDIS_ENABLED=true
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    networks:
-      - msq-tx-monitor-network
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
-      timeout: 10s
-      retries: 5
+  # tx-analyzer:
+  #   # NOTE: HTTP server functionality has been migrated to tx-api
+  #   # This service will be reconfigured as a background worker in a future update
+  #   build:
+  #     context: ..
+  #     dockerfile: docker/Dockerfile.packages
+  #     target: tx-analyzer
+  #   container_name: msq-tx-monitor-analyzer
+  #   restart: unless-stopped
+  #   environment:
+  #     - PORT=8002
+  #     - MYSQL_HOST=mysql
+  #     - MYSQL_PORT=3306
+  #     - MYSQL_DATABASE=msq-tx-monitor
+  #     - MYSQL_USERNAME=root
+  #     - MYSQL_PASSWORD=pass
+  #     - REDIS_ENABLED=true
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #   networks:
+  #     - msq-tx-monitor-network
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy

@@ -340,14 +340,14 @@ export function Analytics() {
       case '1y':
         return 52; // Weekly = 52 points
       case 'all':
-        return 104; // Weekly = 104 points (~2 years)
+        return 156; // Weekly = 156 points (3 years)
       default:
         return 24;
     }
   };
 
   // Convert TimeRange to actual hours for API timeframe parameter
-  const getHoursFromTimeRange = (range: TimeRange): number => {
+  const getHoursFromTimeRange = (range: TimeRange): number | undefined => {
     switch (range) {
       case '1h':
         return 1;
@@ -364,7 +364,7 @@ export function Analytics() {
       case '1y':
         return 8760; // 365 * 24
       case 'all':
-        return 43800; // 365 * 24 * 5 (~5 years)
+        return undefined; // No time filter - backend will use 2-year default
       default:
         return 24;
     }
@@ -414,10 +414,11 @@ export function Analytics() {
 
         const limit = getLimitFromTimeRange(timeRange);
         const hours = getHoursFromTimeRange(timeRange);
+        const hoursParam = hours !== undefined ? `&hours=${hours}` : '';
         const tokenParam = `&token=${token}`;
 
         // Fetch realtime stats
-        fetch(`${API_BASE_URL}/analytics/realtime?${tokenParam.slice(1)}&hours=${hours}`)
+        fetch(`${API_BASE_URL}/analytics/realtime?${tokenParam.slice(1)}${hoursParam}`)
           .then(res => res.json())
           .then((realtimeRes: ApiResponse<unknown>) => {
             const tokenStats = (
@@ -499,7 +500,7 @@ export function Analytics() {
 
         // Fetch top addresses (slowest API)
         fetch(
-          `${API_BASE_URL}/analytics/addresses/top?metric=volume&limit=5${tokenParam}&hours=${hours}`
+          `${API_BASE_URL}/analytics/addresses/top?metric=volume&limit=5${tokenParam}${hoursParam}`
         )
           .then(res => res.json())
           .then((topAddressesRes: ApiResponse<TopAddress[]>) => {
@@ -515,7 +516,7 @@ export function Analytics() {
 
         // Fetch top receivers
         fetch(
-          `${API_BASE_URL}/analytics/addresses/receivers?limit=5${tokenParam}&hours=${hours}`
+          `${API_BASE_URL}/analytics/addresses/receivers?limit=5${tokenParam}${hoursParam}`
         )
           .then(res => res.json())
           .then((topReceiversRes: ApiResponse<TopAddress[]>) => {
@@ -531,7 +532,7 @@ export function Analytics() {
 
         // Fetch top senders
         fetch(
-          `${API_BASE_URL}/analytics/addresses/senders?limit=5${tokenParam}&hours=${hours}`
+          `${API_BASE_URL}/analytics/addresses/senders?limit=5${tokenParam}${hoursParam}`
         )
           .then(res => res.json())
           .then((topSendersRes: ApiResponse<TopAddress[]>) => {
@@ -1082,7 +1083,7 @@ export function Analytics() {
                             ? '6 Months'
                             : range === '1y'
                               ? '1 Year'
-                              : 'All Time'}
+                              : 'All'}
               </button>
             ))}
           </div>
