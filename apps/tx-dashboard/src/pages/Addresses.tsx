@@ -59,7 +59,7 @@ export function Addresses() {
   // Copy state
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
-  const tokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
+  const tokens = ['MSQ', 'KWT', 'SUT', 'P2UC'];
   const limit = 10; // Top 10 per category
 
   // Convert timeRange to hours for API calls
