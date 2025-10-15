@@ -73,12 +73,12 @@ export class AnalyticsController {
     try {
       const hours = req.query.hours
         ? parseInt(req.query.hours as string)
-        : undefined;
+        : 24; // Default to 24 hours for hourly intervals
       const tokenSymbol = req.query.token as string;
       const limit = parseInt(req.query.limit as string) || 24;
 
-      // Validate hours parameter (only if provided)
-      if (hours !== undefined && (hours < 1 || hours > 10000)) {
+      // Validate hours parameter
+      if (hours < 1 || hours > 10000) {
         res.status(400).json({
           success: false,
           error: {
@@ -120,15 +120,10 @@ export class AnalyticsController {
         limit
       );
 
-      res.status(200).json({
-        success: true,
+      res.json({
         data,
-        metadata: {
-          hours,
-          tokenSymbol: tokenSymbol?.toUpperCase(),
-          limit,
-          count: data.length,
-        },
+        timestamp: new Date(),
+        cached: false,
       });
     } catch (error) {
       next(error);
@@ -200,9 +195,10 @@ export class AnalyticsController {
         hours
       );
 
-      res.status(200).json({
-        success: true,
+      res.json({
         data,
+        timestamp: new Date(),
+        cached: false,
       });
     } catch (error) {
       next(error);
@@ -275,9 +271,10 @@ export class AnalyticsController {
         hours
       );
 
-      res.status(200).json({
-        success: true,
+      res.json({
         data,
+        timestamp: new Date(),
+        cached: false,
       });
     } catch (error) {
       next(error);
@@ -386,15 +383,10 @@ export class AnalyticsController {
         hours
       );
 
-      res.status(200).json({
-        success: true,
+      res.json({
         data,
-        metadata: {
-          metric,
-          limit,
-          tokenSymbol: tokenSymbol?.toUpperCase(),
-          count: data.length,
-        },
+        timestamp: new Date(),
+        cached: false,
       });
     } catch (error) {
       next(error);
@@ -488,15 +480,10 @@ export class AnalyticsController {
         tokenSymbol?.toUpperCase()
       );
 
-      res.status(200).json({
-        success: true,
+      res.json({
         data,
-        metadata: {
-          metric: 'transaction_count',
-          limit,
-          tokenSymbol: tokenSymbol?.toUpperCase(),
-          count: data.length,
-        },
+        timestamp: new Date(),
+        cached: false,
       });
     } catch (error) {
       next(error);
@@ -590,15 +577,10 @@ export class AnalyticsController {
         tokenSymbol?.toUpperCase()
       );
 
-      res.status(200).json({
-        success: true,
+      res.json({
         data,
-        metadata: {
-          metric: 'transaction_count',
-          limit,
-          tokenSymbol: tokenSymbol?.toUpperCase(),
-          count: data.length,
-        },
+        timestamp: new Date(),
+        cached: false,
       });
     } catch (error) {
       next(error);
@@ -664,9 +646,10 @@ export class AnalyticsController {
         hours
       );
 
-      res.status(200).json({
-        success: true,
+      res.json({
         data,
+        timestamp: new Date(),
+        cached: false,
       });
     } catch (error) {
       next(error);
@@ -760,15 +743,10 @@ export class AnalyticsController {
         limit
       );
 
-      res.status(200).json({
-        success: true,
+      res.json({
         data,
-        metadata: {
-          hours,
-          tokenSymbol: tokenSymbol?.toUpperCase(),
-          limit,
-          count: data.length,
-        },
+        timestamp: new Date(),
+        cached: false,
       });
     } catch (error) {
       next(error);
@@ -834,9 +812,460 @@ export class AnalyticsController {
         hours
       );
 
-      res.status(200).json({
-        success: true,
+      res.json({
         data,
+        timestamp: new Date(),
+        cached: false,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * @swagger
+   * /analytics/volume/minutes:
+   *   get:
+   *     summary: Get minute-level volume aggregation
+   *     description: Get volume data aggregated by 5-minute intervals
+   *     tags: [Analytics]
+   *     parameters:
+   *       - name: token
+   *         in: query
+   *         description: Filter by specific token symbol
+   *         schema:
+   *           type: string
+   *           enum: [MSQ, SUT, KWT, P2UC]
+   *       - name: limit
+   *         in: query
+   *         description: Maximum number of data points to return
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 60
+   *           default: 60
+   *     responses:
+   *       200:
+   *         description: Minute-level volume data
+   */
+  getMinuteVolumeStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tokenSymbol = req.query.token as string;
+      const limit = parseInt(req.query.limit as string) || 60;
+
+      // Validate limit parameter
+      if (limit < 1 || limit > 60) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: 'Limit parameter must be between 1 and 60',
+          },
+        });
+        return;
+      }
+
+      // Validate token symbol if provided
+      const validTokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
+      if (tokenSymbol && !validTokens.includes(tokenSymbol.toUpperCase())) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: `Invalid token symbol. Must be one of: ${validTokens.join(', ')}`,
+          },
+        });
+        return;
+      }
+
+      const data = await this.analyticsService.getMinuteVolumeStats(
+        tokenSymbol?.toUpperCase(),
+        limit
+      );
+
+      res.json({
+        data,
+        timestamp: new Date(),
+        cached: false,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * @swagger
+   * /analytics/volume/daily:
+   *   get:
+   *     summary: Get daily volume aggregation
+   *     description: Get volume data aggregated by day
+   *     tags: [Analytics]
+   *     parameters:
+   *       - name: token
+   *         in: query
+   *         description: Filter by specific token symbol
+   *         schema:
+   *           type: string
+   *           enum: [MSQ, SUT, KWT, P2UC]
+   *       - name: limit
+   *         in: query
+   *         description: Maximum number of days to return
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 90
+   *           default: 30
+   *     responses:
+   *       200:
+   *         description: Daily volume data
+   */
+  getDailyVolumeStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tokenSymbol = req.query.token as string;
+      const limit = parseInt(req.query.limit as string) || 30;
+
+      // Validate limit parameter
+      if (limit < 1 || limit > 90) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: 'Limit parameter must be between 1 and 90',
+          },
+        });
+        return;
+      }
+
+      // Validate token symbol if provided
+      const validTokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
+      if (tokenSymbol && !validTokens.includes(tokenSymbol.toUpperCase())) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: `Invalid token symbol. Must be one of: ${validTokens.join(', ')}`,
+          },
+        });
+        return;
+      }
+
+      const data = await this.analyticsService.getDailyVolumeStats(
+        tokenSymbol?.toUpperCase(),
+        limit
+      );
+
+      res.json({
+        data,
+        timestamp: new Date(),
+        cached: false,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * @swagger
+   * /analytics/volume/weekly:
+   *   get:
+   *     summary: Get weekly volume aggregation
+   *     description: Get volume data aggregated by week
+   *     tags: [Analytics]
+   *     parameters:
+   *       - name: token
+   *         in: query
+   *         description: Filter by specific token symbol
+   *         schema:
+   *           type: string
+   *           enum: [MSQ, SUT, KWT, P2UC]
+   *       - name: limit
+   *         in: query
+   *         description: Maximum number of weeks to return (up to 5 years)
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 260
+   *           default: 26
+   *     responses:
+   *       200:
+   *         description: Weekly volume data
+   */
+  getWeeklyVolumeStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tokenSymbol = req.query.token as string;
+      const limit = parseInt(req.query.limit as string) || 26;
+
+      // Validate limit parameter (max 5 years = 260 weeks)
+      if (limit < 1 || limit > 260) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: 'Limit parameter must be between 1 and 260',
+          },
+        });
+        return;
+      }
+
+      // Validate token symbol if provided
+      const validTokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
+      if (tokenSymbol && !validTokens.includes(tokenSymbol.toUpperCase())) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: `Invalid token symbol. Must be one of: ${validTokens.join(', ')}`,
+          },
+        });
+        return;
+      }
+
+      const data = await this.analyticsService.getWeeklyVolumeStats(
+        tokenSymbol?.toUpperCase(),
+        limit
+      );
+
+      res.json({
+        data,
+        timestamp: new Date(),
+        cached: false,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * @swagger
+   * /analytics/anomalies/timeseries/minutes:
+   *   get:
+   *     summary: Get minute-level anomaly timeseries
+   *     description: Get anomaly data aggregated by 5-minute intervals
+   *     tags: [Analytics]
+   *     parameters:
+   *       - name: token
+   *         in: query
+   *         description: Filter by specific token symbol
+   *         schema:
+   *           type: string
+   *           enum: [MSQ, SUT, KWT, P2UC]
+   *       - name: limit
+   *         in: query
+   *         description: Maximum number of data points to return
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 60
+   *           default: 60
+   *     responses:
+   *       200:
+   *         description: Minute-level anomaly timeseries data
+   */
+  getAnomalyTimeSeriesMinutes = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tokenSymbol = req.query.token as string;
+      const limit = parseInt(req.query.limit as string) || 60;
+
+      // Validate limit parameter
+      if (limit < 1 || limit > 60) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: 'Limit parameter must be between 1 and 60',
+          },
+        });
+        return;
+      }
+
+      // Validate token symbol if provided
+      const validTokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
+      if (tokenSymbol && !validTokens.includes(tokenSymbol.toUpperCase())) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: `Invalid token symbol. Must be one of: ${validTokens.join(', ')}`,
+          },
+        });
+        return;
+      }
+
+      const data = await this.analyticsService.getAnomalyTimeSeriesMinutes(
+        tokenSymbol?.toUpperCase(),
+        limit
+      );
+
+      res.json({
+        data,
+        timestamp: new Date(),
+        cached: false,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * @swagger
+   * /analytics/anomalies/timeseries/daily:
+   *   get:
+   *     summary: Get daily anomaly timeseries
+   *     description: Get anomaly data aggregated by day
+   *     tags: [Analytics]
+   *     parameters:
+   *       - name: token
+   *         in: query
+   *         description: Filter by specific token symbol
+   *         schema:
+   *           type: string
+   *           enum: [MSQ, SUT, KWT, P2UC]
+   *       - name: limit
+   *         in: query
+   *         description: Maximum number of days to return
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 90
+   *           default: 30
+   *     responses:
+   *       200:
+   *         description: Daily anomaly timeseries data
+   */
+  getAnomalyTimeSeriesDaily = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tokenSymbol = req.query.token as string;
+      const limit = parseInt(req.query.limit as string) || 30;
+
+      // Validate limit parameter
+      if (limit < 1 || limit > 90) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: 'Limit parameter must be between 1 and 90',
+          },
+        });
+        return;
+      }
+
+      // Validate token symbol if provided
+      const validTokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
+      if (tokenSymbol && !validTokens.includes(tokenSymbol.toUpperCase())) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: `Invalid token symbol. Must be one of: ${validTokens.join(', ')}`,
+          },
+        });
+        return;
+      }
+
+      const data = await this.analyticsService.getAnomalyTimeSeriesDaily(
+        tokenSymbol?.toUpperCase(),
+        limit
+      );
+
+      res.json({
+        data,
+        timestamp: new Date(),
+        cached: false,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * @swagger
+   * /analytics/anomalies/timeseries/weekly:
+   *   get:
+   *     summary: Get weekly anomaly timeseries
+   *     description: Get anomaly data aggregated by week
+   *     tags: [Analytics]
+   *     parameters:
+   *       - name: token
+   *         in: query
+   *         description: Filter by specific token symbol
+   *         schema:
+   *           type: string
+   *           enum: [MSQ, SUT, KWT, P2UC]
+   *       - name: limit
+   *         in: query
+   *         description: Maximum number of weeks to return (up to 5 years)
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 260
+   *           default: 26
+   *     responses:
+   *       200:
+   *         description: Weekly anomaly timeseries data
+   */
+  getAnomalyTimeSeriesWeekly = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tokenSymbol = req.query.token as string;
+      const limit = parseInt(req.query.limit as string) || 26;
+
+      // Validate limit parameter (max 5 years = 260 weeks)
+      if (limit < 1 || limit > 260) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: 'Limit parameter must be between 1 and 260',
+          },
+        });
+        return;
+      }
+
+      // Validate token symbol if provided
+      const validTokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
+      if (tokenSymbol && !validTokens.includes(tokenSymbol.toUpperCase())) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: `Invalid token symbol. Must be one of: ${validTokens.join(', ')}`,
+          },
+        });
+        return;
+      }
+
+      const data = await this.analyticsService.getAnomalyTimeSeriesWeekly(
+        tokenSymbol?.toUpperCase(),
+        limit
+      );
+
+      res.json({
+        data,
+        timestamp: new Date(),
+        cached: false,
       });
     } catch (error) {
       next(error);
