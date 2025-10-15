@@ -27,7 +27,6 @@ async function initializeService() {
     //   logger.info('Running hourly analytics aggregation');
     //   await analyticsService.aggregateLastHour();
     // });
-
   } catch (error) {
     logger.error('Failed to initialize service:', error);
     process.exit(1);
