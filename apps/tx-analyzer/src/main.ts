@@ -1,41 +1,35 @@
 import 'dotenv/config';
-// import cron from 'node-cron';
-import { createApp } from './app';
 import { redisService } from './services/redis.service';
-// import { aggregationService } from './services/aggregation.service';
-import { config } from './config';
 import { logger } from '@msq-tx-monitor/msq-common';
 
-const PORT = config.server.port;
-const NODE_ENV = config.server.env;
+/**
+ * TX Analyzer - Service Layer Only
+ *
+ * Note: HTTP API functionality has been migrated to tx-api service.
+ * This service now provides only analytics and analysis logic that can be
+ * imported and used by other services.
+ *
+ * If you need to run background jobs or cron tasks, add them here.
+ */
 
-async function startServer() {
+async function initializeService() {
   try {
-    // Initialize Redis connection
+    // Initialize Redis connection for caching
     await redisService.connect();
 
-    const app = createApp();
+    logger.info('✅ TX Analyzer service initialized');
+    logger.info('📊 Service logic available for import by other services');
+    logger.info('ℹ️  HTTP API endpoints have been migrated to tx-api');
 
-    app.listen(PORT, () => {
-      logger.info(`🚀 TX Analyzer server running on port ${PORT}`);
-      logger.info(`📊 Environment: ${NODE_ENV}`);
-      logger.info(`🔗 Health check: http://localhost:${PORT}/health`);
-      logger.info(`📖 API docs: http://localhost:${PORT}/`);
-    });
-
-    // Hourly aggregation cron job disabled - using direct queries instead
+    // Add any background jobs or cron tasks here if needed
+    // Example:
     // cron.schedule('0 * * * *', async () => {
-    //   logger.info('⏰ Running hourly aggregation cron job');
-    //   try {
-    //     await aggregationService.aggregateLastHour();
-    //   } catch (error) {
-    //     logger.error('Error in hourly aggregation cron job:', error);
-    //   }
+    //   logger.info('Running hourly analytics aggregation');
+    //   await analyticsService.aggregateLastHour();
     // });
 
-    // logger.info('⏰ Hourly aggregation cron job scheduled');
   } catch (error) {
-    logger.error('Failed to start server:', error);
+    logger.error('Failed to initialize service:', error);
     process.exit(1);
   }
 }
@@ -53,4 +47,7 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-startServer();
+// Only initialize if running directly (not imported as module)
+if (require.main === module) {
+  initializeService();
+}
