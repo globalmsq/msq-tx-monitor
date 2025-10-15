@@ -990,6 +990,126 @@ export class AnalyticsService {
   }
 
   /**
+   * Get minute-level volume statistics (wrapper for getHourlyVolume with 1 hour)
+   */
+  async getMinuteVolumeStats(
+    tokenSymbol?: string,
+    limit: number = 60
+  ): Promise<HourlyVolumeData[]> {
+    // For minute-level data, use 1 hour lookback which triggers 5-minute intervals
+    return this.getHourlyVolume(1, tokenSymbol, limit);
+  }
+
+  /**
+   * Get daily volume statistics (wrapper for getHourlyVolume with dynamic days)
+   */
+  async getDailyVolumeStats(
+    tokenSymbol?: string,
+    limit: number = 30
+  ): Promise<HourlyVolumeData[]> {
+    // For daily data, calculate hours based on limit (limit * 24 hours per day)
+    return this.getHourlyVolume(limit * 24, tokenSymbol, limit);
+  }
+
+  /**
+   * Get weekly volume statistics (wrapper for getHourlyVolume with dynamic weeks)
+   */
+  async getWeeklyVolumeStats(
+    tokenSymbol?: string,
+    limit: number = 52
+  ): Promise<HourlyVolumeData[]> {
+    // For weekly data, calculate hours based on limit (limit * 24 * 7 hours per week)
+    return this.getHourlyVolume(limit * 24 * 7, tokenSymbol, limit);
+  }
+
+  /**
+   * Get comprehensive token statistics
+   */
+  async getTokenStats(
+    tokenSymbol?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
+    try {
+      let whereClause = '';
+      const conditions: string[] = [];
+
+      if (startDate) {
+        conditions.push(`timestamp >= '${new Date(startDate).toISOString()}'`);
+      }
+      if (endDate) {
+        conditions.push(`timestamp <= '${new Date(endDate).toISOString()}'`);
+      }
+      if (tokenSymbol) {
+        conditions.push(`tokenSymbol = '${tokenSymbol}'`);
+      }
+
+      if (conditions.length > 0) {
+        whereClause = 'WHERE ' + conditions.join(' AND ');
+      }
+
+      const query = `
+        SELECT
+          tokenSymbol,
+          COUNT(*) as totalTransactions,
+          SUM(value) as totalVolume,
+          AVG(value) as averageTransactionSize,
+          COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as uniqueAddresses
+        FROM transactions
+        ${whereClause}
+        GROUP BY tokenSymbol
+        ORDER BY totalVolume DESC
+      `;
+
+      const rows = (await prisma.$queryRawUnsafe(query)) as any[];
+
+      return rows.map(row => ({
+        tokenSymbol: row.tokenSymbol,
+        totalTransactions: parseInt(row.totalTransactions.toString()),
+        totalVolume: row.totalVolume.toString(),
+        averageTransactionSize: row.averageTransactionSize.toString(),
+        uniqueAddresses: parseInt(row.uniqueAddresses.toString()),
+      }));
+    } catch (error) {
+      apiLogger.error('Error fetching token stats', error);
+      throw new Error('Failed to fetch token stats');
+    }
+  }
+
+  /**
+   * Get minute-level anomaly timeseries (wrapper for getAnomalyTimeSeries with 1 hour)
+   */
+  async getAnomalyTimeSeriesMinutes(
+    tokenSymbol?: string,
+    limit: number = 60
+  ): Promise<any[]> {
+    // For minute-level data, use 1 hour lookback
+    return this.getAnomalyTimeSeries(1, tokenSymbol, limit);
+  }
+
+  /**
+   * Get daily anomaly timeseries (wrapper for getAnomalyTimeSeries with dynamic days)
+   */
+  async getAnomalyTimeSeriesDaily(
+    tokenSymbol?: string,
+    limit: number = 30
+  ): Promise<any[]> {
+    // For daily data, calculate hours based on limit (limit * 24 hours per day)
+    return this.getAnomalyTimeSeries(limit * 24, tokenSymbol, limit);
+  }
+
+  /**
+   * Get weekly anomaly timeseries (wrapper for getAnomalyTimeSeries with dynamic weeks)
+   */
+  async getAnomalyTimeSeriesWeekly(
+    tokenSymbol?: string,
+    limit: number = 52
+  ): Promise<any[]> {
+    // For weekly data, calculate hours based on limit (limit * 24 * 7 hours per week)
+    return this.getAnomalyTimeSeries(limit * 24 * 7, tokenSymbol, limit);
+  }
+
+  /**
    * Helper method to get token colors
    */
   private getTokenColor(tokenSymbol: string): string {

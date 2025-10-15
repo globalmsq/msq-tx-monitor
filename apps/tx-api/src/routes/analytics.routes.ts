@@ -5,6 +5,15 @@ export const analyticsRoutes = Router();
 const analyticsController = new AnalyticsController();
 
 /**
+ * @route GET /api/v1/analytics/volume/minutes
+ * @description Get minute-level volume aggregation (5-minute intervals)
+ * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
+ * @query {number} [limit=60] - Maximum number of data points to return (1-60)
+ * @returns {MinuteVolumeResponse} Minute-level volume data aggregated by token
+ */
+analyticsRoutes.get('/volume/minutes', analyticsController.getMinuteVolumeStats);
+
+/**
  * @route GET /api/v1/analytics/volume/hourly
  * @description Get hourly volume aggregation for specified time range and token
  * @query {number} [hours=24] - Number of hours to look back (1-168)
@@ -13,6 +22,24 @@ const analyticsController = new AnalyticsController();
  * @returns {HourlyVolumeResponse} Hourly volume data aggregated by token
  */
 analyticsRoutes.get('/volume/hourly', analyticsController.getHourlyVolume);
+
+/**
+ * @route GET /api/v1/analytics/volume/daily
+ * @description Get daily volume aggregation
+ * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
+ * @query {number} [limit=30] - Maximum number of days to return (1-90)
+ * @returns {DailyVolumeResponse} Daily volume data aggregated by token
+ */
+analyticsRoutes.get('/volume/daily', analyticsController.getDailyVolumeStats);
+
+/**
+ * @route GET /api/v1/analytics/volume/weekly
+ * @description Get weekly volume aggregation
+ * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
+ * @query {number} [limit=26] - Maximum number of weeks to return (1-52)
+ * @returns {WeeklyVolumeResponse} Weekly volume data aggregated by token
+ */
+analyticsRoutes.get('/volume/weekly', analyticsController.getWeeklyVolumeStats);
 
 /**
  * @route GET /api/v1/analytics/realtime
@@ -75,8 +102,57 @@ analyticsRoutes.get('/addresses/senders', analyticsController.getTopSenders);
 analyticsRoutes.get('/anomalies', analyticsController.getAnomalyStats);
 
 /**
- * @route GET /api/v1/analytics/anomalies/timeseries
+ * @route GET /api/v1/analytics/anomalies/timeseries/minutes
+ * @description Get minute-level anomaly timeseries (5-minute intervals)
+ * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
+ * @query {number} [limit=60] - Maximum number of data points to return (1-60)
+ * @returns {AnomalyTimeSeriesResponse} Minute-level anomaly timeseries data
+ */
+analyticsRoutes.get(
+  '/anomalies/timeseries/minutes',
+  analyticsController.getAnomalyTimeSeriesMinutes
+);
+
+/**
+ * @route GET /api/v1/analytics/anomalies/timeseries/hourly
  * @description Get hourly anomaly trend data for time series charts
+ * @query {number} [hours=24] - Number of hours to look back (1-168)
+ * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
+ * @query {number} [limit=24] - Maximum number of hours to return (1-168)
+ * @returns {AnomalyTimeSeriesResponse} Hourly anomaly trend data
+ */
+analyticsRoutes.get(
+  '/anomalies/timeseries/hourly',
+  analyticsController.getAnomalyTimeSeries
+);
+
+/**
+ * @route GET /api/v1/analytics/anomalies/timeseries/daily
+ * @description Get daily anomaly timeseries
+ * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
+ * @query {number} [limit=30] - Maximum number of days to return (1-90)
+ * @returns {AnomalyTimeSeriesResponse} Daily anomaly timeseries data
+ */
+analyticsRoutes.get(
+  '/anomalies/timeseries/daily',
+  analyticsController.getAnomalyTimeSeriesDaily
+);
+
+/**
+ * @route GET /api/v1/analytics/anomalies/timeseries/weekly
+ * @description Get weekly anomaly timeseries
+ * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
+ * @query {number} [limit=26] - Maximum number of weeks to return (1-52)
+ * @returns {AnomalyTimeSeriesResponse} Weekly anomaly timeseries data
+ */
+analyticsRoutes.get(
+  '/anomalies/timeseries/weekly',
+  analyticsController.getAnomalyTimeSeriesWeekly
+);
+
+/**
+ * @route GET /api/v1/analytics/anomalies/timeseries
+ * @description Get hourly anomaly trend data for time series charts (deprecated, use /hourly)
  * @query {number} [hours=24] - Number of hours to look back (1-168)
  * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
  * @query {number} [limit=24] - Maximum number of hours to return (1-168)

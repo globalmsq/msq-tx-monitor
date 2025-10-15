@@ -278,7 +278,7 @@ export function Addresses() {
                             ? '6 Months'
                             : range === '1y'
                               ? '1 Year'
-                              : 'All Time'}
+                              : 'All'}
               </button>
             ))}
           </div>

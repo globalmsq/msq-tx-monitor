@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { transactionRoutes } from './transaction.routes';
 import { addressRoutes } from './address.routes';
 import { analyticsRoutes } from './analytics.routes';
+import { statisticsRoutes } from './statistics.routes';
+import { analyzeRoutes } from './analyze.routes';
 import { cacheRoutes } from './cache.routes';
 
 export const apiRoutes = Router();
@@ -14,6 +16,12 @@ apiRoutes.use('/addresses', addressRoutes);
 
 // Mount analytics routes
 apiRoutes.use('/analytics', analyticsRoutes);
+
+// Mount statistics routes (migrated from tx-analyzer)
+apiRoutes.use('/statistics', statisticsRoutes);
+
+// Mount analyze routes (migrated from tx-analyzer)
+apiRoutes.use('/analyze', analyzeRoutes);
 
 // Mount cache routes
 apiRoutes.use('/cache', cacheRoutes);
@@ -62,12 +70,17 @@ apiRoutes.get('/', (req, res) => {
     endpoints: {
       transactions: '/api/v1/transactions',
       addresses: '/api/v1/addresses',
+      analytics: '/api/v1/analytics',
+      statistics: '/api/v1/statistics',
+      analyze: '/api/v1/analyze',
       health: '/health',
     },
     features: {
       transaction_filtering:
         'Filter by token, address, amount, date, anomalies',
       address_analytics: 'Rankings by volume/frequency, search, summaries',
+      statistics: 'Real-time stats, volume analytics, anomaly tracking',
+      analysis: 'Transaction trends, token analytics, volume analysis',
       caching: 'Redis-based caching for improved performance',
       pagination: 'Configurable pagination with limits',
     },
