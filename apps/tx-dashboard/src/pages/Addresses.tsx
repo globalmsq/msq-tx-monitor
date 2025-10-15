@@ -1,29 +1,18 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
-  Search,
   TrendingUp,
   Activity,
   AlertTriangle,
   Wallet,
-  Copy,
-  Check,
-  X,
   Calendar,
-  ArrowDown,
-  ArrowUp,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import {
   DetailedAnalysisModal,
   DetailedData,
 } from '../components/DetailedAnalysisModal';
-import {
-  logger,
-  formatVolume,
-  formatRelativeTime,
-  formatFullTimestamp,
-} from '@msq-tx-monitor/msq-common';
-import { VolumeWithTooltip } from '../components/VolumeWithTooltip';
+import { AddressCategoryBox } from '../components/AddressCategoryBox';
+import { logger } from '@msq-tx-monitor/msq-common';
 import {
   fetchAddressDetails,
   fetchTransactionsPage,
@@ -32,30 +21,35 @@ import {
 import { API_BASE_URL } from '../config/api';
 
 type TimeRange = '1h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
-type CategoryTab = 'rankings' | 'whales' | 'active' | 'suspicious';
 
 interface AddressRanking {
   address: string;
-  total_volume: string;
-  total_sent: string;
-  total_received: string;
-  transaction_count: number;
-  first_seen: string;
-  last_seen: string;
-  rank: number;
+  total_volume?: string;
+  total_sent?: string;
+  total_received?: string;
+  transaction_count?: number;
+  first_seen?: string;
+  last_seen?: string;
+  rank?: number;
 }
 
 export function Addresses() {
-  const [searchQuery, setSearchQuery] = useState('');
-
   const [selectedToken, setSelectedToken] = useState<string>('MSQ');
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
-  const [activeCategory, setActiveCategory] = useState<CategoryTab>('rankings');
 
-  const [addresses, setAddresses] = useState<AddressRanking[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  // Separate state for each category
+  const [rankingsData, setRankingsData] = useState<AddressRanking[]>([]);
+  const [whalesData, setWhalesData] = useState<AddressRanking[]>([]);
+  const [activeData, setActiveData] = useState<AddressRanking[]>([]);
+  const [suspiciousData, setSuspiciousData] = useState<AddressRanking[]>([]);
+
+  // Loading states for each category
+  const [loadingStates, setLoadingStates] = useState({
+    rankings: false,
+    whales: false,
+    active: false,
+    suspicious: false,
+  });
 
   // Modal state
   const [selectedAddressData, setSelectedAddressData] =
@@ -66,7 +60,7 @@ export function Addresses() {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   const tokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
-  const limit = 50;
+  const limit = 10; // Top 10 per category
 
   // Convert timeRange to hours for API calls
   const getHoursFromTimeRange = (range: TimeRange): number | undefined => {
@@ -92,13 +86,18 @@ export function Addresses() {
     }
   };
 
-  // Fetch addresses based on category and filters
-  const fetchAddresses = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      let endpoint = '';
-      const params = new URLSearchParams();
+  // Fetch all categories in parallel
+  const fetchAllCategories = useCallback(async () => {
+    // Set all loading states to true
+    setLoadingStates({
+      rankings: true,
+      whales: true,
+      active: true,
+      suspicious: true,
+    });
 
+    try {
+      const params = new URLSearchParams();
       params.append('token', selectedToken);
 
       // Add hours filter based on time range
@@ -109,52 +108,55 @@ export function Addresses() {
 
       params.append('limit', limit.toString());
 
-      switch (activeCategory) {
-        case 'rankings':
-          endpoint = `${API_BASE_URL}/addresses/rankings?${params}`;
-          break;
-        case 'whales':
-          endpoint = `${API_BASE_URL}/addresses/whales?${params}`;
-          break;
-        case 'active':
-          endpoint = `${API_BASE_URL}/addresses/active-traders?${params}`;
-          break;
-        case 'suspicious':
-          endpoint = `${API_BASE_URL}/addresses/suspicious?${params}`;
-          break;
-      }
+      // Fetch all categories in parallel
+      const [rankingsRes, whalesRes, activeRes, suspiciousRes] =
+        await Promise.all([
+          fetch(`${API_BASE_URL}/addresses/rankings?${params}`),
+          fetch(`${API_BASE_URL}/addresses/whales?${params}`),
+          fetch(`${API_BASE_URL}/addresses/active-traders?${params}`),
+          fetch(`${API_BASE_URL}/addresses/suspicious?${params}`),
+        ]);
 
-      const response = await fetch(endpoint);
-      if (!response.ok) {
-        throw new Error('Failed to fetch addresses');
-      }
+      // Parse all responses in parallel
+      const [rankingsData, whalesData, activeData, suspiciousData] =
+        await Promise.all([
+          rankingsRes.json(),
+          whalesRes.json(),
+          activeRes.json(),
+          suspiciousRes.json(),
+        ]);
 
-      const data = await response.json();
-      setAddresses(data.data || []);
-
-      // Calculate total pages (assuming max 100 results per request)
-      const totalCount = data.data?.length || 0;
-      setTotalPages(Math.ceil(totalCount / 10));
+      // Update each category's data
+      setRankingsData(rankingsData.data || []);
+      setWhalesData(whalesData.data || []);
+      setActiveData(activeData.data || []);
+      setSuspiciousData(suspiciousData.data || []);
     } catch (error) {
       logger.error('Failed to fetch addresses:', error);
-      setAddresses([]);
+      // Reset all data on error
+      setRankingsData([]);
+      setWhalesData([]);
+      setActiveData([]);
+      setSuspiciousData([]);
     } finally {
-      setIsLoading(false);
+      // Set all loading states to false
+      setLoadingStates({
+        rankings: false,
+        whales: false,
+        active: false,
+        suspicious: false,
+      });
     }
-  }, [selectedToken, timeRange, activeCategory]);
+  }, [selectedToken, timeRange]);
 
-  // Fetch addresses when filters change
+  // Fetch all categories when filters change
   useEffect(() => {
-    fetchAddresses();
-  }, [fetchAddresses]);
+    fetchAllCategories();
+  }, [fetchAllCategories]);
 
-  // Handle time range change with explicit fetch (like Analytics)
+  // Handle time range change
   const handleTimeRangeChange = (range: TimeRange) => {
     setTimeRange(range);
-    setIsLoading(true);
-    setCurrentPage(1); // Reset to first page when changing time range
-    // Explicitly trigger fetch to ensure immediate update
-    fetchAddresses();
   };
 
   // Handle address click to show details
@@ -229,35 +231,6 @@ export function Addresses() {
     []
   );
 
-  // Filter addresses based on search query
-  const filteredAddresses = useMemo(() => {
-    if (!searchQuery || searchQuery.length < 3) {
-      return addresses;
-    }
-    return addresses.filter(addr =>
-      addr.address.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [addresses, searchQuery]);
-
-  // Update total pages based on filtered results
-  useEffect(() => {
-    const totalCount = filteredAddresses.length;
-    setTotalPages(Math.ceil(totalCount / 10));
-  }, [filteredAddresses]);
-
-  // Reset to page 1 when search query changes
-  useEffect(() => {
-    if (searchQuery && searchQuery.length >= 3) {
-      setCurrentPage(1);
-    }
-  }, [searchQuery]);
-
-  // Paginated addresses for current page
-  const paginatedAddresses = filteredAddresses.slice(
-    (currentPage - 1) * 10,
-    currentPage * 10
-  );
-
   return (
     <div className='space-y-6'>
       {/* Header */}
@@ -330,247 +303,63 @@ export function Addresses() {
         ))}
       </div>
 
-      {/* Category Tabs */}
-      <div className='glass rounded-2xl p-6'>
-        <div className='flex flex-wrap gap-2'>
-          <button
-            onClick={() => setActiveCategory('rankings')}
-            className={cn(
-              'flex items-center space-x-2 px-4 py-2 rounded-lg transition-all',
-              activeCategory === 'rankings'
-                ? 'bg-primary-500 text-white'
-                : 'bg-white/5 text-white/60 hover:bg-white/10'
-            )}
-          >
-            <TrendingUp className='w-4 h-4' />
-            <span>Top Rankings</span>
-          </button>
-          <button
-            onClick={() => setActiveCategory('whales')}
-            className={cn(
-              'flex items-center space-x-2 px-4 py-2 rounded-lg transition-all',
-              activeCategory === 'whales'
-                ? 'bg-primary-500 text-white'
-                : 'bg-white/5 text-white/60 hover:bg-white/10'
-            )}
-          >
-            <Wallet className='w-4 h-4' />
-            <span>Whales</span>
-          </button>
-          <button
-            onClick={() => setActiveCategory('active')}
-            className={cn(
-              'flex items-center space-x-2 px-4 py-2 rounded-lg transition-all',
-              activeCategory === 'active'
-                ? 'bg-primary-500 text-white'
-                : 'bg-white/5 text-white/60 hover:bg-white/10'
-            )}
-          >
-            <Activity className='w-4 h-4' />
-            <span>Active Traders</span>
-          </button>
-          <button
-            onClick={() => setActiveCategory('suspicious')}
-            className={cn(
-              'flex items-center space-x-2 px-4 py-2 rounded-lg transition-all',
-              activeCategory === 'suspicious'
-                ? 'bg-primary-500 text-white'
-                : 'bg-white/5 text-white/60 hover:bg-white/10'
-            )}
-          >
-            <AlertTriangle className='w-4 h-4' />
-            <span>Suspicious</span>
-          </button>
-        </div>
-      </div>
+      {/* 4-Box Grid Layout */}
+      <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+        {/* Top Rankings */}
+        <AddressCategoryBox
+          title='Top Rankings'
+          icon={<TrendingUp className='w-5 h-5' />}
+          iconColor='text-primary-400'
+          addresses={rankingsData}
+          isLoading={loadingStates.rankings}
+          selectedToken={selectedToken}
+          onAddressClick={handleAddressClick}
+          onCopyAddress={handleCopyAddress}
+          copiedAddress={copiedAddress}
+          limit={10}
+        />
 
-      {/* Address List */}
-      <div className='glass rounded-2xl p-6'>
-        <h2 className='text-xl font-bold text-white mb-6'>Address List</h2>
+        {/* Whales */}
+        <AddressCategoryBox
+          title='Whales'
+          icon={<Wallet className='w-5 h-5' />}
+          iconColor='text-purple-400'
+          addresses={whalesData}
+          isLoading={loadingStates.whales}
+          selectedToken={selectedToken}
+          onAddressClick={handleAddressClick}
+          onCopyAddress={handleCopyAddress}
+          copiedAddress={copiedAddress}
+          limit={10}
+        />
 
-        {/* Address Search */}
-        <div className='relative mb-6'>
-          <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40' />
-          <input
-            type='text'
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder='Search address (0x...)...'
-            className='w-full bg-white/5 border border-white/10 rounded-lg pl-11 pr-10 py-3 text-white placeholder-white/40 focus:outline-none focus:border-primary-500 transition-colors'
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className='absolute right-3 top-1/2 -translate-y-1/2 p-1 text-white/40 hover:text-white/70 transition-colors'
-            >
-              <X className='w-4 h-4' />
-            </button>
-          )}
-        </div>
+        {/* Active Traders */}
+        <AddressCategoryBox
+          title='Active Traders'
+          icon={<Activity className='w-5 h-5' />}
+          iconColor='text-green-400'
+          addresses={activeData}
+          isLoading={loadingStates.active}
+          selectedToken={selectedToken}
+          onAddressClick={handleAddressClick}
+          onCopyAddress={handleCopyAddress}
+          copiedAddress={copiedAddress}
+          limit={10}
+        />
 
-        {isLoading ? (
-          <div className='text-center py-12'>
-            <div className='inline-block w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin'></div>
-            <p className='text-white/60 mt-4'>Loading addresses...</p>
-          </div>
-        ) : paginatedAddresses.length === 0 ? (
-          <div className='text-center py-12'>
-            <Wallet className='w-12 h-12 text-white/20 mx-auto mb-4' />
-            <p className='text-white/60'>No addresses found</p>
-          </div>
-        ) : (
-          <>
-            <div className='overflow-x-auto'>
-              <table className='w-full min-w-[600px]'>
-                <thead>
-                  <tr className='border-b border-white/10'>
-                    <th className='text-left text-white/60 text-sm font-medium py-3 px-4'>
-                      Rank
-                    </th>
-                    <th className='text-left text-white/60 text-sm font-medium py-3 px-4'>
-                      Address
-                    </th>
-                    <th className='text-right text-white/60 text-sm font-medium py-3 px-4'>
-                      Volume
-                    </th>
-                    <th className='text-right text-white/60 text-sm font-medium py-3 px-4'>
-                      Transactions
-                    </th>
-                    <th className='text-right text-white/60 text-sm font-medium py-3 px-4'>
-                      Last Activity
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedAddresses.map((addr, index) => (
-                    <tr
-                      key={addr.address}
-                      onClick={() => handleAddressClick(addr.address)}
-                      className='border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors'
-                    >
-                      <td className='py-3 px-4 text-white text-sm font-medium'>
-                        #{(currentPage - 1) * 10 + index + 1}
-                      </td>
-                      <td className='py-3 px-4'>
-                        <div className='flex items-center gap-2'>
-                          {/* Full address - responsive truncation */}
-                          <span className='text-white font-mono text-sm truncate min-w-0'>
-                            <span className='hidden xl:inline'>
-                              {addr.address}
-                            </span>
-                            <span className='hidden md:inline xl:hidden'>
-                              {addr.address.slice(0, 16)}...
-                              {addr.address.slice(-14)}
-                            </span>
-                            <span className='inline md:hidden'>
-                              {addr.address.slice(0, 10)}...
-                              {addr.address.slice(-8)}
-                            </span>
-                          </span>
-
-                          {/* Copy button - always visible */}
-                          <button
-                            onClick={e => handleCopyAddress(addr.address, e)}
-                            className='flex-shrink-0 p-1 rounded-md hover:bg-white/10 transition-colors'
-                            title='Copy address'
-                          >
-                            {copiedAddress === addr.address ? (
-                              <Check className='w-3 h-3 text-green-400' />
-                            ) : (
-                              <Copy className='w-3 h-3 text-white/60 hover:text-white' />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                      {/* Volume with Breakdown */}
-                      <td className='py-3 px-4 text-right'>
-                        <div className='flex flex-col items-end'>
-                          <div className='text-white font-medium text-sm'>
-                            <VolumeWithTooltip
-                              formattedValue={formatVolume(
-                                addr.total_volume,
-                                selectedToken,
-                                { precision: 0 }
-                              )}
-                              rawValue={addr.total_volume}
-                              tokenSymbol={selectedToken}
-                              receivedValue={addr.total_received}
-                              sentValue={addr.total_sent}
-                              showBreakdown={true}
-                            />
-                          </div>
-                          <div className='flex items-center justify-end gap-3 mt-1 text-xs text-white/60'>
-                            <div className='flex items-center gap-1'>
-                              <ArrowDown size={12} className='text-blue-400' />
-                              <span>
-                                {formatVolume(
-                                  addr.total_received,
-                                  selectedToken,
-                                  {
-                                    precision: 0,
-                                  }
-                                )}
-                              </span>
-                            </div>
-                            <div className='flex items-center gap-1'>
-                              <ArrowUp size={12} className='text-orange-400' />
-                              <span>
-                                {formatVolume(addr.total_sent, selectedToken, {
-                                  precision: 0,
-                                })}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      {/* Transactions */}
-                      <td className='py-3 px-4 text-right text-white text-sm'>
-                        {addr.transaction_count.toLocaleString()}
-                      </td>
-                      {/* Last Activity */}
-                      <td className='py-3 px-4 text-right text-white/60 text-sm'>
-                        <div className='relative inline-block group'>
-                          <span className='cursor-help whitespace-nowrap'>
-                            {formatRelativeTime(addr.last_seen)}
-                          </span>
-                          <div className='absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 border border-white/10'>
-                            {formatFullTimestamp(addr.last_seen)}
-                            <div className='absolute top-full right-2 -mt-1 border-4 border-transparent border-t-gray-900'></div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className='flex items-center justify-center space-x-2 mt-6'>
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className='px-4 py-2 bg-white/5 text-white rounded-lg hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
-                >
-                  Previous
-                </button>
-                <span className='text-white/60 px-4'>
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  onClick={() =>
-                    setCurrentPage(p => Math.min(totalPages, p + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                  className='px-4 py-2 bg-white/5 text-white rounded-lg hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </>
-        )}
+        {/* Suspicious Addresses */}
+        <AddressCategoryBox
+          title='Suspicious'
+          icon={<AlertTriangle className='w-5 h-5' />}
+          iconColor='text-red-400'
+          addresses={suspiciousData}
+          isLoading={loadingStates.suspicious}
+          selectedToken={selectedToken}
+          onAddressClick={handleAddressClick}
+          onCopyAddress={handleCopyAddress}
+          copiedAddress={copiedAddress}
+          limit={10}
+        />
       </div>
 
       {/* Address Detail Modal */}

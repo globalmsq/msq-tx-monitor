@@ -1021,8 +1021,8 @@ export class AddressService {
 
     // Build where clause with time filtering if hours is provided
     const whereClause: any = resolvedTokenAddress
-      ? { tokenAddress: resolvedTokenAddress, isWhale: true }
-      : { isWhale: true };
+      ? { tokenAddress: resolvedTokenAddress }
+      : {};
 
     // Add time-based filtering if hours is provided
     if (hours !== undefined) {

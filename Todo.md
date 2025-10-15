@@ -24,3 +24,6 @@
 20. tx-analyzer의 역할 구성
 21. Anomaly Detection
 22. Risk Assessment
+23. Download 확인
+24. API Tanstack Query 로 변경
+25. Whales 박스 구현 (보유 잔액 기준)

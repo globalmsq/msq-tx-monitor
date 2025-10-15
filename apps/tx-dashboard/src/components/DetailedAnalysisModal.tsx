@@ -556,7 +556,7 @@ export const DetailedAnalysisModal = React.memo(function DetailedAnalysisModal({
             },
             {
               key: 'transactions',
-              label: 'Transactions',
+              label: 'Total Transactions',
               icon: <TrendingUp className='w-4 h-4' />,
             },
             {
