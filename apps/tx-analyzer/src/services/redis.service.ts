@@ -3,10 +3,18 @@ import { config } from '../config';
 import { logger } from '@msq-tx-monitor/msq-common';
 
 export class RedisService {
-  private client: RedisClientType;
+  private client: RedisClientType | null = null;
   private isConnected = false;
+  private enabled: boolean;
 
   constructor() {
+    this.enabled = config.redis.enabled;
+
+    if (!this.enabled) {
+      logger.info('⚠️ Redis cache disabled by configuration');
+      return;
+    }
+
     this.client = createClient({
       socket: {
         host: config.redis.host,
@@ -38,6 +46,10 @@ export class RedisService {
   }
 
   async connect(): Promise<void> {
+    if (!this.enabled || !this.client) {
+      return;
+    }
+
     if (!this.isConnected) {
       try {
         await this.client.connect();
@@ -49,6 +61,10 @@ export class RedisService {
   }
 
   async disconnect(): Promise<void> {
+    if (!this.enabled || !this.client) {
+      return;
+    }
+
     if (this.isConnected) {
       await this.client.quit();
       this.isConnected = false;
@@ -56,7 +72,7 @@ export class RedisService {
   }
 
   async get<T>(key: string): Promise<T | null> {
-    if (!this.isConnected) {
+    if (!this.enabled || !this.client || !this.isConnected) {
       return null;
     }
 
@@ -74,7 +90,7 @@ export class RedisService {
     value: unknown,
     ttlSeconds: number = 300
   ): Promise<boolean> {
-    if (!this.isConnected) {
+    if (!this.enabled || !this.client || !this.isConnected) {
       return false;
     }
 
@@ -92,7 +108,7 @@ export class RedisService {
   }
 
   async del(key: string): Promise<boolean> {
-    if (!this.isConnected) {
+    if (!this.enabled || !this.client || !this.isConnected) {
       return false;
     }
 
@@ -106,7 +122,7 @@ export class RedisService {
   }
 
   async exists(key: string): Promise<boolean> {
-    if (!this.isConnected) {
+    if (!this.enabled || !this.client || !this.isConnected) {
       return false;
     }
 

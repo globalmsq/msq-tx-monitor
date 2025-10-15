@@ -2,13 +2,14 @@ import { Request, Response, NextFunction } from 'express';
 import { RedisConnection } from '../cache/redis';
 import prisma from '../lib/prisma';
 import { logger } from '@msq-tx-monitor/msq-common';
+import { config } from '../config';
 
 // Extend Request type to include database connection
 /* eslint-disable @typescript-eslint/no-namespace */
 declare global {
   namespace Express {
     interface Request {
-      redis: import('redis').RedisClientType;
+      redis?: import('redis').RedisClientType;
     }
   }
 }
@@ -20,8 +21,10 @@ export const databaseMiddleware = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Add Redis client to request object
-    req.redis = await RedisConnection.getInstance();
+    // Add Redis client to request object only if enabled
+    if (config.redis.enabled) {
+      req.redis = await RedisConnection.getInstance();
+    }
 
     next();
   } catch (error) {
@@ -48,10 +51,14 @@ export const initializeConnections = async (): Promise<void> => {
     await prisma.token.findFirst();
     logger.info('✅ Database query test successful');
 
-    // Test Redis connection
-    const redisConnected = await RedisConnection.testConnection();
-    if (!redisConnected) {
-      logger.warn('⚠️  Redis connection failed - caching will be disabled');
+    // Test Redis connection only if enabled
+    if (config.redis.enabled) {
+      const redisConnected = await RedisConnection.testConnection();
+      if (!redisConnected) {
+        logger.warn('⚠️  Redis connection failed - caching will be disabled');
+      }
+    } else {
+      logger.info('⚠️ Redis caching disabled by configuration');
     }
 
     logger.info('✅ Database connections initialized successfully');
@@ -66,7 +73,12 @@ export const closeConnections = async (): Promise<void> => {
 
   try {
     await prisma.$disconnect();
-    await RedisConnection.closeConnection();
+
+    // Close Redis only if enabled
+    if (config.redis.enabled) {
+      await RedisConnection.closeConnection();
+    }
+
     logger.info('✅ Database connections closed successfully');
   } catch (error) {
     logger.error('❌ Error closing database connections:', error);

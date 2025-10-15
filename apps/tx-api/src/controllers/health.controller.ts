@@ -58,21 +58,28 @@ export const healthCheck = async (
     health.services.database.responseTime = Date.now() - dbStart;
   }
 
-  // Test Redis connection
+  // Test Redis connection only if enabled
   const redisStart = Date.now();
-  try {
-    const redisConnected = await RedisConnection.testConnection();
-    health.services.redis.status = redisConnected ? 'healthy' : 'unhealthy';
-    health.services.redis.responseTime = Date.now() - redisStart;
-  } catch (error) {
-    health.services.redis.status = 'unhealthy';
-    health.services.redis.responseTime = Date.now() - redisStart;
+  if (config.redis.enabled) {
+    try {
+      const redisConnected = await RedisConnection.testConnection();
+      health.services.redis.status = redisConnected ? 'healthy' : 'unhealthy';
+      health.services.redis.responseTime = Date.now() - redisStart;
+    } catch (error) {
+      health.services.redis.status = 'unhealthy';
+      health.services.redis.responseTime = Date.now() - redisStart;
+    }
+  } else {
+    health.services.redis.status = 'disabled';
+    health.services.redis.responseTime = 0;
   }
 
   // Determine overall status
+  // Only check Redis health if it's enabled
+  const redisHealthy =
+    !config.redis.enabled || health.services.redis.status === 'healthy';
   const allServicesHealthy =
-    health.services.database.status === 'healthy' &&
-    health.services.redis.status === 'healthy';
+    health.services.database.status === 'healthy' && redisHealthy;
 
   if (!allServicesHealthy) {
     health.status = 'degraded';

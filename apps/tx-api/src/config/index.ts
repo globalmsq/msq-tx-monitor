@@ -17,6 +17,7 @@ export const config = {
   // Environment variables: MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE, MYSQL_USERNAME, MYSQL_PASSWORD
 
   redis: {
+    enabled: process.env.REDIS_ENABLED !== 'false', // Default: true
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
     password: process.env.REDIS_PASSWORD || '',

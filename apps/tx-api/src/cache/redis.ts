@@ -3,10 +3,15 @@ import { config } from '../config';
 import { logger } from '@msq-tx-monitor/msq-common';
 
 export class RedisConnection {
-  private static instance: RedisClientType;
+  private static instance: RedisClientType | null = null;
   private static isConnected: boolean = false;
+  private static enabled: boolean = config.redis.enabled;
 
   public static async getInstance(): Promise<RedisClientType> {
+    if (!RedisConnection.enabled) {
+      throw new Error('Redis is disabled by configuration');
+    }
+
     if (!RedisConnection.instance) {
       RedisConnection.instance = createClient({
         socket: {
@@ -92,6 +97,10 @@ export class RedisConnection {
 
   // Cache helper methods
   public static async get(key: string): Promise<string | null> {
+    if (!RedisConnection.enabled) {
+      return null;
+    }
+
     try {
       const client = await RedisConnection.getInstance();
       return await client.get(key);
@@ -106,6 +115,10 @@ export class RedisConnection {
     value: string,
     ttlSeconds?: number
   ): Promise<boolean> {
+    if (!RedisConnection.enabled) {
+      return false;
+    }
+
     try {
       const client = await RedisConnection.getInstance();
       if (ttlSeconds) {
@@ -121,6 +134,10 @@ export class RedisConnection {
   }
 
   public static async del(key: string): Promise<boolean> {
+    if (!RedisConnection.enabled) {
+      return false;
+    }
+
     try {
       const client = await RedisConnection.getInstance();
       await client.del(key);
@@ -132,6 +149,10 @@ export class RedisConnection {
   }
 
   public static async deleteByPattern(pattern: string): Promise<number> {
+    if (!RedisConnection.enabled) {
+      return 0;
+    }
+
     try {
       const client = await RedisConnection.getInstance();
       let cursor = 0;

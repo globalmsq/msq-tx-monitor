@@ -52,7 +52,6 @@ export function AddressCategoryBox({
           </div>
           <h3 className='text-lg font-bold text-white'>{title}</h3>
         </div>
-        <span className='text-sm text-white/60'>Top {limit}</span>
       </div>
 
       {/* Loading State */}
@@ -84,7 +83,7 @@ export function AddressCategoryBox({
                   <div className='min-w-0 flex-1'>
                     <div className='flex items-center gap-2'>
                       {/* Address - responsive truncation */}
-                      <span className='text-white font-mono text-xs truncate'>
+                      <span className='text-white font-mono text-sm truncate'>
                         <span className='hidden xl:inline'>{addr.address}</span>
                         <span className='hidden md:inline xl:hidden'>
                           {addr.address.slice(0, 12)}...
