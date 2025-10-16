@@ -27,3 +27,4 @@
 23. Download 확인
 24. API Tanstack Query 로 변경
 25. Whales 박스 구현 (보유 잔액 기준)
+26. 7 days 차트 오류
