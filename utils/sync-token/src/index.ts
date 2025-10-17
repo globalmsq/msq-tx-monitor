@@ -219,7 +219,7 @@ async function syncToken(
       token.address,
       startBlock,
       endBlock,
-      async (batch, iteration) => {
+      async (batch, iteration, currentBlock) => {
         // Convert to database format
         const dbTransactions = batch.map(convertToTransactionData);
 
@@ -249,7 +249,8 @@ async function syncToken(
             `Saved ${savedCount}, ` +
             `Zero-value ${dbTransactions.length - validTransactions.length}\n`
         );
-      }
+      },
+      token.symbol
     );
 
     console.log(`\n  ✅ ${token.symbol} sync completed!`);
@@ -314,8 +315,9 @@ async function main() {
     await prisma.$connect();
     console.log('✅ Database connected\n');
 
-    // Initialize PolygonScan client
-    const client = new PolygonScanClient(apiKey);
+    // Initialize PolygonScan client with 1000 block chunks and 800ms delay
+    // Adaptive retry will automatically split on timeout (1000 → 500 → 250 → ... → 10)
+    const client = new PolygonScanClient(apiKey, 800, 1000);
 
     // Determine which tokens to sync
     const tokensToSync: TokenConfig[] =
