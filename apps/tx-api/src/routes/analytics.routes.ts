@@ -11,14 +11,16 @@ const analyticsController = new AnalyticsController();
  * @query {number} [limit=60] - Maximum number of data points to return (1-60)
  * @returns {MinuteVolumeResponse} Minute-level volume data aggregated by token
  */
-analyticsRoutes.get('/volume/minutes', analyticsController.getMinuteVolumeStats);
+analyticsRoutes.get(
+  '/volume/minutes',
+  analyticsController.getMinuteVolumeStats
+);
 
 /**
  * @route GET /api/v1/analytics/volume/hourly
- * @description Get hourly volume aggregation for specified time range and token
- * @query {number} [hours=24] - Number of hours to look back (1-168)
+ * @description Get hourly volume aggregation (1-hour intervals)
  * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
- * @query {number} [limit=24] - Maximum number of hours to return (1-168)
+ * @query {number} [limit=24] - Maximum number of data points to return (1-168)
  * @returns {HourlyVolumeResponse} Hourly volume data aggregated by token
  */
 analyticsRoutes.get('/volume/hourly', analyticsController.getHourlyVolume);
@@ -40,6 +42,18 @@ analyticsRoutes.get('/volume/daily', analyticsController.getDailyVolumeStats);
  * @returns {WeeklyVolumeResponse} Weekly volume data aggregated by token
  */
 analyticsRoutes.get('/volume/weekly', analyticsController.getWeeklyVolumeStats);
+
+/**
+ * @route GET /api/v1/analytics/volume/monthly
+ * @description Get monthly volume aggregation
+ * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
+ * @query {number} [limit=12] - Maximum number of months to return (1-60)
+ * @returns {MonthlyVolumeResponse} Monthly volume data aggregated by token
+ */
+analyticsRoutes.get(
+  '/volume/monthly',
+  analyticsController.getMonthlyVolumeStats
+);
 
 /**
  * @route GET /api/v1/analytics/realtime
@@ -75,7 +89,6 @@ analyticsRoutes.get('/addresses/top', analyticsController.getTopAddresses);
  * @description Get top addresses ranked by incoming transaction count
  * @query {number} [limit=10] - Number of addresses to return (1-100)
  * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
- * @query {number} [hours=24] - Number of hours to look back (1-720)
  * @returns {TopAddressesResponse} Top receiver addresses data
  */
 analyticsRoutes.get(
@@ -88,7 +101,6 @@ analyticsRoutes.get(
  * @description Get top addresses ranked by outgoing transaction count
  * @query {number} [limit=10] - Number of addresses to return (1-100)
  * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
- * @query {number} [hours=24] - Number of hours to look back (1-720)
  * @returns {TopAddressesResponse} Top sender addresses data
  */
 analyticsRoutes.get('/addresses/senders', analyticsController.getTopSenders);
@@ -115,10 +127,9 @@ analyticsRoutes.get(
 
 /**
  * @route GET /api/v1/analytics/anomalies/timeseries/hourly
- * @description Get hourly anomaly trend data for time series charts
- * @query {number} [hours=24] - Number of hours to look back (1-168)
+ * @description Get hourly anomaly trend data for time series charts (1-hour intervals)
  * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
- * @query {number} [limit=24] - Maximum number of hours to return (1-168)
+ * @query {number} [limit=24] - Maximum number of data points to return (1-168)
  * @returns {AnomalyTimeSeriesResponse} Hourly anomaly trend data
  */
 analyticsRoutes.get(
@@ -153,9 +164,8 @@ analyticsRoutes.get(
 /**
  * @route GET /api/v1/analytics/anomalies/timeseries
  * @description Get hourly anomaly trend data for time series charts (deprecated, use /hourly)
- * @query {number} [hours=24] - Number of hours to look back (1-168)
  * @query {string} [token] - Filter by token symbol (MSQ, SUT, KWT, P2UC)
- * @query {number} [limit=24] - Maximum number of hours to return (1-168)
+ * @query {number} [limit=24] - Maximum number of data points to return (1-168)
  * @returns {AnomalyTimeSeriesResponse} Hourly anomaly trend data
  */
 analyticsRoutes.get(

@@ -2,7 +2,15 @@ import { DetailedData } from '../components/DetailedAnalysisModal';
 import { logger } from '@msq-tx-monitor/msq-common';
 import { API_BASE_URL } from '../config/api';
 
-export type TimeRange = '1h' | '24h' | '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
+export type TimeRange =
+  | '1h'
+  | '24h'
+  | '7d'
+  | '30d'
+  | '3m'
+  | '6m'
+  | '1y'
+  | 'all';
 
 interface StatsResponse {
   data?: {

@@ -1,0 +1,205 @@
+# Volume API Datetime Format Standard
+
+## Purpose
+Establish consistent datetime format and field naming across all Volume Analytics APIs to simplify frontend chart rendering and maintain data consistency.
+
+## Rules
+
+### 1. Unified Datetime Format
+All Volume API endpoints (`minutes`, `hourly`, `daily`, `weekly`) **MUST** return datetime in ISO 8601 format:
+
+**Format**: `"YYYY-MM-DDTHH:mm:ss.sssZ"` (ISO 8601 with UTC timezone and milliseconds)
+
+**Examples**:
+```json
+"2025-08-25T14:30:00.000Z"  // Minutes/Hourly (with time component)
+"2025-08-25T00:00:00.000Z"  // Daily (midnight)
+"2025-08-01T00:00:00.000Z"  // Weekly (first day of month at midnight)
+```
+
+### 2. Standardized Field Name
+**Field Name**: `datetime` (NOT `hour`, `timestamp`, or any other variant)
+
+**Response Structure**:
+```json
+{
+  "datetime": "2025-08-25T00:00:00.000Z",
+  "tokenSymbol": "MSQ",
+  "totalVolume": "1000000000000000000",
+  "transactionCount": 42,
+  "averageVolume": "23809523809523809"
+}
+```
+
+### 3. Frontend Responsibility
+- **Backend**: Always returns full datetime string in standard format
+- **Frontend**: Handles display formatting based on:
+  - Number of data points (많으면 축약, 적으면 상세)
+  - Chart type and available space
+  - User's time range selection
+
+**Frontend Display Examples**:
+```javascript
+// Parse ISO 8601: new Date("2025-08-25T14:30:00.000Z")
+// 1h, 24h (few points): "14:30", "22:00"
+// 7d (many points): "08-25 14:30", "08-26 08:00"
+// 30d, 3m (very many): "08-25", "09-15"
+// 6m, 1y, all (monthly): "08-01", "09-01"
+```
+
+## Implementation Details
+
+### Backend (apps/tx-api/src/services/analytics.service.ts)
+
+#### Minutes API
+```typescript
+// SQL: Use DATETIME calculation for 5-minute intervals
+const dateExpression = `DATE_ADD(
+  DATE_ADD(DATE(timestamp), INTERVAL HOUR(timestamp) HOUR),
+  INTERVAL FLOOR(MINUTE(timestamp) / 5) * 5 MINUTE
+)`;
+
+// Query with DATETIME type
+SELECT ${Prisma.raw(dateExpression)} as datetime, ...
+
+// JavaScript: Convert to ISO 8601
+return {
+  datetime: new Date(row.datetime).toISOString(),  // "2025-10-17T05:15:00.000Z"
+  tokenSymbol: row.tokenSymbol,
+  // ...
+};
+```
+
+#### Hourly API
+```typescript
+// SQL: Use DATETIME calculation for hourly intervals
+const dateExpression = `DATE_ADD(DATE(timestamp), INTERVAL HOUR(timestamp) HOUR)`;
+
+// Query with DATETIME type
+SELECT ${Prisma.raw(dateExpression)} as datetime, ...
+
+// JavaScript: Convert to ISO 8601
+return {
+  datetime: new Date(row.datetime).toISOString(),  // "2025-10-17T02:00:00.000Z"
+  tokenSymbol: row.tokenSymbol,
+  // ...
+};
+```
+
+#### Daily API
+```typescript
+// SQL: Use DATETIME type for daily intervals (midnight)
+const dateExpression = `CAST(DATE(timestamp) AS DATETIME)`;
+
+// Query with DATETIME type
+SELECT ${Prisma.raw(dateExpression)} as datetime, ...
+
+// JavaScript: Convert to ISO 8601
+return {
+  datetime: new Date(row.datetime).toISOString(),  // "2025-10-14T00:00:00.000Z"
+  tokenSymbol: row.tokenSymbol,
+  // ...
+};
+```
+
+#### Weekly API
+```typescript
+// SQL: Use DATETIME type for monthly intervals (first day of month at midnight)
+const dateExpression = `CAST(DATE_FORMAT(timestamp, '%Y-%m-01') AS DATETIME)`;
+
+// Query with DATETIME type
+SELECT ${Prisma.raw(dateExpression)} as datetime, ...
+
+// JavaScript: Convert to ISO 8601
+return {
+  datetime: new Date(row.datetime).toISOString(),  // "2025-08-01T00:00:00.000Z"
+  tokenSymbol: row.tokenSymbol,
+  // ...
+};
+```
+
+### Frontend (apps/tx-dashboard/src/)
+
+#### TypeScript Interface
+```typescript
+interface HourlyVolumeData {
+  datetime: string;  // ISO 8601 format with Z
+  tokenSymbol: string;
+  totalVolume: string;
+  transactionCount: number;
+  averageVolume: string;
+}
+```
+
+#### Chart Component
+```typescript
+// VolumeChart.tsx & TransactionChart.tsx
+<XAxis
+  dataKey="datetime"  // Changed from "hour"
+  tickFormatter={(value) => formatDatetime(value, dataLength)}
+/>
+```
+
+#### Display Formatting Function
+```typescript
+function formatDatetime(datetime: string, dataLength: number): string {
+  const date = new Date(datetime);
+
+  if (dataLength <= 24) {
+    // Few points: Show time only "14:30"
+    return format(date, 'HH:mm');
+  } else if (dataLength <= 200) {
+    // Medium points: Show date + time "08-25 14:30"
+    return format(date, 'MM-dd HH:mm');
+  } else {
+    // Many points: Show date only "08-25"
+    return format(date, 'MM-dd');
+  }
+}
+```
+
+## Testing Requirements
+
+### Backend API Tests
+```bash
+# All should return "datetime" field with ISO 8601 format "YYYY-MM-DDTHH:mm:ss.sssZ"
+curl "http://localhost/api/v1/analytics/volume/minutes?limit=12&token=MSQ"
+# Expected: "datetime": "2025-10-17T05:15:00.000Z"
+
+curl "http://localhost/api/v1/analytics/volume/hourly?limit=24&token=MSQ"
+# Expected: "datetime": "2025-10-17T02:00:00.000Z"
+
+curl "http://localhost/api/v1/analytics/volume/daily?limit=30&token=MSQ"
+# Expected: "datetime": "2025-10-14T00:00:00.000Z"
+
+curl "http://localhost/api/v1/analytics/volume/weekly?limit=26&token=MSQ"
+# Expected: "datetime": "2025-08-01T00:00:00.000Z"
+```
+
+### Frontend Chart Tests
+- [ ] 1h: Shows time labels (e.g., "14:30")
+- [ ] 24h: Shows time labels (e.g., "22:00")
+- [ ] 7d: Shows date+time labels (e.g., "10-15 14:00")
+- [ ] 30d, 3m: Shows date labels (e.g., "10-15")
+- [ ] 6m, 1y, all: Shows monthly labels (e.g., "10-01")
+
+## Migration Notes
+
+### Changes Implemented
+1. **SQL Layer**: Changed from `DATE_FORMAT()` string conversion to native DATETIME type calculations
+2. **JavaScript Layer**: Changed from string concatenation to `toISOString()` method
+3. **Format**: Changed from custom `"YYYY-MM-DD HH:mm:ss"Z` to standard ISO 8601 `"YYYY-MM-DDTHH:mm:ss.sssZ"`
+
+### Benefits
+- **Standard Compliance**: Uses ISO 8601 standard format universally recognized by JavaScript Date objects
+- **Type Safety**: MySQL DATETIME types provide better type safety than string formatting
+- **Performance**: Native DATETIME operations are more efficient than string formatting
+- **Compatibility**: Direct compatibility with JavaScript `new Date()` and `toISOString()`
+
+### Frontend Impact
+- Frontend charts already support ISO 8601 format (check for 'T' in datetime string)
+- No breaking changes for existing frontend code that parses dates with `new Date()`
+
+## References
+- ISO 8601: https://www.iso.org/iso-8601-date-and-time-format.html
+- MySQL DATE_FORMAT: https://dev.mysql.com/doc/refman/8.0/en/date-and-time-functions.html#function_date-format

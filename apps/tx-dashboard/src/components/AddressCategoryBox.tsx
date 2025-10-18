@@ -109,7 +109,8 @@ export function AddressCategoryBox({
                       </button>
                     </div>
                     <div className='text-white/60 text-xs mt-1'>
-                      {(addr.transaction_count ?? 0).toLocaleString()} transactions
+                      {(addr.transaction_count ?? 0).toLocaleString()}{' '}
+                      transactions
                     </div>
                   </div>
                 </div>
@@ -136,9 +137,13 @@ export function AddressCategoryBox({
                     <div className='flex items-center gap-1'>
                       <ArrowDown size={10} className='text-blue-400' />
                       <span>
-                        {formatVolume(addr.total_received ?? '0', selectedToken, {
-                          precision: 0,
-                        })}
+                        {formatVolume(
+                          addr.total_received ?? '0',
+                          selectedToken,
+                          {
+                            precision: 0,
+                          }
+                        )}
                       </span>
                     </div>
                     <div className='flex items-center gap-1'>

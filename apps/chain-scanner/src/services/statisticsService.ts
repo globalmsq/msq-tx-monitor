@@ -99,7 +99,10 @@ export class StatisticsService {
             return cachedStats;
           }
         } catch (cacheError) {
-          logger.warn('⚠️ Cache read failed, falling back to database:', cacheError);
+          logger.warn(
+            '⚠️ Cache read failed, falling back to database:',
+            cacheError
+          );
         }
       }
 

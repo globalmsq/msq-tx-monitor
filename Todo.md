@@ -27,3 +27,6 @@
 23. Download 확인
 24. API Tanstack Query 로 변경
 25. Whales 박스 구현 (보유 잔액 기준)
+26. chain-scanner에서 잠시 지연되었을때 블록 못가져오는 문제
+27. [done] top api와 volume api의 형태 분
+28. All 기간 선택할 경우에는 처음 데이터와 마지막 데이터로 기간 추출

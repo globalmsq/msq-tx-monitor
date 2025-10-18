@@ -1041,10 +1041,7 @@ export class AddressController {
       }
 
       // Validate token if provided
-      if (
-        token &&
-        !['MSQ', 'SUT', 'KWT', 'P2UC'].includes(token as string)
-      ) {
+      if (token && !['MSQ', 'SUT', 'KWT', 'P2UC'].includes(token as string)) {
         res.status(400).json({
           error: {
             code: 400,
@@ -1057,7 +1054,8 @@ export class AddressController {
       }
 
       // Validate interval if provided
-      const intervalParam = (interval as 'minutes' | 'hourly' | 'daily' | 'weekly') || 'hourly';
+      const intervalParam =
+        (interval as 'minutes' | 'hourly' | 'daily' | 'weekly') || 'hourly';
       if (!['minutes', 'hourly', 'daily', 'weekly'].includes(intervalParam)) {
         res.status(400).json({
           error: {

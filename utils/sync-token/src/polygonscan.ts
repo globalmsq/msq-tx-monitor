@@ -33,9 +33,7 @@ export class PolygonScanClient {
     if (timeSinceLastRequest < this.requestDelay) {
       const waitTime = this.requestDelay - timeSinceLastRequest;
       const timestamp = new Date().toISOString();
-      console.log(
-        `    ⏳ [${timestamp}] Rate limit: waiting ${waitTime}ms...`
-      );
+      console.log(`    ⏳ [${timestamp}] Rate limit: waiting ${waitTime}ms...`);
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
 
@@ -115,8 +113,12 @@ export class PolygonScanClient {
           console.log(
             `    ⚠️  Timeout! Splitting ${startBlock}-${endBlock} into two ranges:`
           );
-          console.log(`       → ${startBlock}-${midBlock} (${midBlock - startBlock + 1} blocks)`);
-          console.log(`       → ${midBlock + 1}-${endBlock} (${endBlock - midBlock} blocks)`);
+          console.log(
+            `       → ${startBlock}-${midBlock} (${midBlock - startBlock + 1} blocks)`
+          );
+          console.log(
+            `       → ${midBlock + 1}-${endBlock} (${endBlock - midBlock} blocks)`
+          );
 
           // Recursively fetch both halves SEQUENTIALLY to respect rate limits
           const firstHalf = await this.getTokenTransfersWithRetry(
@@ -269,7 +271,9 @@ export class PolygonScanClient {
 
       // Calculate progress
       const blocksProcessed = currentChunkStart - startBlock;
-      const progressPercent = ((blocksProcessed / totalBlocks) * 100).toFixed(2);
+      const progressPercent = ((blocksProcessed / totalBlocks) * 100).toFixed(
+        2
+      );
       const tokenPrefix = tokenSymbol ? `[${tokenSymbol}] ` : '';
 
       console.log(
@@ -295,7 +299,9 @@ export class PolygonScanClient {
         // Process batch immediately with current block info
         await onBatch(transactions, iteration, chunkEndBlock);
       } else {
-        console.log(`  ✅ ${tokenPrefix}No transactions in batch ${iteration} [${progressPercent}%]`);
+        console.log(
+          `  ✅ ${tokenPrefix}No transactions in batch ${iteration} [${progressPercent}%]`
+        );
       }
 
       // Move to next chunk
@@ -304,7 +310,9 @@ export class PolygonScanClient {
     }
 
     const tokenPrefix = tokenSymbol ? `[${tokenSymbol}] ` : '';
-    console.log(`  ✅ ${tokenPrefix}Completed all chunks. Total processed: ${totalProcessed} [100.00%]`);
+    console.log(
+      `  ✅ ${tokenPrefix}Completed all chunks. Total processed: ${totalProcessed} [100.00%]`
+    );
     return totalProcessed;
   }
 }

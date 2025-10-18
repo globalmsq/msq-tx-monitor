@@ -9,166 +9,298 @@ export class StatisticsController {
   }
 
   // Realtime Stats
-  getRealtimeStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getRealtimeStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
-      const data = await this.analyticsService.getRealtimeStats(tokenSymbol);
+      const timeRange = (req.query.timeRange as string) || 'all';
+      const data = await this.analyticsService.getRealtimeStats(
+        tokenSymbol,
+        timeRange
+      );
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
   // Volume endpoints
-  getHourlyVolumeStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getHourlyVolumeStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
       const limit = parseInt(req.query.limit as string) || 24;
-      const data = await this.analyticsService.getHourlyVolume(24, tokenSymbol, limit);
+      const data = await this.analyticsService.getHourlyVolume(
+        tokenSymbol,
+        limit
+      );
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
-  getMinuteVolumeStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getMinuteVolumeStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
       const limit = parseInt(req.query.limit as string) || 60;
-      const data = await this.analyticsService.getMinuteVolumeStats(tokenSymbol, limit);
+      const data = await this.analyticsService.getMinuteVolumeStats(
+        tokenSymbol,
+        limit
+      );
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
-  getDailyVolumeStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getDailyVolumeStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
       const limit = parseInt(req.query.limit as string) || 30;
-      const data = await this.analyticsService.getDailyVolumeStats(tokenSymbol, limit);
+      const data = await this.analyticsService.getDailyVolumeStats(
+        tokenSymbol,
+        limit
+      );
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
-  getWeeklyVolumeStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getWeeklyVolumeStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
       const limit = parseInt(req.query.limit as string) || 52;
-      const data = await this.analyticsService.getWeeklyVolumeStats(tokenSymbol, limit);
+      const data = await this.analyticsService.getWeeklyVolumeStats(
+        tokenSymbol,
+        limit
+      );
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
   // Token Stats
-  getTokenStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getTokenStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.tokenSymbol as string;
       const startDate = req.query.startDate as string;
       const endDate = req.query.endDate as string;
-      const data = await this.analyticsService.getTokenStats(tokenSymbol, startDate, endDate);
+      const data = await this.analyticsService.getTokenStats(
+        tokenSymbol,
+        startDate,
+        endDate
+      );
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
   // Address endpoints
-  getTopAddresses = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getTopAddresses = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
-      const metric = (req.query.metric as 'volume' | 'transactions') || 'volume';
+      const metric =
+        (req.query.metric as 'volume' | 'transactions') || 'volume';
       const limit = parseInt(req.query.limit as string) || 10;
       const tokenSymbol = req.query.tokenSymbol as string;
-      const timeframe = req.query.timeframe as string;
-      const hours = timeframe === '24h' ? 24 : timeframe === '7d' ? 168 : timeframe === '30d' ? 720 : undefined;
-      const data = await this.analyticsService.getTopAddresses(metric, limit, tokenSymbol, hours);
+      const timeRange = (req.query.timeRange as string) || 'all';
+      const data = await this.analyticsService.getTopAddresses(
+        metric,
+        limit,
+        tokenSymbol,
+        timeRange
+      );
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
-  getTopReceivers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getTopReceivers = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const tokenSymbol = req.query.token as string;
-      const hours = parseInt(req.query.hours as string) || 24;
-      const data = await this.analyticsService.getTopReceivers(limit, hours, tokenSymbol);
+      const timeRange = (req.query.timeRange as string) || 'all';
+      const data = await this.analyticsService.getTopReceivers(
+        limit,
+        tokenSymbol,
+        timeRange
+      );
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
-  getTopSenders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getTopSenders = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const tokenSymbol = req.query.token as string;
-      const hours = parseInt(req.query.hours as string) || 24;
-      const data = await this.analyticsService.getTopSenders(limit, hours, tokenSymbol);
+      const timeRange = (req.query.timeRange as string) || 'all';
+      const data = await this.analyticsService.getTopSenders(
+        limit,
+        tokenSymbol,
+        timeRange
+      );
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
   // Anomaly endpoints
-  getAnomalyStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getAnomalyStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.tokenSymbol as string;
-      const startDate = req.query.startDate as string;
-      const endDate = req.query.endDate as string;
-      const hours = startDate && endDate ? 
-        Math.floor((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60)) : undefined;
-      const data = await this.analyticsService.getAnomalyStats(tokenSymbol, hours);
+      const data = await this.analyticsService.getAnomalyStats(tokenSymbol);
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
-  getAnomalyTimeSeriesMinutes = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getAnomalyTimeSeriesMinutes = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
       const limit = parseInt(req.query.limit as string) || 60;
-      const data = await this.analyticsService.getAnomalyTimeSeriesMinutes(tokenSymbol, limit);
+      const data = await this.analyticsService.getAnomalyTimeSeriesMinutes(
+        tokenSymbol,
+        limit
+      );
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
-  getAnomalyTimeSeries = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getAnomalyTimeSeries = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
       const limit = parseInt(req.query.limit as string) || 24;
-      const data = await this.analyticsService.getAnomalyTimeSeries(24, tokenSymbol, limit);
+      const data = await this.analyticsService.getAnomalyTimeSeries(
+        24,
+        tokenSymbol,
+        limit
+      );
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
-  getAnomalyTimeSeriesDaily = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getAnomalyTimeSeriesDaily = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
       const limit = parseInt(req.query.limit as string) || 30;
-      const data = await this.analyticsService.getAnomalyTimeSeriesDaily(tokenSymbol, limit);
+      const data = await this.analyticsService.getAnomalyTimeSeriesDaily(
+        tokenSymbol,
+        limit
+      );
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
-  getAnomalyTimeSeriesWeekly = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getAnomalyTimeSeriesWeekly = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
       const limit = parseInt(req.query.limit as string) || 52;
-      const data = await this.analyticsService.getAnomalyTimeSeriesWeekly(tokenSymbol, limit);
+      const data = await this.analyticsService.getAnomalyTimeSeriesWeekly(
+        tokenSymbol,
+        limit
+      );
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
   // Network Stats
-  getNetworkStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getNetworkStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const tokenSymbol = req.query.tokenSymbol as string;
-      const startDate = req.query.startDate as string;
-      const endDate = req.query.endDate as string;
-      const hours = startDate && endDate ? 
-        Math.floor((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60)) : undefined;
-      const data = await this.analyticsService.getNetworkStats(tokenSymbol, hours);
+      const data = await this.analyticsService.getNetworkStats(tokenSymbol);
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 
   // Token Distribution
-  getTokenDistribution = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getTokenDistribution = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
-      const startDate = req.query.startDate as string;
-      const endDate = req.query.endDate as string;
-      const hours = startDate && endDate ? 
-        Math.floor((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60)) : undefined;
-      const data = await this.analyticsService.getTokenDistribution(undefined, hours);
+      const tokenSymbol = req.query.tokenSymbol as string;
+      const data =
+        await this.analyticsService.getTokenDistribution(tokenSymbol);
       res.json({ data, timestamp: new Date(), cached: false });
-    } catch (error) { next(error); }
+    } catch (error) {
+      next(error);
+    }
   };
 }

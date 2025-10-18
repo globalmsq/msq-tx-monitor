@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "serena": {
+      "command": "npx",
+      "args": ["-y", "@projectserenai/mcp-server"],
+      "env": {
+        "SERENA_PROJECT_PATH": "/Users/harry/Work/mufin/msq-tx-monitor"
+      }
+    }
+  }
+}

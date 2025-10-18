@@ -367,13 +367,12 @@ export class AnalyzeService {
       '0x4da48bdd97c5ece9ab95c6f1c01af0ef30e14fe3': 'P2UC',
     };
 
-    return tokenMap[tokenAddress.toLowerCase()] || tokenAddress.slice(0, 8) + '...';
+    return (
+      tokenMap[tokenAddress.toLowerCase()] || tokenAddress.slice(0, 8) + '...'
+    );
   }
 
-  private generateCacheKey(
-    prefix: string,
-    filters: AnalyticsFilters
-  ): string {
+  private generateCacheKey(prefix: string, filters: AnalyticsFilters): string {
     const parts = [prefix];
     if (filters.startDate) parts.push(filters.startDate);
     if (filters.endDate) parts.push(filters.endDate);

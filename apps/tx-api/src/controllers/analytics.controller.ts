@@ -71,23 +71,8 @@ export class AnalyticsController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const hours = req.query.hours
-        ? parseInt(req.query.hours as string)
-        : 24; // Default to 24 hours for hourly intervals
       const tokenSymbol = req.query.token as string;
       const limit = parseInt(req.query.limit as string) || 24;
-
-      // Validate hours parameter
-      if (hours < 1 || hours > 10000) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 400,
-            message: 'Hours parameter must be between 1 and 10000',
-          },
-        });
-        return;
-      }
 
       // Validate limit parameter
       if (limit < 1 || limit > 720) {
@@ -115,7 +100,6 @@ export class AnalyticsController {
       }
 
       const data = await this.analyticsService.getHourlyVolume(
-        hours,
         tokenSymbol?.toUpperCase(),
         limit
       );
@@ -144,14 +128,13 @@ export class AnalyticsController {
    *         schema:
    *           type: string
    *           enum: [MSQ, SUT, KWT, P2UC]
-   *       - name: hours
+   *       - name: timeRange
    *         in: query
-   *         description: Number of hours to look back (default 24)
+   *         description: Time range for statistics (default all)
    *         schema:
-   *           type: integer
-   *           minimum: 1
-   *           maximum: 10000
-   *           default: 24
+   *           type: string
+   *           enum: [1h, 24h, 7d, 30d, 3m, 6m, 1y, all]
+   *           default: all
    *     responses:
    *       200:
    *         description: Realtime statistics
@@ -163,19 +146,7 @@ export class AnalyticsController {
   ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
-      const hours = parseInt(req.query.hours as string) || 24;
-
-      // Validate hours parameter
-      if (hours < 1 || hours > 10000) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 400,
-            message: 'Hours parameter must be between 1 and 10000',
-          },
-        });
-        return;
-      }
+      const timeRange = req.query.timeRange as string;
 
       // Validate token symbol if provided
       const validTokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
@@ -190,13 +161,36 @@ export class AnalyticsController {
         return;
       }
 
+      // Validate timeRange parameter if provided
+      const validTimeRanges = [
+        '1h',
+        '24h',
+        '7d',
+        '30d',
+        '3m',
+        '6m',
+        '1y',
+        'all',
+      ];
+      if (timeRange && !validTimeRanges.includes(timeRange)) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: `Invalid timeRange. Must be one of: ${validTimeRanges.join(', ')}`,
+          },
+        });
+        return;
+      }
+
       const data = await this.analyticsService.getRealtimeStats(
         tokenSymbol?.toUpperCase(),
-        hours
+        timeRange || 'all'
       );
 
       res.json({
         data,
+        timeRange: timeRange || 'all',
         timestamp: new Date(),
         cached: false,
       });
@@ -237,21 +231,6 @@ export class AnalyticsController {
   ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
-      const hours = req.query.hours
-        ? parseInt(req.query.hours as string)
-        : undefined;
-
-      // Validate hours parameter if provided
-      if (hours !== undefined && (hours < 1 || hours > 10000)) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 400,
-            message: 'Hours parameter must be between 1 and 10000',
-          },
-        });
-        return;
-      }
 
       // Validate token symbol if provided
       const validTokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
@@ -267,8 +246,7 @@ export class AnalyticsController {
       }
 
       const data = await this.analyticsService.getTokenDistribution(
-        tokenSymbol?.toUpperCase(),
-        hours
+        tokenSymbol?.toUpperCase()
       );
 
       res.json({
@@ -310,6 +288,13 @@ export class AnalyticsController {
    *         schema:
    *           type: string
    *           enum: [MSQ, SUT, KWT, P2UC]
+   *       - name: timeRange
+   *         in: query
+   *         description: Time range for rankings (default all)
+   *         schema:
+   *           type: string
+   *           enum: [1h, 24h, 7d, 30d, 3m, 6m, 1y, all]
+   *           default: all
    *     responses:
    *       200:
    *         description: Top addresses data
@@ -323,21 +308,7 @@ export class AnalyticsController {
       const metric = (req.query.metric as string) || 'volume';
       const limit = parseInt(req.query.limit as string) || 10;
       const tokenSymbol = req.query.token as string;
-      const hours = req.query.hours
-        ? parseInt(req.query.hours as string)
-        : undefined;
-
-      // Validate hours parameter if provided
-      if (hours !== undefined && (hours < 1 || hours > 10000)) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 400,
-            message: 'Hours parameter must be between 1 and 10000',
-          },
-        });
-        return;
-      }
+      const timeRange = req.query.timeRange as string;
 
       // Validate metric parameter
       if (!['volume', 'transactions'].includes(metric)) {
@@ -376,15 +347,38 @@ export class AnalyticsController {
         return;
       }
 
+      // Validate timeRange parameter if provided
+      const validTimeRanges = [
+        '1h',
+        '24h',
+        '7d',
+        '30d',
+        '3m',
+        '6m',
+        '1y',
+        'all',
+      ];
+      if (timeRange && !validTimeRanges.includes(timeRange)) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: `Invalid timeRange. Must be one of: ${validTimeRanges.join(', ')}`,
+          },
+        });
+        return;
+      }
+
       const data = await this.analyticsService.getTopAddresses(
         metric as 'volume' | 'transactions',
         limit,
         tokenSymbol?.toUpperCase(),
-        hours
+        timeRange || 'all'
       );
 
       res.json({
         data,
+        timeRange: timeRange || 'all',
         timestamp: new Date(),
         cached: false,
       });
@@ -415,14 +409,13 @@ export class AnalyticsController {
    *         schema:
    *           type: string
    *           enum: [MSQ, SUT, KWT, P2UC]
-   *       - name: hours
+   *       - name: timeRange
    *         in: query
-   *         description: Number of hours to look back
+   *         description: Time range for rankings (default all)
    *         schema:
-   *           type: integer
-   *           minimum: 1
-   *           maximum: 10000
-   *           default: 24
+   *           type: string
+   *           enum: [1h, 24h, 7d, 30d, 3m, 6m, 1y, all]
+   *           default: all
    *     responses:
    *       200:
    *         description: Top receiver addresses
@@ -435,7 +428,7 @@ export class AnalyticsController {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const tokenSymbol = req.query.token as string;
-      const hours = parseInt(req.query.hours as string) || 24;
+      const timeRange = req.query.timeRange as string;
 
       // Validate limit parameter
       if (limit < 1 || limit > 100) {
@@ -444,18 +437,6 @@ export class AnalyticsController {
           error: {
             code: 400,
             message: 'Limit parameter must be between 1 and 100',
-          },
-        });
-        return;
-      }
-
-      // Validate hours parameter
-      if (hours < 1 || hours > 10000) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 400,
-            message: 'Hours parameter must be between 1 and 10000',
           },
         });
         return;
@@ -474,14 +455,37 @@ export class AnalyticsController {
         return;
       }
 
+      // Validate timeRange parameter if provided
+      const validTimeRanges = [
+        '1h',
+        '24h',
+        '7d',
+        '30d',
+        '3m',
+        '6m',
+        '1y',
+        'all',
+      ];
+      if (timeRange && !validTimeRanges.includes(timeRange)) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: `Invalid timeRange. Must be one of: ${validTimeRanges.join(', ')}`,
+          },
+        });
+        return;
+      }
+
       const data = await this.analyticsService.getTopReceivers(
         limit,
-        hours,
-        tokenSymbol?.toUpperCase()
+        tokenSymbol?.toUpperCase(),
+        timeRange || 'all'
       );
 
       res.json({
         data,
+        timeRange: timeRange || 'all',
         timestamp: new Date(),
         cached: false,
       });
@@ -512,14 +516,13 @@ export class AnalyticsController {
    *         schema:
    *           type: string
    *           enum: [MSQ, SUT, KWT, P2UC]
-   *       - name: hours
+   *       - name: timeRange
    *         in: query
-   *         description: Number of hours to look back
+   *         description: Time range for rankings (default all)
    *         schema:
-   *           type: integer
-   *           minimum: 1
-   *           maximum: 10000
-   *           default: 24
+   *           type: string
+   *           enum: [1h, 24h, 7d, 30d, 3m, 6m, 1y, all]
+   *           default: all
    *     responses:
    *       200:
    *         description: Top sender addresses
@@ -532,7 +535,7 @@ export class AnalyticsController {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const tokenSymbol = req.query.token as string;
-      const hours = parseInt(req.query.hours as string) || 24;
+      const timeRange = req.query.timeRange as string;
 
       // Validate limit parameter
       if (limit < 1 || limit > 100) {
@@ -541,18 +544,6 @@ export class AnalyticsController {
           error: {
             code: 400,
             message: 'Limit parameter must be between 1 and 100',
-          },
-        });
-        return;
-      }
-
-      // Validate hours parameter
-      if (hours < 1 || hours > 10000) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 400,
-            message: 'Hours parameter must be between 1 and 10000',
           },
         });
         return;
@@ -571,14 +562,37 @@ export class AnalyticsController {
         return;
       }
 
+      // Validate timeRange parameter if provided
+      const validTimeRanges = [
+        '1h',
+        '24h',
+        '7d',
+        '30d',
+        '3m',
+        '6m',
+        '1y',
+        'all',
+      ];
+      if (timeRange && !validTimeRanges.includes(timeRange)) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: `Invalid timeRange. Must be one of: ${validTimeRanges.join(', ')}`,
+          },
+        });
+        return;
+      }
+
       const data = await this.analyticsService.getTopSenders(
         limit,
-        hours,
-        tokenSymbol?.toUpperCase()
+        tokenSymbol?.toUpperCase(),
+        timeRange || 'all'
       );
 
       res.json({
         data,
+        timeRange: timeRange || 'all',
         timestamp: new Date(),
         cached: false,
       });
@@ -612,21 +626,6 @@ export class AnalyticsController {
   ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
-      const hours = req.query.hours
-        ? parseInt(req.query.hours as string)
-        : undefined;
-
-      // Validate hours parameter if provided
-      if (hours !== undefined && (hours < 1 || hours > 10000)) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 400,
-            message: 'Hours parameter must be between 1 and 10000',
-          },
-        });
-        return;
-      }
 
       // Validate token symbol if provided
       const validTokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
@@ -642,8 +641,7 @@ export class AnalyticsController {
       }
 
       const data = await this.analyticsService.getAnomalyStats(
-        tokenSymbol?.toUpperCase(),
-        hours
+        tokenSymbol?.toUpperCase()
       );
 
       res.json({
@@ -778,21 +776,6 @@ export class AnalyticsController {
   ): Promise<void> => {
     try {
       const tokenSymbol = req.query.token as string;
-      const hours = req.query.hours
-        ? parseInt(req.query.hours as string)
-        : undefined;
-
-      // Validate hours parameter if provided
-      if (hours !== undefined && (hours < 1 || hours > 10000)) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 400,
-            message: 'Hours parameter must be between 1 and 10000',
-          },
-        });
-        return;
-      }
 
       // Validate token symbol if provided
       const validTokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
@@ -808,8 +791,7 @@ export class AnalyticsController {
       }
 
       const data = await this.analyticsService.getNetworkStats(
-        tokenSymbol?.toUpperCase(),
-        hours
+        tokenSymbol?.toUpperCase()
       );
 
       res.json({
@@ -1033,6 +1015,81 @@ export class AnalyticsController {
       }
 
       const data = await this.analyticsService.getWeeklyVolumeStats(
+        tokenSymbol?.toUpperCase(),
+        limit
+      );
+
+      res.json({
+        data,
+        timestamp: new Date(),
+        cached: false,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * @swagger
+   * /analytics/volume/monthly:
+   *   get:
+   *     summary: Get monthly volume aggregation
+   *     description: Get volume data aggregated by month
+   *     tags: [Analytics]
+   *     parameters:
+   *       - name: token
+   *         in: query
+   *         description: Filter by specific token symbol
+   *         schema:
+   *           type: string
+   *           enum: [MSQ, SUT, KWT, P2UC]
+   *       - name: limit
+   *         in: query
+   *         description: Maximum number of months to return
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 60
+   *           default: 12
+   *     responses:
+   *       200:
+   *         description: Monthly volume data
+   */
+  getMonthlyVolumeStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tokenSymbol = req.query.token as string;
+      const limit = parseInt(req.query.limit as string) || 12;
+
+      // Validate limit parameter (max 60 months = 5 years)
+      if (limit < 1 || limit > 60) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: 'Limit parameter must be between 1 and 60',
+          },
+        });
+        return;
+      }
+
+      // Validate token symbol if provided
+      const validTokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
+      if (tokenSymbol && !validTokens.includes(tokenSymbol.toUpperCase())) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 400,
+            message: `Invalid token symbol. Must be one of: ${validTokens.join(', ')}`,
+          },
+        });
+        return;
+      }
+
+      const data = await this.analyticsService.getMonthlyVolumeStats(
         tokenSymbol?.toUpperCase(),
         limit
       );

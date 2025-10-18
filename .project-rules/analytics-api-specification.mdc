@@ -1,0 +1,708 @@
+---
+description: Analytics API 스펙 및 독립성 가이드 - Volume API와 Realtime/Top APIs의 명확한 구분
+globs: "apps/tx-api/src/**/*.ts"
+alwaysApply: false
+---
+
+# Analytics API Specification & Independence Guide
+
+## 🎯 목적
+
+이 문서는 Analytics API의 명확한 스펙과 각 API의 독립성을 정의합니다.
+**Volume API 수정 시 Realtime/Top APIs가 함께 수정되는 실수를 방지**하기 위한 가이드입니다.
+
+## 📊 API 분류
+
+### 1. Time-Series APIs (시계열 데이터)
+
+**포함 API:**
+- `/analytics/volume/minutes` - 분 단위 볼륨 데이터
+- `/analytics/volume/hourly` - 시간 단위 볼륨 데이터
+- `/analytics/volume/daily` - 일 단위 볼륨 데이터
+- `/analytics/volume/weekly` - 주 단위 볼륨 데이터
+- `/analytics/volume/monthly` - 월 단위 볼륨 데이터
+- `/analytics/anomalies/timeseries/minutes` - 분 단위 이상 거래 데이터
+- `/analytics/anomalies/timeseries/hourly` - 시간 단위 이상 거래 데이터
+- `/analytics/anomalies/timeseries/daily` - 일 단위 이상 거래 데이터
+- `/analytics/anomalies/timeseries/weekly` - 주 단위 이상 거래 데이터
+
+**특징:**
+- ✅ `limit` 파라미터로 데이터 포인트 개수 제어
+- ✅ 시간 간격별로 집계된 데이터 반환
+- ✅ 차트 시각화용 데이터
+- ✅ 기간별로 다른 엔드포인트 사용 (minutes/hourly/daily/weekly/monthly)
+
+**Request 파라미터:**
+```typescript
+{
+  token?: string,    // 토큰 필터 (MSQ, SUT, KWT, P2UC)
+  limit: number      // 반환할 데이터 포인트 개수
+}
+```
+
+**Response 구조:**
+```typescript
+{
+  data: [
+    {
+      datetime: string,        // ISO 8601 format
+      tokenSymbol: string,
+      totalVolume: string,
+      transactionCount: number,
+      averageVolume: string
+    }
+  ],
+  timestamp: string,
+  cached: boolean
+}
+```
+
+**용도:**
+- Volume/Transaction 차트 렌더링
+- 트렌드 분석 시각화
+- 시간대별 패턴 분석
+
+---
+
+### 2. Snapshot APIs (스냅샷 데이터)
+
+**포함 API:**
+- `/analytics/realtime` - 실시간 통계 (전체 기간 누적)
+- `/analytics/addresses/top` - 상위 주소 (전체 기간 기준)
+- `/analytics/addresses/receivers` - 상위 수신 주소 (전체 기간 기준)
+- `/analytics/addresses/senders` - 상위 발신 주소 (전체 기간 기준)
+- `/analytics/distribution/token` - 토큰 분포 (전체 기간)
+- `/analytics/network` - 네트워크 통계 (전체 기간)
+- `/analytics/anomalies` - 이상 거래 통계 (전체 기간)
+
+**특징:**
+- ❌ 시간 범위 필터링 없음 (의도적 설계)
+- ✅ 전체 기간의 누적 데이터 반환
+- ✅ 대시보드 메트릭 카드용 데이터
+- ✅ 순위/분포 표시용 데이터
+
+**Request 파라미터:**
+```typescript
+{
+  token?: string,        // 토큰 필터 (선택적)
+  limit?: number,        // Top APIs에만 해당
+  metric?: string        // Top Addresses API에만 해당 (volume/transactions)
+}
+```
+
+**용도:**
+- 대시보드 상단 메트릭 카드 (총 거래수, 총 볼륨, 활성 주소)
+- 역대 상위 주소 순위 표시
+- 전체 기간 통계 요약
+
+---
+
+## 🔍 각 API의 명확한 스펙
+
+### Realtime API
+
+**Endpoint:**
+```
+GET /analytics/realtime?token=MSQ
+```
+
+**목적:**
+- 전체 기간의 실시간 누적 통계
+- "역대" 총 거래수, 총 볼륨 표시
+
+**Request:**
+```typescript
+{
+  token?: string  // 토큰 필터 (선택적)
+}
+```
+
+**Response:**
+```typescript
+{
+  data: {
+    totalTransactions: number,        // 전체 기간 총 거래수
+    totalVolume: string,              // 전체 기간 총 볼륨
+    activeAddresses: number,          // 전체 기간 활성 주소 수
+    transactionsLast24h: number,      // ⚠️ 현재는 전체와 동일 (수정 필요)
+    volumeLast24h: string,            // ⚠️ 현재는 전체와 동일 (수정 필요)
+    activeTokens: number,
+    tokenStats: [
+      {
+        tokenSymbol: string,
+        totalVolume: string,
+        transactionCount: number,
+        uniqueAddresses24h: number,
+        volume24h: string
+      }
+    ]
+  },
+  timestamp: string,
+  cached: boolean
+}
+```
+
+**시간 필터링:**
+- ❌ **없음** (의도적 설계)
+- SQL WHERE 절에 timestamp 조건 없음
+- 전체 transactions 테이블 집계
+
+**Service 구현:**
+```sql
+-- apps/tx-api/src/services/analytics.service.ts:124-131
+SELECT COUNT(*), SUM(value), COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress)
+FROM transactions
+WHERE tokenSymbol = 'MSQ'  -- 시간 필터링 없음!
+```
+
+**Frontend 사용:**
+```typescript
+// apps/tx-dashboard/src/pages/Analytics.tsx:395
+fetch(`${API_BASE_URL}/analytics/realtime?token=${token}`)
+```
+
+**용도:**
+- Analytics 페이지 상단 메트릭 카드
+- "총 거래수", "총 볼륨", "활성 주소" 표시
+- 시간 범위 선택과 무관하게 고정 값 표시
+
+---
+
+### Top Addresses API
+
+**Endpoint:**
+```
+GET /analytics/addresses/top?metric=volume&limit=5&token=MSQ
+```
+
+**목적:**
+- 전체 기간 기준 상위 주소 순위
+- "역대 Top 주소" 표시
+
+**Request:**
+```typescript
+{
+  metric: 'volume' | 'transactions',  // 순위 기준
+  limit: number,                      // 1-100
+  token?: string                      // 토큰 필터 (선택적)
+}
+```
+
+**Response:**
+```typescript
+{
+  data: [
+    {
+      rank: number,
+      address: string,
+      totalVolume: string,          // 전체 기간 누적
+      totalReceived: string,        // 전체 기간 누적
+      totalSent: string,            // 전체 기간 누적
+      transactionCount: number,     // 전체 기간 누적
+      uniqueInteractions: number,
+      metric: string
+    }
+  ],
+  timestamp: string,
+  cached: boolean
+}
+```
+
+**시간 필터링:**
+- ❌ **없음** (의도적 설계)
+- 전체 기간 데이터 기준 순위
+
+**Service 구현:**
+```sql
+-- apps/tx-api/src/services/analytics.service.ts:281-318
+SELECT address, SUM(totalSent), SUM(totalReceived), ...
+FROM (
+  SELECT fromAddress, SUM(value), COUNT(*)
+  FROM transactions
+  WHERE tokenSymbol = 'MSQ'  -- 시간 필터링 없음!
+  GROUP BY fromAddress
+  UNION ALL
+  SELECT toAddress, SUM(value), COUNT(*)
+  FROM transactions
+  WHERE tokenSymbol = 'MSQ'  -- 시간 필터링 없음!
+  GROUP BY toAddress
+)
+GROUP BY address
+ORDER BY ... LIMIT 5
+```
+
+**Frontend 사용:**
+```typescript
+// apps/tx-dashboard/src/pages/Analytics.tsx:476-489
+fetch(`${API_BASE_URL}/analytics/addresses/top?metric=volume&limit=5&token=${token}`)
+```
+
+**용도:**
+- "Top Addresses by Volume" 섹션
+- 역대 상위 5개 주소 표시
+- 시간 범위 선택과 무관하게 고정 순위 표시
+
+---
+
+### Top Receivers API
+
+**Endpoint:**
+```
+GET /analytics/addresses/receivers?limit=5&token=MSQ
+```
+
+**목적:**
+- 전체 기간 기준 수신 거래 많은 주소 순위
+
+**Request:**
+```typescript
+{
+  limit: number,      // 1-100
+  token?: string      // 토큰 필터 (선택적)
+}
+```
+
+**Response:**
+```typescript
+{
+  data: [
+    {
+      rank: number,
+      address: string,
+      totalVolume: string,
+      transactionCount: number,  // 수신 거래 수
+      metric: number
+    }
+  ],
+  timestamp: string,
+  cached: boolean
+}
+```
+
+**⚠️ Swagger 문서 vs 실제 구현:**
+- Swagger: `hours` 파라미터 명시 (lines 356-363)
+- 실제: Controller에서 `hours` 미사용
+- **실제 동작**: 전체 기간 데이터 (시간 필터링 없음)
+
+**Service 구현:**
+```sql
+-- apps/tx-api/src/services/analytics.service.ts:432-441
+SELECT toAddress, COUNT(*), SUM(value)
+FROM transactions
+WHERE tokenSymbol = 'MSQ'  -- 시간 필터링 없음!
+GROUP BY toAddress
+ORDER BY transactionCount DESC
+LIMIT 5
+```
+
+---
+
+### Top Senders API
+
+**Endpoint:**
+```
+GET /analytics/addresses/senders?limit=5&token=MSQ
+```
+
+**목적:**
+- 전체 기간 기준 발신 거래 많은 주소 순위
+
+**Request:**
+```typescript
+{
+  limit: number,      // 1-100
+  token?: string      // 토큰 필터 (선택적)
+}
+```
+
+**Response:**
+```typescript
+{
+  data: [
+    {
+      rank: number,
+      address: string,
+      totalVolume: string,
+      transactionCount: number,  // 발신 거래 수
+      metric: number
+    }
+  ],
+  timestamp: string,
+  cached: boolean
+}
+```
+
+**⚠️ Swagger 문서 vs 실제 구현:**
+- Swagger: `hours` 파라미터 명시 (lines 439-446)
+- 실제: Controller에서 `hours` 미사용
+- **실제 동작**: 전체 기간 데이터 (시간 필터링 없음)
+
+**Service 구현:**
+```sql
+-- apps/tx-api/src/services/analytics.service.ts:470-479
+SELECT fromAddress, COUNT(*), SUM(value)
+FROM transactions
+WHERE tokenSymbol = 'MSQ'  -- 시간 필터링 없음!
+GROUP BY fromAddress
+ORDER BY transactionCount DESC
+LIMIT 5
+```
+
+---
+
+## ⚠️ CRITICAL: API 독립성 규칙
+
+### 절대 지켜야 할 원칙
+
+#### 1. Volume API 수정 시
+
+```
+✅ 수정 대상:
+- /analytics/volume/* 엔드포인트
+- /analytics/anomalies/timeseries/* 엔드포인트
+
+❌ 절대 수정 금지:
+- /analytics/realtime
+- /analytics/addresses/top
+- /analytics/addresses/receivers
+- /analytics/addresses/senders
+- /analytics/distribution/token
+- /analytics/network
+- /analytics/anomalies (timeseries 제외)
+```
+
+**이유:**
+- Volume API는 **차트 시각화용 시계열 데이터**
+- Realtime/Top APIs는 **전체 기간 누적 스냅샷 데이터**
+- Request 파라미터가 다름 (`limit` vs 없음)
+- Response 구조가 다름 (배열 vs 객체)
+- 사용 목적이 완전히 다름
+
+#### 2. Realtime/Top APIs 수정 시
+
+```
+✅ 수정 대상:
+- /analytics/realtime
+- /analytics/addresses/*
+- /analytics/distribution/token
+- /analytics/network
+- /analytics/anomalies (stats만)
+
+❌ 절대 수정 금지:
+- /analytics/volume/*
+- /analytics/anomalies/timeseries/*
+```
+
+**이유:**
+- Realtime/Top APIs는 **전체 기간 누적 데이터**
+- Volume APIs는 **시간별 분할 데이터**
+- 독립적인 캐싱 전략
+- 독립적인 성능 최적화 필요
+
+---
+
+## 🧪 Frontend 동작 설명
+
+### Analytics.tsx의 의도된 동작
+
+**시간 범위 선택 버튼 (`1h`, `24h`, `7d`, `30d`, `3m`, `6m`, `1y`, `all`):**
+
+```typescript
+// apps/tx-dashboard/src/pages/Analytics.tsx:1028-1065
+
+const handleTimeRangeChange = (range: TimeRange) => {
+  setTimeRange(range);
+  // fetchAnalyticsData가 자동 호출됨
+};
+```
+
+**시간 범위 변경 시 API 호출:**
+
+1. **✅ 변경되는 API (Time-Series):**
+   ```typescript
+   // Volume API - limit 파라미터로 기간 제어
+   fetch(`${volumeEndpoint}?limit=${limit}&token=${token}`)
+
+   // Anomaly Timeseries API - limit 파라미터로 기간 제어
+   fetch(`${anomalyEndpoint}?limit=${limit}&token=${token}`)
+   ```
+
+2. **❌ 변경되지 않는 API (Snapshot) - 의도된 동작:**
+   ```typescript
+   // Realtime API - 전체 기간 고정
+   fetch(`${API_BASE_URL}/analytics/realtime?token=${token}`)
+
+   // Top Addresses API - 전체 기간 고정
+   fetch(`${API_BASE_URL}/analytics/addresses/top?metric=volume&limit=5&token=${token}`)
+
+   // Top Receivers API - 전체 기간 고정
+   fetch(`${API_BASE_URL}/analytics/addresses/receivers?limit=5&token=${token}`)
+
+   // Top Senders API - 전체 기간 고정
+   fetch(`${API_BASE_URL}/analytics/addresses/senders?limit=5&token=${token}`)
+   ```
+
+**이는 버그가 아닌 의도된 설계입니다!**
+
+### UI 표시 패턴
+
+```
+┌─────────────────────────────────────────┐
+│  시간 범위: [1h] 24h 7d 30d ...         │ ← 선택 가능
+├─────────────────────────────────────────┤
+│                                         │
+│  총 거래수: 1,234,567  (전체 기간)      │ ← 시간 범위 무관
+│  총 볼륨: 9.87M MSQ    (전체 기간)      │ ← 시간 범위 무관
+│  활성 주소: 45,678     (전체 기간)      │ ← 시간 범위 무관
+│                                         │
+├─────────────────────────────────────────┤
+│                                         │
+│  📊 Volume 차트 (선택한 기간)           │ ← 시간 범위 반영
+│  [차트 데이터: 최근 1시간]               │
+│                                         │
+├─────────────────────────────────────────┤
+│                                         │
+│  🏆 Top Addresses (전체 기간)           │ ← 시간 범위 무관
+│  1. 0x1234... - 1.5M MSQ                │
+│  2. 0x5678... - 1.2M MSQ                │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## 📋 수정 체크리스트
+
+### Volume API 수정 시
+
+- [ ] Volume API만 수정 (`apps/tx-api/src/services/analytics.service.ts`)
+  - [ ] `getHourlyVolume()`
+  - [ ] `getMinuteVolumeStats()`
+  - [ ] `getDailyVolumeStats()`
+  - [ ] `getWeeklyVolumeStats()`
+  - [ ] `getMonthlyVolumeStats()`
+- [ ] Anomaly Timeseries API 함께 검토
+  - [ ] `getAnomalyTimeSeries()`
+  - [ ] `getAnomalyTimeSeriesMinutes()`
+  - [ ] `getAnomalyTimeSeriesDaily()`
+  - [ ] `getAnomalyTimeSeriesWeekly()`
+- [ ] **Realtime API는 건드리지 않음** ⛔
+- [ ] **Top APIs는 건드리지 않음** ⛔
+- [ ] Request 파라미터 일관성 확인 (`limit` 파라미터 사용)
+- [ ] Response 구조 통일성 확인
+  - [ ] `datetime: string` (ISO 8601)
+  - [ ] `tokenSymbol: string`
+  - [ ] `totalVolume: string`
+  - [ ] `transactionCount: number`
+  - [ ] `averageVolume: string`
+- [ ] Frontend 호출 코드 검토 (`Analytics.tsx`)
+- [ ] SQL 쿼리 성능 테스트
+- [ ] 캐싱 전략 업데이트
+
+### Realtime/Top APIs 수정 시
+
+- [ ] Realtime/Top APIs만 수정
+  - [ ] `getRealtimeStats()`
+  - [ ] `getTopAddresses()`
+  - [ ] `getTopReceivers()`
+  - [ ] `getTopSenders()`
+- [ ] **Volume API와 독립적으로 수정** ⛔
+- [ ] **시간 필터링 로직 추가 금지** (현재 설계 유지)
+- [ ] 전체 기간 집계 로직 유지
+- [ ] Swagger 문서 정확성 확인
+  - [ ] Top Receivers/Senders의 불필요한 `hours` 파라미터 제거
+- [ ] 캐싱 전략 고려 (전체 데이터 캐싱)
+- [ ] 성능 최적화 (인덱스, 쿼리 최적화)
+
+---
+
+## 🔧 알려진 문제점
+
+### 1. Swagger 문서 불일치
+
+**문제:**
+- Top Receivers/Senders API의 Swagger 문서에 `hours` 파라미터 명시
+- 실제 Controller/Service에서는 `hours` 파라미터 미사용
+
+**위치:**
+```typescript
+// apps/tx-api/src/controllers/analytics.controller.ts:356-363
+// apps/tx-api/src/controllers/analytics.controller.ts:439-446
+@swagger
+parameters:
+  - name: hours
+    in: query
+    description: Number of hours to look back
+```
+
+**해결 방법:**
+- Swagger 문서에서 `hours` 파라미터 제거
+- 또는 실제 구현에 `hours` 파라미터 추가 (설계 변경 필요)
+
+### 2. Realtime API의 혼란스러운 필드명
+
+**문제:**
+```typescript
+{
+  totalTransactions: number,        // 전체 기간
+  transactionsLast24h: number,      // 실제로는 전체 기간과 동일
+  volumeLast24h: string             // 실제로는 전체 기간과 동일
+}
+```
+
+**현재 구현:**
+```sql
+-- 두 쿼리가 WHERE 절 동일 (시간 필터 없음)
+SELECT COUNT(*) FROM transactions WHERE tokenSymbol = 'MSQ'  -- totalTransactions
+SELECT COUNT(*) FROM transactions WHERE tokenSymbol = 'MSQ'  -- transactionsLast24h
+```
+
+**해결 방법:**
+1. 필드명 변경 (Breaking Change)
+   - `transactionsLast24h` → `totalTransactions`
+   - `volumeLast24h` → `totalVolume`
+2. 또는 실제 24시간 데이터 제공 (설계 변경)
+   - WHERE 절에 `timestamp >= NOW() - INTERVAL 24 HOUR` 추가
+
+---
+
+## 🎯 향후 개선 제안
+
+### 1. API 명명 규칙 개선
+
+**현재:**
+- `/analytics/realtime` - 실시간처럼 보이지만 실제로는 전체 기간
+- `/analytics/addresses/top` - 상위 주소이지만 기간 불명확
+
+**제안:**
+```
+/analytics/summary/all-time          // 전체 기간 요약
+/analytics/addresses/top/all-time    // 전체 기간 상위 주소
+```
+
+### 2. 시간 범위 지원 API 추가 (선택적)
+
+만약 시간 범위별 Realtime/Top 데이터가 필요하다면:
+
+```
+GET /analytics/realtime?timeRange=24h         // 24시간 통계
+GET /analytics/addresses/top?timeRange=7d     // 7일간 상위 주소
+```
+
+**주의:** 이는 현재 설계의 근본적 변경이므로 신중히 검토 필요
+
+### 3. Response에 기간 정보 명시
+
+```typescript
+{
+  data: { ... },
+  timeRange: "all-time" | "24h" | "7d" | ...,
+  aggregationPeriod: {
+    start: "2024-01-01T00:00:00Z",
+    end: "2024-12-31T23:59:59Z"
+  },
+  timestamp: "2024-12-31T23:59:59Z"
+}
+```
+
+---
+
+## 📚 관련 파일
+
+### Backend
+- `apps/tx-api/src/controllers/analytics.controller.ts` - Request 처리, 파라미터 검증
+- `apps/tx-api/src/services/analytics.service.ts` - 비즈니스 로직, SQL 쿼리
+- `apps/tx-api/src/routes/analytics.routes.ts` - 라우팅 정의
+
+### Frontend
+- `apps/tx-dashboard/src/pages/Analytics.tsx` - Analytics 페이지 (lines 300-1459)
+  - Line 395: Realtime API 호출
+  - Line 445: Volume API 호출 (시간 범위 반영)
+  - Line 476: Top Addresses API 호출
+  - Line 492: Top Receivers API 호출
+  - Line 509: Top Senders API 호출
+
+### Documentation
+- `.project-rules/analytics-api-specification.mdc` - 이 문서
+
+---
+
+## 🔍 디버깅 가이드
+
+### Volume API가 변경되었는데 Top APIs가 함께 수정된 경우
+
+1. **변경 사항 확인:**
+   ```bash
+   git diff apps/tx-api/src/services/analytics.service.ts
+   ```
+
+2. **체크리스트:**
+   - [ ] `getTopAddresses()` 메서드가 수정되었는가?
+   - [ ] `getTopReceivers()` 메서드가 수정되었는가?
+   - [ ] `getTopSenders()` 메서드가 수정되었는가?
+   - [ ] `getRealtimeStats()` 메서드가 수정되었는가?
+
+3. **되돌리기:**
+   ```bash
+   # Volume API 변경만 유지, 나머지 되돌리기
+   git checkout HEAD -- apps/tx-api/src/services/analytics.service.ts
+   # Volume API 메서드만 선택적으로 다시 적용
+   ```
+
+### API 응답이 예상과 다른 경우
+
+1. **API 분류 확인:**
+   - Time-Series API인가? → `limit` 파라미터 확인
+   - Snapshot API인가? → 시간 필터링 없음 확인
+
+2. **SQL 쿼리 확인:**
+   ```sql
+   -- Time-Series: datetime GROUP BY 있어야 함
+   SELECT datetime, SUM(value), COUNT(*)
+   FROM transactions
+   GROUP BY datetime
+   ORDER BY datetime DESC
+   LIMIT ?
+
+   -- Snapshot: 전체 집계
+   SELECT SUM(value), COUNT(*)
+   FROM transactions
+   WHERE tokenSymbol = ?
+   ```
+
+3. **Frontend 호출 확인:**
+   ```typescript
+   // Time-Series: limit 파라미터 필수
+   fetch(`/analytics/volume/hourly?limit=${limit}&token=${token}`)
+
+   // Snapshot: limit 파라미터 없음 또는 선택적
+   fetch(`/analytics/realtime?token=${token}`)
+   ```
+
+---
+
+## ✅ 요약
+
+### Time-Series APIs (차트용)
+- ✅ `limit` 파라미터로 데이터 포인트 제어
+- ✅ 시간 간격별 배열 반환
+- ✅ Volume, Anomaly Timeseries APIs
+- ✅ **UI 기간 선택과 연동**
+
+### Snapshot APIs (메트릭 카드용)
+- ❌ 시간 필터링 없음 (의도적)
+- ✅ 전체 기간 누적 데이터
+- ✅ Realtime, Top Addresses/Receivers/Senders APIs
+- ✅ **UI 기간 선택과 무관**
+
+### 독립성 원칙
+- ⛔ Volume API 수정 시 Realtime/Top APIs 건드리지 말 것
+- ⛔ Realtime/Top APIs 수정 시 Volume APIs 건드리지 말 것
+- ✅ 각 API는 독립적인 목적과 스펙을 가짐
+- ✅ Request/Response 구조가 근본적으로 다름
+
+---
+
+**마지막 업데이트:** 2025-10-19
+**작성자:** Claude Code
+**버전:** 1.0.0
