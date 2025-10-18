@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { apiLogger } from '@msq-tx-monitor/msq-common';
 
 export interface HourlyVolumeData {
-  hour: string;
+  datetime: string;
   tokenSymbol: string;
   totalVolume: string;
   transactionCount: number;
@@ -22,8 +22,6 @@ export interface RealtimeStats {
   totalTransactions: number;
   totalVolume: string;
   activeAddresses: number;
-  transactionsLast24h: number;
-  volumeLast24h: string;
   activeTokens: number;
   tokenStats: TokenStats[];
 }
@@ -37,118 +35,47 @@ export class AnalyticsService {
    * Get hourly volume aggregation for the last N hours
    */
   async getHourlyVolume(
-    hours?: number,
     tokenSymbol?: string,
     limit: number = 24
   ): Promise<HourlyVolumeData[]> {
     try {
-      const cutoffDate = hours
-        ? new Date(Date.now() - hours * 60 * 60 * 1000)
-        : undefined;
-
-      // Determine interval type and format based on time range
-      let intervalType: 'minute' | 'hour' | 'day' | 'week' | 'month';
-      let dateFormat: string;
-      let intervalMinutes: number;
-
-      if (!hours) {
-        // All time: use monthly intervals
-        intervalType = 'month';
-        intervalMinutes = 43200; // 30 * 24 * 60 (approximate)
-        dateFormat = '%Y-%m'; // Year-Month format
-      } else if (hours <= 1) {
-        intervalType = 'minute';
-        intervalMinutes = 5;
-        dateFormat = '%Y-%m-%d %H:%i:00'; // 5-minute intervals
-      } else if (hours <= 168) {
-        intervalType = 'hour';
-        intervalMinutes = 60;
-        dateFormat = '%Y-%m-%d %H:00:00'; // Hourly intervals
-      } else if (hours <= 2160) {
-        intervalType = 'day';
-        intervalMinutes = 1440; // 24 * 60
-        dateFormat = '%Y-%m-%d'; // Daily intervals
-      } else if (hours <= 8760) {
-        intervalType = 'week';
-        intervalMinutes = 10080; // 7 * 24 * 60
-        dateFormat = '%Y-%u'; // Year-Week format (ISO week)
-      } else {
-        intervalType = 'month';
-        intervalMinutes = 43200; // 30 * 24 * 60 (approximate)
-        dateFormat = '%Y-%m'; // Year-Month format
-      }
-
-      // Use Prisma.$queryRaw with proper SQL - dateFormat cannot be parameterized
-      // Use alias in GROUP BY which MySQL supports to satisfy ONLY_FULL_GROUP_BY
+      // Hourly endpoint: return latest {limit} hourly data points
+      // No hours parameter needed - endpoint determines the interval
       const maxResults = limit * 2;
 
-      // Build the DATE_FORMAT expression (internally controlled, safe from SQL injection)
-      const dateFormatExpression = `DATE_FORMAT(timestamp, '${dateFormat}')`;
+      // Use DATETIME calculation for hourly intervals
+      const dateExpression = `DATE_ADD(DATE(timestamp), INTERVAL HOUR(timestamp) HOUR)`;
 
       const rows = tokenSymbol
-        ? cutoffDate
-          ? await prisma.$queryRaw<any[]>`
-              SELECT
-                ${Prisma.raw(dateFormatExpression)} as hour,
-                tokenSymbol,
-                SUM(value) as totalVolume,
-                COUNT(*) as transactionCount,
-                CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
-              FROM transactions
-              WHERE timestamp >= ${cutoffDate} AND tokenSymbol = ${tokenSymbol}
-              GROUP BY hour, tokenSymbol
-              ORDER BY hour DESC, tokenSymbol
-              LIMIT ${maxResults}
-            `
-          : await prisma.$queryRaw<any[]>`
-              SELECT
-                ${Prisma.raw(dateFormatExpression)} as hour,
-                tokenSymbol,
-                SUM(value) as totalVolume,
-                COUNT(*) as transactionCount,
-                CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
-              FROM transactions
-              WHERE tokenSymbol = ${tokenSymbol}
-              GROUP BY hour, tokenSymbol
-              ORDER BY hour DESC, tokenSymbol
-              LIMIT ${maxResults}
-            `
-        : cutoffDate
-          ? await prisma.$queryRaw<any[]>`
-              SELECT
-                ${Prisma.raw(dateFormatExpression)} as hour,
-                tokenSymbol,
-                SUM(value) as totalVolume,
-                COUNT(*) as transactionCount,
-                CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
-              FROM transactions
-              WHERE timestamp >= ${cutoffDate}
-              GROUP BY hour, tokenSymbol
-              ORDER BY hour DESC, tokenSymbol
-              LIMIT ${maxResults}
-            `
-          : await prisma.$queryRaw<any[]>`
-              SELECT
-                ${Prisma.raw(dateFormatExpression)} as hour,
-                tokenSymbol,
-                SUM(value) as totalVolume,
-                COUNT(*) as transactionCount,
-                CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
-              FROM transactions
-              GROUP BY hour, tokenSymbol
-              ORDER BY hour DESC, tokenSymbol
-              LIMIT ${maxResults}
-            `;
+        ? await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateExpression)} as datetime,
+              tokenSymbol,
+              SUM(value) as totalVolume,
+              COUNT(*) as transactionCount,
+              CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+            FROM transactions
+            WHERE tokenSymbol = ${tokenSymbol}
+            GROUP BY datetime, tokenSymbol
+            ORDER BY datetime DESC, tokenSymbol
+            LIMIT ${maxResults}
+          `
+        : await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateExpression)} as datetime,
+              tokenSymbol,
+              SUM(value) as totalVolume,
+              COUNT(*) as transactionCount,
+              CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+            FROM transactions
+            GROUP BY datetime, tokenSymbol
+            ORDER BY datetime DESC, tokenSymbol
+            LIMIT ${maxResults}
+          `;
 
       const rawData = rows.map(row => {
-        // Only add 'Z' for datetime formats (minute/hour), not for date formats (day/week/month)
-        const hourValue =
-          intervalType === 'minute' || intervalType === 'hour'
-            ? `${row.hour}Z` // Add UTC timezone indicator for datetime
-            : row.hour; // Keep as-is for date formats
-
         return {
-          hour: hourValue,
+          datetime: new Date(row.datetime).toISOString(),
           tokenSymbol: row.tokenSymbol,
           totalVolume: row.totalVolume.toString(),
           transactionCount: parseInt(row.transactionCount.toString()),
@@ -156,33 +83,23 @@ export class AnalyticsService {
         };
       });
 
-      // Fill missing data points with zeros to ensure consistent chart intervals
-      // Only fill missing data if hours filter is applied
-      if (hours) {
-        const filledData = this.fillMissingHourlyData(
-          rawData,
-          hours,
-          tokenSymbol,
-          limit,
-          intervalType,
-          intervalMinutes
-        );
-        return filledData;
-      } else {
-        // For "all time", return raw data without filling gaps
-        // Reverse to show oldest to newest (SQL query uses DESC order)
-        return rawData.reverse();
-      }
+      // Reverse to show oldest to newest (SQL query uses DESC order)
+      // Fill missing hourly data points with zeros
+      const filledData = this.fillMissingHourlyData(
+        rawData.reverse(),
+        limit, // hours
+        tokenSymbol,
+        limit,
+        'hour',
+        60 // 1 hour = 60 minutes
+      );
+      return filledData;
     } catch (error) {
       apiLogger.error('Error fetching hourly volume data:', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
-        hours,
         tokenSymbol,
         limit,
-        cutoffDate: hours
-          ? new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
-          : 'all time (no filter)',
       });
       throw error;
     }
@@ -193,34 +110,35 @@ export class AnalyticsService {
    */
   async getRealtimeStats(
     tokenSymbol?: string,
-    hours: number = 24
+    timeRange?: string
   ): Promise<RealtimeStats> {
     try {
-      const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-      const whereTimeRangeClause = tokenSymbol
-        ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
-        : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
+      // Parse time range and get cutoff date
+      const hours = this.parseTimeRange(timeRange);
+      const cutoffDate = this.getCutoffDate(hours);
 
-      // Get overall stats with time range filter
+      // Build WHERE clause conditions
+      const conditions: string[] = [];
+      if (cutoffDate) {
+        conditions.push(`timestamp >= '${cutoffDate.toISOString()}'`);
+      }
+      if (tokenSymbol) {
+        conditions.push(`tokenSymbol = '${tokenSymbol}'`);
+      }
+      const whereClause =
+        conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      // Get overall stats with time filtering
       const totalStatsQuery = `
         SELECT
           COUNT(*) as totalTransactions,
           SUM(value) as totalVolume,
           COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as activeAddresses
         FROM transactions
-        ${whereTimeRangeClause}
+        ${whereClause}
       `;
 
-      // Get time range stats (same as totalStats now, but kept for backward compatibility)
-      const timeRangeStatsQuery = `
-        SELECT
-          COUNT(*) as transactionsLast24h,
-          SUM(value) as volumeLast24h
-        FROM transactions
-        ${whereTimeRangeClause}
-      `;
-
-      // Get token stats with time range filter
+      // Get token stats with time filtering
       const tokenStatsQuery = tokenSymbol
         ? `
           SELECT
@@ -230,7 +148,7 @@ export class AnalyticsService {
             COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as uniqueAddresses24h,
             SUM(value) as volume24h
           FROM transactions
-          WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'
+          ${whereClause}
           GROUP BY tokenSymbol
         `
         : `
@@ -241,36 +159,27 @@ export class AnalyticsService {
             COUNT(DISTINCT fromAddress) + COUNT(DISTINCT toAddress) as uniqueAddresses24h,
             SUM(value) as volume24h
           FROM transactions
-          WHERE timestamp >= '${cutoffDate.toISOString()}'
+          ${whereClause}
           GROUP BY tokenSymbol
         `;
 
       const activeTokensQuery = `
         SELECT COUNT(DISTINCT tokenSymbol) as activeTokens
         FROM transactions
-        ${whereTimeRangeClause}
+        ${whereClause}
       `;
 
-      const [
-        totalStatsRows,
-        timeRangeStatsRows,
-        tokenStatsRows,
-        activeTokensRows,
-      ] = await Promise.all([
-        prisma.$queryRawUnsafe(totalStatsQuery) as Promise<any[]>,
-        prisma.$queryRawUnsafe(timeRangeStatsQuery) as Promise<any[]>,
-        prisma.$queryRawUnsafe(tokenStatsQuery) as Promise<any[]>,
-        prisma.$queryRawUnsafe(activeTokensQuery) as Promise<any[]>,
-      ]);
+      const [totalStatsRows, tokenStatsRows, activeTokensRows] =
+        await Promise.all([
+          prisma.$queryRawUnsafe(totalStatsQuery) as Promise<any[]>,
+          prisma.$queryRawUnsafe(tokenStatsQuery) as Promise<any[]>,
+          prisma.$queryRawUnsafe(activeTokensQuery) as Promise<any[]>,
+        ]);
 
       const totalStats = totalStatsRows[0] || {
         totalTransactions: 0,
         totalVolume: '0',
         activeAddresses: 0,
-      };
-      const timeRangeStats = timeRangeStatsRows[0] || {
-        transactionsLast24h: 0,
-        volumeLast24h: '0',
       };
       const activeTokens = activeTokensRows[0]?.activeTokens || 0;
 
@@ -286,10 +195,6 @@ export class AnalyticsService {
         totalTransactions: parseInt(totalStats.totalTransactions.toString()),
         totalVolume: totalStats.totalVolume.toString(),
         activeAddresses: parseInt(totalStats.activeAddresses.toString()),
-        transactionsLast24h: parseInt(
-          timeRangeStats.transactionsLast24h.toString()
-        ),
-        volumeLast24h: timeRangeStats.volumeLast24h.toString(),
         activeTokens: parseInt(activeTokens.toString()),
         tokenStats,
       };
@@ -302,20 +207,13 @@ export class AnalyticsService {
   /**
    * Get token distribution data
    */
-  async getTokenDistribution(
-    tokenSymbol?: string,
-    hours?: number
-  ): Promise<any[]> {
+  async getTokenDistribution(tokenSymbol?: string): Promise<any[]> {
     try {
-      let whereClause = '';
-      if (hours) {
-        const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-        whereClause = tokenSymbol
-          ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
-          : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
-      } else {
-        whereClause = tokenSymbol ? `WHERE tokenSymbol = '${tokenSymbol}'` : '';
-      }
+      // Token distribution: show all-time distribution
+      // Token filtering is still supported
+      const whereClause = tokenSymbol
+        ? `WHERE tokenSymbol = '${tokenSymbol}'`
+        : '';
 
       const query = `
         SELECT
@@ -361,13 +259,22 @@ export class AnalyticsService {
     metric: 'volume' | 'transactions' = 'volume',
     limit: number = 10,
     tokenSymbol?: string,
-    hours?: number
+    timeRange?: string
   ): Promise<any[]> {
     try {
-      // Use tokenSymbol directly for filtering - no token address lookup needed
-      const cutoffDate = hours
-        ? new Date(Date.now() - hours * 60 * 60 * 1000)
-        : undefined;
+      // Parse time range and get cutoff date
+      const hours = this.parseTimeRange(timeRange);
+      const cutoffDate = this.getCutoffDate(hours);
+
+      // Build WHERE conditions
+      const conditions: string[] = ['1=1'];
+      if (cutoffDate) {
+        conditions.push(`timestamp >= '${cutoffDate.toISOString()}'`);
+      }
+      if (tokenSymbol) {
+        conditions.push(`tokenSymbol = '${tokenSymbol}'`);
+      }
+      const whereClause = conditions.join(' AND ');
 
       // Query transactions table directly with UNION ALL pattern
       const query = `
@@ -386,9 +293,7 @@ export class AnalyticsService {
             COUNT(*) as transactionCountSent,
             0 as transactionCountReceived
           FROM transactions
-          WHERE 1=1
-            ${cutoffDate ? `AND timestamp >= ?` : ''}
-            ${tokenSymbol ? `AND tokenSymbol = '${tokenSymbol}'` : ''}
+          WHERE ${whereClause}
           GROUP BY fromAddress
 
           UNION ALL
@@ -401,9 +306,7 @@ export class AnalyticsService {
             0 as transactionCountSent,
             COUNT(*) as transactionCountReceived
           FROM transactions
-          WHERE 1=1
-            ${cutoffDate ? `AND timestamp >= ?` : ''}
-            ${tokenSymbol ? `AND tokenSymbol = '${tokenSymbol}'` : ''}
+          WHERE ${whereClause}
           GROUP BY toAddress
         ) as combined
         GROUP BY address
@@ -411,14 +314,7 @@ export class AnalyticsService {
         LIMIT ?
       `;
 
-      const addresses = cutoffDate
-        ? await prisma.$queryRawUnsafe<any[]>(
-            query,
-            cutoffDate,
-            cutoffDate,
-            limit
-          )
-        : await prisma.$queryRawUnsafe<any[]>(query, limit);
+      const addresses = await prisma.$queryRawUnsafe<any[]>(query, limit);
 
       // Process and format results
       return addresses.map((addr, index) => {
@@ -452,7 +348,7 @@ export class AnalyticsService {
   /**
    * Get anomaly statistics
    */
-  async getAnomalyStats(_tokenSymbol?: string, _hours?: number): Promise<any> {
+  async getAnomalyStats(_tokenSymbol?: string): Promise<any> {
     try {
       // Temporary simple implementation to debug
       return {
@@ -483,17 +379,13 @@ export class AnalyticsService {
   /**
    * Get network statistics
    */
-  async getNetworkStats(tokenSymbol?: string, hours?: number): Promise<any> {
+  async getNetworkStats(tokenSymbol?: string): Promise<any> {
     try {
-      let whereClause = '';
-      if (hours) {
-        const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-        whereClause = tokenSymbol
-          ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
-          : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
-      } else {
-        whereClause = tokenSymbol ? `WHERE tokenSymbol = '${tokenSymbol}'` : '';
-      }
+      // Network stats: show all-time network statistics
+      // Token filtering is still supported
+      const whereClause = tokenSymbol
+        ? `WHERE tokenSymbol = '${tokenSymbol}'`
+        : '';
 
       const query = `
         SELECT
@@ -528,19 +420,24 @@ export class AnalyticsService {
    */
   async getTopReceivers(
     limit: number = 10,
-    hours?: number,
-    tokenSymbol?: string
+    tokenSymbol?: string,
+    timeRange?: string
   ): Promise<any[]> {
     try {
-      let whereClause = '';
-      if (hours) {
-        const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-        whereClause = tokenSymbol
-          ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
-          : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
-      } else {
-        whereClause = tokenSymbol ? `WHERE tokenSymbol = '${tokenSymbol}'` : '';
+      // Parse time range and get cutoff date
+      const hours = this.parseTimeRange(timeRange);
+      const cutoffDate = this.getCutoffDate(hours);
+
+      // Build WHERE conditions
+      const conditions: string[] = [];
+      if (cutoffDate) {
+        conditions.push(`timestamp >= '${cutoffDate.toISOString()}'`);
       }
+      if (tokenSymbol) {
+        conditions.push(`tokenSymbol = '${tokenSymbol}'`);
+      }
+      const whereClause =
+        conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
       const query = `
         SELECT
@@ -574,19 +471,24 @@ export class AnalyticsService {
    */
   async getTopSenders(
     limit: number = 10,
-    hours?: number,
-    tokenSymbol?: string
+    tokenSymbol?: string,
+    timeRange?: string
   ): Promise<any[]> {
     try {
-      let whereClause = '';
-      if (hours) {
-        const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-        whereClause = tokenSymbol
-          ? `WHERE timestamp >= '${cutoffDate.toISOString()}' AND tokenSymbol = '${tokenSymbol}'`
-          : `WHERE timestamp >= '${cutoffDate.toISOString()}'`;
-      } else {
-        whereClause = tokenSymbol ? `WHERE tokenSymbol = '${tokenSymbol}'` : '';
+      // Parse time range and get cutoff date
+      const hours = this.parseTimeRange(timeRange);
+      const cutoffDate = this.getCutoffDate(hours);
+
+      // Build WHERE conditions
+      const conditions: string[] = [];
+      if (cutoffDate) {
+        conditions.push(`timestamp >= '${cutoffDate.toISOString()}'`);
       }
+      if (tokenSymbol) {
+        conditions.push(`tokenSymbol = '${tokenSymbol}'`);
+      }
+      const whereClause =
+        conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
       const query = `
         SELECT
@@ -810,7 +712,7 @@ export class AnalyticsService {
     // Create a map of existing data for quick lookup
     const dataMap = new Map<string, HourlyVolumeData>();
     data.forEach(item => {
-      const hourKey = this.formatHourKey(item.hour, intervalType);
+      const hourKey = this.formatHourKey(item.datetime, intervalType);
       dataMap.set(hourKey, item);
     });
 
@@ -824,7 +726,7 @@ export class AnalyticsService {
       } else {
         // Create zero data point for missing interval
         return {
-          hour: this.formatIntervalString(interval, intervalType),
+          datetime: this.formatIntervalString(interval, intervalType),
           tokenSymbol: tokenSymbol || 'UNKNOWN',
           totalVolume: '0',
           transactionCount: 0,
@@ -894,12 +796,12 @@ export class AnalyticsService {
    * Get expected number of data points based on time range and limit
    */
   private getExpectedDataPoints(hours: number, limit: number): number {
-    if (hours <= 1) return 12; // 5-minute intervals = 12 points
+    if (hours <= 1) return Math.min(60, limit); // 1-minute intervals = 60 points max
     if (hours <= 24) return 24; // Hourly = 24 points
     if (hours <= 168) return Math.min(168, limit); // Hourly = 168 points max
     if (hours <= 2160) return Math.min(90, limit); // Daily = 90 points max (3 months)
     if (hours <= 8760) return Math.min(52, limit); // Weekly = 52 points max (1 year)
-    return Math.min(24, limit); // Monthly = 24 points max (2 years)
+    return limit; // Return requested limit for long time ranges (weekly/monthly with large limits)
   }
 
   /**
@@ -909,44 +811,35 @@ export class AnalyticsService {
     hourString: string,
     intervalType: 'minute' | 'hour' | 'day' | 'week' | 'month'
   ): string {
-    if (intervalType === 'week') {
-      // Check if already in YYYY-WW format (e.g., "2025-40")
-      if (/^\d{4}-\d{2}$/.test(hourString)) {
-        return hourString;
-      }
-      // Parse ISO datetime and convert to YYYY-WW
-      const date = new Date(hourString);
-      const year = date.getFullYear();
-      const week = this.getISOWeek(date);
-      return `${year}-${week.toString().padStart(2, '0')}`;
-    } else if (intervalType === 'month') {
-      // Check if already in YYYY-MM format (e.g., "2025-10")
-      if (/^\d{4}-\d{2}$/.test(hourString)) {
-        return hourString;
-      }
-      // Parse ISO datetime and convert to YYYY-MM
-      const date = new Date(hourString);
-      return date.toISOString().substring(0, 7);
-    }
-
     const date = new Date(hourString);
 
     if (intervalType === 'minute') {
-      // For 5-minute intervals, round to nearest 5 minutes
-      const minutes = Math.floor(date.getMinutes() / 5) * 5;
-      date.setMinutes(minutes);
+      // For 1-minute intervals, round to minute
       date.setSeconds(0);
       date.setMilliseconds(0);
-      return date.toISOString().replace('T', ' ').substring(0, 16) + ':00';
+      return date.toISOString();
     } else if (intervalType === 'hour') {
       // For hourly intervals, round to hour
       date.setMinutes(0);
       date.setSeconds(0);
       date.setMilliseconds(0);
-      return date.toISOString().replace('T', ' ').substring(0, 13) + ':00:00';
+      return date.toISOString();
+    } else if (intervalType === 'day') {
+      // For daily intervals, round to day at midnight
+      date.setHours(0, 0, 0, 0);
+      return date.toISOString();
+    } else if (intervalType === 'week') {
+      // For weekly intervals, round to Monday at midnight
+      const day = date.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      date.setDate(date.getDate() + diff);
+      date.setHours(0, 0, 0, 0);
+      return date.toISOString();
     } else {
-      // For daily intervals, use YYYY-MM-DD
-      return date.toISOString().substring(0, 10);
+      // For monthly intervals, round to first day of month at midnight
+      date.setDate(1);
+      date.setHours(0, 0, 0, 0);
+      return date.toISOString();
     }
   }
 
@@ -972,20 +865,20 @@ export class AnalyticsService {
     intervalType: 'minute' | 'hour' | 'day' | 'week' | 'month'
   ): string {
     if (intervalType === 'minute') {
-      return date.toISOString().replace('T', ' ').substring(0, 16) + ':00Z';
+      // Return full ISO 8601 with T separator and milliseconds
+      return date.toISOString();
     } else if (intervalType === 'hour') {
-      return date.toISOString().replace('T', ' ').substring(0, 13) + ':00:00Z';
+      // Return full ISO 8601 with T separator and milliseconds
+      return date.toISOString();
     } else if (intervalType === 'day') {
-      // No 'Z' for date formats
-      return date.toISOString().substring(0, 10);
+      // Return ISO 8601 datetime at midnight
+      return date.toISOString();
     } else if (intervalType === 'week') {
-      // No 'Z' for week format (YYYY-WW)
-      const year = date.getFullYear();
-      const week = this.getISOWeek(date);
-      return `${year}-${week.toString().padStart(2, '0')}`;
+      // Return ISO 8601 datetime at Monday midnight
+      return date.toISOString();
     } else {
-      // No 'Z' for month format (YYYY-MM)
-      return date.toISOString().substring(0, 7);
+      // Return ISO 8601 datetime at first day of month midnight
+      return date.toISOString();
     }
   }
 
@@ -996,8 +889,73 @@ export class AnalyticsService {
     tokenSymbol?: string,
     limit: number = 60
   ): Promise<HourlyVolumeData[]> {
-    // For minute-level data, use 1 hour lookback which triggers 5-minute intervals
-    return this.getHourlyVolume(1, tokenSymbol, limit);
+    try {
+      // Minute endpoint: return latest {limit} minute-level data points (1-minute intervals)
+      const maxResults = limit * 2;
+
+      // Use DATETIME calculation for 1-minute intervals
+      const dateExpression = `DATE_ADD(
+        DATE_ADD(DATE(timestamp), INTERVAL HOUR(timestamp) HOUR),
+        INTERVAL MINUTE(timestamp) MINUTE
+      )`;
+
+      const rows = tokenSymbol
+        ? await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateExpression)} as datetime,
+              tokenSymbol,
+              SUM(value) as totalVolume,
+              COUNT(*) as transactionCount,
+              CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+            FROM transactions
+            WHERE tokenSymbol = ${tokenSymbol}
+            GROUP BY datetime, tokenSymbol
+            ORDER BY datetime DESC, tokenSymbol
+            LIMIT ${maxResults}
+          `
+        : await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateExpression)} as datetime,
+              tokenSymbol,
+              SUM(value) as totalVolume,
+              COUNT(*) as transactionCount,
+              CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+            FROM transactions
+            GROUP BY datetime, tokenSymbol
+            ORDER BY datetime DESC, tokenSymbol
+            LIMIT ${maxResults}
+          `;
+
+      const rawData = rows.map(row => {
+        return {
+          datetime: new Date(row.datetime).toISOString(),
+          tokenSymbol: row.tokenSymbol,
+          totalVolume: row.totalVolume.toString(),
+          transactionCount: parseInt(row.transactionCount.toString()),
+          averageVolume: row.averageVolume.toString(),
+        };
+      });
+
+      // Reverse to show oldest to newest (SQL query uses DESC order)
+      // Fill missing minute data points with zeros
+      const filledData = this.fillMissingHourlyData(
+        rawData.reverse(),
+        1, // 1 hour for minute-level data
+        tokenSymbol,
+        limit,
+        'minute',
+        1 // 1-minute intervals
+      );
+      return filledData;
+    } catch (error) {
+      apiLogger.error('Error fetching minute volume data:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        tokenSymbol,
+        limit,
+      });
+      throw error;
+    }
   }
 
   /**
@@ -1007,8 +965,70 @@ export class AnalyticsService {
     tokenSymbol?: string,
     limit: number = 30
   ): Promise<HourlyVolumeData[]> {
-    // For daily data, calculate hours based on limit (limit * 24 hours per day)
-    return this.getHourlyVolume(limit * 24, tokenSymbol, limit);
+    try {
+      // Daily endpoint: return latest {limit} daily data points
+      const maxResults = limit * 2;
+
+      // Use DATETIME calculation for daily intervals (midnight of each day)
+      const dateExpression = `CAST(DATE(timestamp) AS DATETIME)`;
+
+      const rows = tokenSymbol
+        ? await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateExpression)} as datetime,
+              tokenSymbol,
+              SUM(value) as totalVolume,
+              COUNT(*) as transactionCount,
+              CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+            FROM transactions
+            WHERE tokenSymbol = ${tokenSymbol}
+            GROUP BY datetime, tokenSymbol
+            ORDER BY datetime DESC, tokenSymbol
+            LIMIT ${maxResults}
+          `
+        : await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateExpression)} as datetime,
+              tokenSymbol,
+              SUM(value) as totalVolume,
+              COUNT(*) as transactionCount,
+              CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+            FROM transactions
+            GROUP BY datetime, tokenSymbol
+            ORDER BY datetime DESC, tokenSymbol
+            LIMIT ${maxResults}
+          `;
+
+      const rawData = rows.map(row => {
+        return {
+          datetime: new Date(row.datetime).toISOString(),
+          tokenSymbol: row.tokenSymbol,
+          totalVolume: row.totalVolume.toString(),
+          transactionCount: parseInt(row.transactionCount.toString()),
+          averageVolume: row.averageVolume.toString(),
+        };
+      });
+
+      // Reverse to show oldest to newest (SQL query uses DESC order)
+      // Fill missing daily data points with zeros
+      const filledData = this.fillMissingHourlyData(
+        rawData.reverse(),
+        limit * 24, // days to hours
+        tokenSymbol,
+        limit,
+        'day',
+        1440 // 1 day = 1440 minutes
+      );
+      return filledData;
+    } catch (error) {
+      apiLogger.error('Error fetching daily volume data:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        tokenSymbol,
+        limit,
+      });
+      throw error;
+    }
   }
 
   /**
@@ -1018,8 +1038,143 @@ export class AnalyticsService {
     tokenSymbol?: string,
     limit: number = 52
   ): Promise<HourlyVolumeData[]> {
-    // For weekly data, calculate hours based on limit (limit * 24 * 7 hours per week)
-    return this.getHourlyVolume(limit * 24 * 7, tokenSymbol, limit);
+    try {
+      // Weekly endpoint: return latest {limit} weekly data points
+      const maxResults = limit * 2;
+
+      // Use DATETIME calculation for weekly intervals (Monday of each week at midnight)
+      const dateExpression = `CAST(DATE_SUB(DATE(timestamp), INTERVAL WEEKDAY(timestamp) DAY) AS DATETIME)`;
+
+      const rows = tokenSymbol
+        ? await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateExpression)} as datetime,
+              tokenSymbol,
+              SUM(value) as totalVolume,
+              COUNT(*) as transactionCount,
+              CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+            FROM transactions
+            WHERE tokenSymbol = ${tokenSymbol}
+            GROUP BY datetime, tokenSymbol
+            ORDER BY datetime DESC, tokenSymbol
+            LIMIT ${maxResults}
+          `
+        : await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateExpression)} as datetime,
+              tokenSymbol,
+              SUM(value) as totalVolume,
+              COUNT(*) as transactionCount,
+              CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+            FROM transactions
+            GROUP BY datetime, tokenSymbol
+            ORDER BY datetime DESC, tokenSymbol
+            LIMIT ${maxResults}
+          `;
+
+      const rawData = rows.map(row => {
+        return {
+          datetime: new Date(row.datetime).toISOString(),
+          tokenSymbol: row.tokenSymbol,
+          totalVolume: row.totalVolume.toString(),
+          transactionCount: parseInt(row.transactionCount.toString()),
+          averageVolume: row.averageVolume.toString(),
+        };
+      });
+
+      // Reverse to show oldest to newest (SQL query uses DESC order)
+      // Fill missing weekly data points with zeros
+      const filledData = this.fillMissingHourlyData(
+        rawData.reverse(),
+        limit * 24 * 7, // weeks to hours
+        tokenSymbol,
+        limit,
+        'week',
+        10080 // 1 week = 10080 minutes
+      );
+      return filledData;
+    } catch (error) {
+      apiLogger.error('Error fetching weekly volume data:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        tokenSymbol,
+        limit,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get monthly volume statistics
+   */
+  async getMonthlyVolumeStats(
+    tokenSymbol?: string,
+    limit: number = 12
+  ): Promise<HourlyVolumeData[]> {
+    try {
+      // Monthly endpoint: return latest {limit} monthly data points
+      const maxResults = limit * 2;
+
+      // Use DATETIME calculation for monthly intervals (first day of each month at midnight)
+      const dateExpression = `CAST(DATE_FORMAT(timestamp, '%Y-%m-01') AS DATETIME)`;
+
+      const rows = tokenSymbol
+        ? await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateExpression)} as datetime,
+              tokenSymbol,
+              SUM(value) as totalVolume,
+              COUNT(*) as transactionCount,
+              CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+            FROM transactions
+            WHERE tokenSymbol = ${tokenSymbol}
+            GROUP BY datetime, tokenSymbol
+            ORDER BY datetime DESC, tokenSymbol
+            LIMIT ${maxResults}
+          `
+        : await prisma.$queryRaw<any[]>`
+            SELECT
+              ${Prisma.raw(dateExpression)} as datetime,
+              tokenSymbol,
+              SUM(value) as totalVolume,
+              COUNT(*) as transactionCount,
+              CAST(AVG(value) as DECIMAL(38,0)) as averageVolume
+            FROM transactions
+            GROUP BY datetime, tokenSymbol
+            ORDER BY datetime DESC, tokenSymbol
+            LIMIT ${maxResults}
+          `;
+
+      const rawData = rows.map(row => {
+        return {
+          datetime: new Date(row.datetime).toISOString(),
+          tokenSymbol: row.tokenSymbol,
+          totalVolume: row.totalVolume.toString(),
+          transactionCount: parseInt(row.transactionCount.toString()),
+          averageVolume: row.averageVolume.toString(),
+        };
+      });
+
+      // Reverse to show oldest to newest (SQL query uses DESC order)
+      // Fill missing monthly data points with zeros
+      const filledData = this.fillMissingHourlyData(
+        rawData.reverse(),
+        limit * 24 * 30, // months to hours (approximate)
+        tokenSymbol,
+        limit,
+        'month',
+        43200 // 1 month ≈ 43200 minutes (30 days)
+      );
+      return filledData;
+    } catch (error) {
+      apiLogger.error('Error fetching monthly volume data:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        tokenSymbol,
+        limit,
+      });
+      throw error;
+    }
   }
 
   /**
@@ -1120,5 +1275,32 @@ export class AnalyticsService {
       P2UC: '#f59e0b', // Amber
     };
     return colors[tokenSymbol] || '#64748b'; // Default gray
+  }
+
+  /**
+   * Parse timeRange string to hours
+   */
+  private parseTimeRange(timeRange?: string): number | null {
+    if (!timeRange || timeRange === 'all') return null;
+
+    const timeRangeMap: Record<string, number> = {
+      '1h': 1,
+      '24h': 24,
+      '7d': 168,
+      '30d': 720,
+      '3m': 2160,
+      '6m': 4320,
+      '1y': 8760,
+    };
+
+    return timeRangeMap[timeRange] ?? null;
+  }
+
+  /**
+   * Get cutoff date for time range filtering
+   */
+  private getCutoffDate(hours: number | null): Date | null {
+    if (hours === null) return null;
+    return new Date(Date.now() - hours * 60 * 60 * 1000);
   }
 }

@@ -11,7 +11,7 @@ import {
 
 interface TransactionDataPoint {
   timestamp: string;
-  hour: string;
+  datetime: string;
   totalVolume: string;
   transactionCount: number;
   averageVolume: string;
@@ -23,6 +23,7 @@ export interface TransactionChartProps {
   height?: number;
   showGrid?: boolean;
   tokenSymbol?: string;
+  timeRange?: string; // Add timeRange for label formatting
 }
 
 // Custom tooltip component for transactions
@@ -38,7 +39,7 @@ function CustomTooltip({ active, payload }: TooltipProps) {
     const data = payload[0].payload as TransactionDataPoint;
 
     // Format date for tooltip
-    const dateStr = data.timestamp || data.hour;
+    const dateStr = data.timestamp || data.datetime;
     const formattedDate = formatTooltipDate(dateStr);
 
     return (
@@ -130,46 +131,23 @@ function formatTooltipDate(hour: string): string {
   }
 }
 
-// Format hour for X-axis based on data length and format type
-function formatHour(hour: string, dataLength: number): string {
+// Format hour for X-axis based on selected timeRange
+function formatHour(hour: string, timeRange?: string): string {
   const date = parseHourToDate(hour);
   if (!date) return hour;
 
-  // Check format type
-  const weekMatch = hour.match(/^(\d{4})-(\d{2})$/);
-  if (weekMatch) {
-    const num = parseInt(weekMatch[2]);
-    if (num > 12) {
-      // Week format: YYYY-MM-DD
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    } else {
-      // Month format: YYYY-MM
-      return hour;
-    }
-  }
-
-  // Regular datetime format
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
 
-  if (dataLength <= 24) {
-    // 1h, 24h: HH:MM
-    return `${hours}:${minutes}`;
-  } else if (dataLength <= 168) {
-    // 7d: MM-DD HH:MM, 30d+: MM-DD only
-    if (dataLength <= 48) {
-      return `${month}-${day} ${hours}:${minutes}`;
-    } else {
-      return `${month}-${day}`;
-    }
+  // Simple: use timeRange directly to determine format
+  if (timeRange === '1h' || timeRange === '24h') {
+    return `${hours}:${minutes}`;  // Time only
+  } else if (timeRange === '7d') {
+    return `${month}-${day} ${hours}:${minutes}`;  // Date + Time
   } else {
-    // Other ranges: MM-DD
-    return `${month}-${day}`;
+    return `${month}-${day}`;  // Date only (30d, 3m, 6m, 1y, all)
   }
 }
 
@@ -178,14 +156,15 @@ export function TransactionChart({
   height = 300,
   showGrid = true,
   tokenSymbol: _tokenSymbol,
+  timeRange,
 }: TransactionChartProps) {
   // Transform data for chart display
   const chartData = data.map((item, index) => {
     return {
       ...item,
-      timestamp: item.timestamp || item.hour, // Ensure timestamp field exists
-      hourLabel: formatHour(item.hour, data.length),
-      uniqueKey: `${item.hour}-${index}`, // 고유 키 추가
+      timestamp: item.timestamp || item.datetime, // Ensure timestamp field exists
+      hourLabel: formatHour(item.datetime, timeRange),
+      uniqueKey: `${item.datetime}-${index}`, // 고유 키 추가
     };
   });
 
@@ -222,7 +201,8 @@ export function TransactionChart({
           )}
 
           <XAxis
-            dataKey='hourLabel'
+            dataKey='datetime'
+            tickFormatter={(datetime) => formatHour(datetime, timeRange)}
             axisLine={false}
             tickLine={false}
             tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 11 }}
@@ -240,7 +220,12 @@ export function TransactionChart({
             domain={[0, dataMax => Math.ceil(dataMax * 1.15)]}
           />
 
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip
+            content={<CustomTooltip />}
+            cursor={{ fill: 'rgba(255,255,255,0.1)' }}
+            allowEscapeViewBox={{ x: false, y: false }}
+            isAnimationActive={false}
+          />
 
           <Bar dataKey='transactionCount' fill='#06b6d4' name='Transactions' />
         </BarChart>

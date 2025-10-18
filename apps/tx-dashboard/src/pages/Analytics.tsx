@@ -57,8 +57,8 @@ function processHourlyVolumeData(
 ): HourlyVolumeData[] {
   if (apiResponse && apiResponse.data && apiResponse.data.length > 0) {
     return apiResponse.data.map((item: HourlyVolumeApiItem) => ({
-      timestamp: item.hour,
-      hour: item.hour,
+      timestamp: item.datetime,
+      datetime: item.datetime,
       totalVolume: item.totalVolume,
       transactionCount: item.transactionCount,
       averageVolume: item.averageVolume,
@@ -107,8 +107,6 @@ interface RealtimeStats {
   totalTransactions: number;
   totalVolume: string;
   activeAddresses: number;
-  transactionsLast24h: number;
-  volumeLast24h: string;
   activeTokens: number;
 }
 
@@ -121,7 +119,7 @@ interface AnomalyStats {
 
 interface HourlyVolumeData {
   timestamp: string;
-  hour: string;
+  datetime: string;
   totalVolume: string;
   transactionCount: number;
   averageVolume: string;
@@ -174,7 +172,7 @@ interface ApiResponse<T> {
 }
 
 interface HourlyVolumeApiItem {
-  hour: string;
+  datetime: string;
   totalVolume: string;
   transactionCount: number;
   averageVolume: string;
@@ -346,54 +344,6 @@ export function Analytics() {
     }
   };
 
-  // Convert TimeRange to actual hours for API timeframe parameter
-  const getHoursFromTimeRange = (range: TimeRange): number | undefined => {
-    switch (range) {
-      case '1h':
-        return 1;
-      case '24h':
-        return 24;
-      case '7d':
-        return 168; // 7 * 24
-      case '30d':
-        return 720; // 30 * 24
-      case '3m':
-        return 2160; // 90 * 24
-      case '6m':
-        return 4320; // 180 * 24
-      case '1y':
-        return 8760; // 365 * 24
-      case 'all':
-        return undefined; // No time filter - backend will use 2-year default
-      default:
-        return 24;
-    }
-  };
-
-  // Get display label for time range
-  const getTimeRangeLabel = (range: TimeRange): string => {
-    switch (range) {
-      case '1h':
-        return '1h';
-      case '24h':
-        return '24h';
-      case '7d':
-        return '7d';
-      case '30d':
-        return '30d';
-      case '3m':
-        return '3m';
-      case '6m':
-        return '6m';
-      case '1y':
-        return '1y';
-      case 'all':
-        return 'all';
-      default:
-        return '24h';
-    }
-  };
-
   // Fetch analytics data with time range support and token filter
   const fetchAnalyticsData = useCallback(
     async (token: string = activeTab) => {
@@ -413,12 +363,12 @@ export function Analytics() {
         setError(null);
 
         const limit = getLimitFromTimeRange(timeRange);
-        const hours = getHoursFromTimeRange(timeRange);
-        const hoursParam = hours !== undefined ? `&hours=${hours}` : '';
         const tokenParam = `&token=${token}`;
 
         // Fetch realtime stats
-        fetch(`${API_BASE_URL}/analytics/realtime?${tokenParam.slice(1)}${hoursParam}`)
+        fetch(
+          `${API_BASE_URL}/analytics/realtime?${tokenParam.slice(1)}&timeRange=${timeRange}`
+        )
           .then(res => res.json())
           .then((realtimeRes: ApiResponse<unknown>) => {
             const tokenStats = (
@@ -432,16 +382,12 @@ export function Analytics() {
                   totalTransactions: tokenStats.transactionCount || 0,
                   totalVolume: tokenStats.totalVolume || '0',
                   activeAddresses: tokenStats.uniqueAddresses24h || 0,
-                  transactionsLast24h: tokenStats.transactionCount || 0,
-                  volumeLast24h: tokenStats.volume24h || '0',
                   activeTokens: 1,
                 }
               : {
                   totalTransactions: 0,
                   totalVolume: '0',
                   activeAddresses: 0,
-                  transactionsLast24h: 0,
-                  volumeLast24h: '0',
                   activeTokens: 0,
                 };
 
@@ -500,7 +446,7 @@ export function Analytics() {
 
         // Fetch top addresses (slowest API)
         fetch(
-          `${API_BASE_URL}/analytics/addresses/top?metric=volume&limit=5${tokenParam}${hoursParam}`
+          `${API_BASE_URL}/analytics/addresses/top?metric=volume&limit=5${tokenParam}&timeRange=${timeRange}`
         )
           .then(res => res.json())
           .then((topAddressesRes: ApiResponse<TopAddress[]>) => {
@@ -516,7 +462,7 @@ export function Analytics() {
 
         // Fetch top receivers
         fetch(
-          `${API_BASE_URL}/analytics/addresses/receivers?limit=5${tokenParam}${hoursParam}`
+          `${API_BASE_URL}/analytics/addresses/receivers?limit=5${tokenParam}&timeRange=${timeRange}`
         )
           .then(res => res.json())
           .then((topReceiversRes: ApiResponse<TopAddress[]>) => {
@@ -532,7 +478,7 @@ export function Analytics() {
 
         // Fetch top senders
         fetch(
-          `${API_BASE_URL}/analytics/addresses/senders?limit=5${tokenParam}${hoursParam}`
+          `${API_BASE_URL}/analytics/addresses/senders?limit=5${tokenParam}&timeRange=${timeRange}`
         )
           .then(res => res.json())
           .then((topSendersRes: ApiResponse<TopAddress[]>) => {
@@ -1123,7 +1069,6 @@ export function Analytics() {
                 precision: 0,
                 compact: false,
               })}
-              change={`+${formatNumber(data.realtime?.transactionsLast24h || 0, { precision: 0, compact: false })} (${getTimeRangeLabel(timeRange)})`}
               icon={<Activity className='w-5 h-5' />}
             />
             <MetricCard
@@ -1131,7 +1076,6 @@ export function Analytics() {
               value={formatVolume(data.realtime?.totalVolume || '0', activeTab)}
               rawValue={data.realtime?.totalVolume || '0'}
               tokenSymbol={activeTab}
-              change={`+${formatVolume(data.realtime?.volumeLast24h || '0', activeTab)} (${getTimeRangeLabel(timeRange)})`}
               icon={<TrendingUp className='w-5 h-5' />}
               isVolume={true}
             />
@@ -1167,6 +1111,7 @@ export function Analytics() {
               showGrid={true}
               gradient={true}
               tokenSymbol={activeTab}
+              timeRange={timeRange}
             />
           </div>
         ) : null}
@@ -1186,6 +1131,7 @@ export function Analytics() {
                 height={350}
                 showGrid={true}
                 tokenSymbol={activeTab}
+                timeRange={timeRange}
               />
             </div>
           ) : null}

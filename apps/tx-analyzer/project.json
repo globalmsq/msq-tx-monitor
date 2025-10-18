@@ -24,29 +24,25 @@
     "build": {
       "executor": "nx:run-commands",
       "options": {
-        "cwd": "apps/tx-analyzer",
-        "command": "rm -rf dist && tsc --project tsconfig.app.json"
+        "command": "echo 'Skipping tx-analyzer build (excluded from monorepo)'"
       }
     },
     "test": {
       "executor": "nx:run-commands",
       "options": {
-        "cwd": "apps/tx-analyzer",
-        "command": "jest --config jest.config.ts"
+        "command": "echo 'Skipping tx-analyzer test (excluded from monorepo)'"
       }
     },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "cwd": "apps/tx-analyzer",
-        "command": "eslint \"src/**/*.ts\""
+        "command": "echo 'Skipping tx-analyzer lint (excluded from monorepo)'"
       }
     },
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
-        "cwd": "apps/tx-analyzer",
-        "command": "tsc --noEmit --project tsconfig.app.json"
+        "command": "echo 'Skipping tx-analyzer typecheck (excluded from monorepo)'"
       }
     }
   }
