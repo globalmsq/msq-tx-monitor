@@ -39,12 +39,9 @@ export const config = {
       'Content-Type,X-Requested-With,Authorization',
   },
 
-  rateLimit: {
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10),
-    skipSuccessfulRequests:
-      process.env.RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS === 'true',
-  },
+  // Rate limiting is now handled by Nginx reverse proxy
+  // API: 100 requests per minute with burst of 20
+  // WebSocket: 10 requests per second with burst of 5
 
   pagination: {
     defaultLimit: parseInt(process.env.PAGINATION_DEFAULT_LIMIT || '20', 10),
