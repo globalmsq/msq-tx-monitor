@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { validate } from '../config/env.validation';
 import { TransactionsModule } from '../transactions/transactions.module';
+import { GraphqlModule } from '../graphql/graphql.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { TransactionsModule } from '../transactions/transactions.module';
       }),
     }),
     TransactionsModule,
+    GraphqlModule,
   ],
   controllers: [AppController],
   providers: [AppService],
