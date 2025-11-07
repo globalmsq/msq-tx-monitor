@@ -25,6 +25,8 @@ const config: CodegenConfig = {
           inputValue: false,
           object: false,
         },
+        // Add explicit return types to fix TS2742 errors
+        documentMode: 'string',
       },
     },
   },

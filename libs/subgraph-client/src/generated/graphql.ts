@@ -1,5 +1,4 @@
 import { GraphQLClient, RequestOptions } from 'graphql-request';
-import gql from 'graphql-tag';
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
@@ -1318,7 +1317,7 @@ export type GetTokenStatisticsQueryVariables = Exact<{
 export type GetTokenStatisticsQuery = { readonly __typename?: 'Query', readonly token: { readonly __typename?: 'Token', readonly id: string, readonly symbol: string, readonly name: string, readonly totalSupply: string, readonly holderCount: string } | null, readonly dailySnapshots: ReadonlyArray<{ readonly __typename?: 'DailySnapshot', readonly id: string, readonly date: string, readonly transferCount: string, readonly mintCount: string, readonly burnCount: string, readonly uniqueAddresses: string, readonly mintVolume: string, readonly burnVolume: string, readonly holderCount: string }> };
 
 
-export const GetTokenDocument = gql`
+export const GetTokenDocument = `
     query GetToken($id: ID!) {
   token(id: $id) {
     id
@@ -1331,7 +1330,7 @@ export const GetTokenDocument = gql`
   }
 }
     `;
-export const GetTokensDocument = gql`
+export const GetTokensDocument = `
     query GetTokens($first: Int = 10, $skip: Int = 0) {
   tokens(first: $first, skip: $skip, orderBy: holderCount, orderDirection: desc) {
     id
@@ -1344,7 +1343,7 @@ export const GetTokensDocument = gql`
   }
 }
     `;
-export const GetTransfersDocument = gql`
+export const GetTransfersDocument = `
     query GetTransfers($first: Int = 100, $skip: Int = 0, $orderBy: Transfer_orderBy, $orderDirection: OrderDirection, $where: Transfer_filter) {
   transfers(
     first: $first
@@ -1372,7 +1371,7 @@ export const GetTransfersDocument = gql`
   }
 }
     `;
-export const GetTransfersByTokenDocument = gql`
+export const GetTransfersByTokenDocument = `
     query GetTransfersByToken($token: String!, $first: Int = 100, $skip: Int = 0) {
   transfers(
     first: $first
@@ -1394,7 +1393,7 @@ export const GetTransfersByTokenDocument = gql`
   }
 }
     `;
-export const GetTransfersByAddressDocument = gql`
+export const GetTransfersByAddressDocument = `
     query GetTransfersByAddress($address: Bytes!, $first: Int = 100, $skip: Int = 0) {
   transfers(
     first: $first
@@ -1422,7 +1421,7 @@ export const GetTransfersByAddressDocument = gql`
   }
 }
     `;
-export const GetTokenAccountDocument = gql`
+export const GetTokenAccountDocument = `
     query GetTokenAccount($id: ID!) {
   tokenAccount(id: $id) {
     id
@@ -1437,7 +1436,7 @@ export const GetTokenAccountDocument = gql`
   }
 }
     `;
-export const GetTokenAccountsByTokenDocument = gql`
+export const GetTokenAccountsByTokenDocument = `
     query GetTokenAccountsByToken($token: String!, $first: Int = 100, $skip: Int = 0) {
   tokenAccounts(
     first: $first
@@ -1452,7 +1451,7 @@ export const GetTokenAccountsByTokenDocument = gql`
   }
 }
     `;
-export const GetTokenAccountsByAddressDocument = gql`
+export const GetTokenAccountsByAddressDocument = `
     query GetTokenAccountsByAddress($address: Bytes!, $first: Int = 10, $skip: Int = 0) {
   tokenAccounts(
     first: $first
@@ -1472,7 +1471,7 @@ export const GetTokenAccountsByAddressDocument = gql`
   }
 }
     `;
-export const GetDailySnapshotsDocument = gql`
+export const GetDailySnapshotsDocument = `
     query GetDailySnapshots($token: String!, $date_gte: BigInt!, $date_lte: BigInt!, $first: Int = 100) {
   dailySnapshots(
     first: $first
@@ -1492,7 +1491,7 @@ export const GetDailySnapshotsDocument = gql`
   }
 }
     `;
-export const GetLatestDailySnapshotDocument = gql`
+export const GetLatestDailySnapshotDocument = `
     query GetLatestDailySnapshot($token: String!) {
   dailySnapshots(
     first: 1
@@ -1512,7 +1511,7 @@ export const GetLatestDailySnapshotDocument = gql`
   }
 }
     `;
-export const GetHourlySnapshotsDocument = gql`
+export const GetHourlySnapshotsDocument = `
     query GetHourlySnapshots($token: String!, $hour_gte: BigInt!, $hour_lte: BigInt!, $first: Int = 100) {
   hourlySnapshots(
     first: $first
@@ -1529,7 +1528,7 @@ export const GetHourlySnapshotsDocument = gql`
   }
 }
     `;
-export const GetLatestHourlySnapshotDocument = gql`
+export const GetLatestHourlySnapshotDocument = `
     query GetLatestHourlySnapshot($token: String!) {
   hourlySnapshots(
     first: 1
@@ -1546,7 +1545,7 @@ export const GetLatestHourlySnapshotDocument = gql`
   }
 }
     `;
-export const GetTokenStatisticsDocument = gql`
+export const GetTokenStatisticsDocument = `
     query GetTokenStatistics($tokenId: ID!, $tokenAddress: Bytes!) {
   token(id: $tokenId) {
     id
