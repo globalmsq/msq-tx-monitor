@@ -1,0 +1,19 @@
+{
+  "name": "subgraph-client",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/subgraph-client/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/subgraph-client",
+        "main": "libs/subgraph-client/src/index.ts",
+        "tsConfig": "libs/subgraph-client/tsconfig.lib.json",
+        "assets": ["libs/subgraph-client/*.md"]
+      }
+    }
+  }
+}

@@ -1,0 +1,298 @@
+# Token Queries
+
+query GetToken($id: ID!) {
+  token(id: $id) {
+    id
+    address
+    symbol
+    name
+    decimals
+    totalSupply
+    holderCount
+  }
+}
+
+query GetTokens($first: Int = 10, $skip: Int = 0) {
+  tokens(first: $first, skip: $skip, orderBy: holderCount, orderDirection: desc) {
+    id
+    address
+    symbol
+    name
+    decimals
+    totalSupply
+    holderCount
+  }
+}
+
+# Transfer Queries
+
+query GetTransfers(
+  $first: Int = 100
+  $skip: Int = 0
+  $orderBy: Transfer_orderBy
+  $orderDirection: OrderDirection
+  $where: Transfer_filter
+) {
+  transfers(
+    first: $first
+    skip: $skip
+    orderBy: $orderBy
+    orderDirection: $orderDirection
+    where: $where
+  ) {
+    id
+    token {
+      id
+      symbol
+      name
+      decimals
+    }
+    from
+    to
+    amount
+    isMint
+    isBurn
+    blockNumber
+    blockTimestamp
+    transactionHash
+    logIndex
+  }
+}
+
+query GetTransfersByToken(
+  $token: String!
+  $first: Int = 100
+  $skip: Int = 0
+) {
+  transfers(
+    first: $first
+    skip: $skip
+    orderBy: blockTimestamp
+    orderDirection: desc
+    where: { token: $token }
+  ) {
+    id
+    from
+    to
+    amount
+    isMint
+    isBurn
+    blockNumber
+    blockTimestamp
+    transactionHash
+    logIndex
+  }
+}
+
+query GetTransfersByAddress(
+  $address: Bytes!
+  $first: Int = 100
+  $skip: Int = 0
+) {
+  transfers(
+    first: $first
+    skip: $skip
+    orderBy: blockTimestamp
+    orderDirection: desc
+    where: {
+      or: [
+        { from: $address }
+        { to: $address }
+      ]
+    }
+  ) {
+    id
+    token {
+      id
+      symbol
+      name
+      decimals
+    }
+    from
+    to
+    amount
+    isMint
+    isBurn
+    blockNumber
+    blockTimestamp
+    transactionHash
+    logIndex
+  }
+}
+
+# Token Account Queries
+
+query GetTokenAccount($id: ID!) {
+  tokenAccount(id: $id) {
+    id
+    token {
+      id
+      symbol
+      name
+      decimals
+    }
+    account
+    balance
+  }
+}
+
+query GetTokenAccountsByToken(
+  $token: String!
+  $first: Int = 100
+  $skip: Int = 0
+) {
+  tokenAccounts(
+    first: $first
+    skip: $skip
+    orderBy: balance
+    orderDirection: desc
+    where: { token: $token }
+  ) {
+    id
+    account
+    balance
+  }
+}
+
+query GetTokenAccountsByAddress(
+  $address: Bytes!
+  $first: Int = 10
+  $skip: Int = 0
+) {
+  tokenAccounts(
+    first: $first
+    skip: $skip
+    orderBy: balance
+    orderDirection: desc
+    where: { account: $address }
+  ) {
+    id
+    token {
+      id
+      symbol
+      name
+      decimals
+    }
+    balance
+  }
+}
+
+# Daily Snapshot Queries
+
+query GetDailySnapshots(
+  $token: String!
+  $date_gte: BigInt!
+  $date_lte: BigInt!
+  $first: Int = 100
+) {
+  dailySnapshots(
+    first: $first
+    orderBy: date
+    orderDirection: asc
+    where: {
+      token: $token
+      date_gte: $date_gte
+      date_lte: $date_lte
+    }
+  ) {
+    id
+    date
+    transferCount
+    mintCount
+    burnCount
+    uniqueAddresses
+    mintVolume
+    burnVolume
+    holderCount
+  }
+}
+
+query GetLatestDailySnapshot($token: String!) {
+  dailySnapshots(
+    first: 1
+    orderBy: date
+    orderDirection: desc
+    where: { token: $token }
+  ) {
+    id
+    date
+    transferCount
+    mintCount
+    burnCount
+    uniqueAddresses
+    mintVolume
+    burnVolume
+    holderCount
+  }
+}
+
+# Hourly Snapshot Queries
+
+query GetHourlySnapshots(
+  $token: String!
+  $hour_gte: BigInt!
+  $hour_lte: BigInt!
+  $first: Int = 100
+) {
+  hourlySnapshots(
+    first: $first
+    orderBy: hour
+    orderDirection: asc
+    where: {
+      token: $token
+      hour_gte: $hour_gte
+      hour_lte: $hour_lte
+    }
+  ) {
+    id
+    hour
+    transferCount
+    mintCount
+    burnCount
+    uniqueAddresses
+  }
+}
+
+query GetLatestHourlySnapshot($token: String!) {
+  hourlySnapshots(
+    first: 1
+    orderBy: hour
+    orderDirection: desc
+    where: { token: $token }
+  ) {
+    id
+    hour
+    transferCount
+    mintCount
+    burnCount
+    uniqueAddresses
+  }
+}
+
+# Statistics Queries
+
+query GetTokenStatistics($tokenId: ID!, $tokenAddress: Bytes!) {
+  token(id: $tokenId) {
+    id
+    symbol
+    name
+    totalSupply
+    holderCount
+  }
+  dailySnapshots(
+    first: 30
+    orderBy: date
+    orderDirection: desc
+    where: { token_: { id: $tokenAddress } }
+  ) {
+    id
+    date
+    transferCount
+    mintCount
+    burnCount
+    uniqueAddresses
+    mintVolume
+    burnVolume
+    holderCount
+  }
+}

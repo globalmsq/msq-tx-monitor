@@ -1,0 +1,101 @@
+# MSQ Tokens Subgraph Schema
+# Generated from: https://api.studio.thegraph.com/query/1704765/msq-tokens-subgraph/version/latest
+
+# Scalar types
+scalar BigInt
+scalar Bytes
+
+# Entity directive (for type generation)
+directive @entity on OBJECT
+
+# Order direction enum
+enum OrderDirection {
+  asc
+  desc
+}
+
+# Transfer ordering
+enum Transfer_orderBy {
+  id
+  token
+  from
+  to
+  value
+  blockNumber
+  blockTimestamp
+  transactionHash
+  logIndex
+}
+
+# Transfer filter
+input Transfer_filter {
+  token: ID
+  from: Bytes
+  to: Bytes
+  blockTimestamp_gte: BigInt
+  blockTimestamp_lte: BigInt
+  or: [Transfer_filter]
+}
+
+# Root Query type
+type Query {
+  token(id: ID!): Token
+  tokens(first: Int, skip: Int, orderBy: String, orderDirection: OrderDirection): [Token!]!
+  transfer(id: ID!): Transfer
+  transfers(first: Int, skip: Int, orderBy: Transfer_orderBy, orderDirection: OrderDirection, where: Transfer_filter): [Transfer!]!
+  tokenAccount(id: ID!): TokenAccount
+  tokenAccounts(first: Int, skip: Int, orderBy: String, orderDirection: OrderDirection, where: String): [TokenAccount!]!
+  dailySnapshots(first: Int, skip: Int, orderBy: String, orderDirection: OrderDirection, where: String): [DailySnapshot!]!
+  hourlySnapshots(first: Int, skip: Int, orderBy: String, orderDirection: OrderDirection, where: String): [HourlySnapshot!]!
+}
+
+type Token @entity {
+  id: ID!
+  address: Bytes!
+  symbol: String!
+  name: String!
+  decimals: Int!
+  totalSupply: BigInt!
+  holderCount: Int!
+}
+
+type TokenAccount @entity {
+  id: ID!
+  token: Token!
+  account: Bytes!
+  balance: BigInt!
+  lastUpdated: BigInt!
+}
+
+type Transfer @entity {
+  id: ID!
+  token: Token!
+  from: Bytes!
+  to: Bytes!
+  value: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+type DailySnapshot @entity {
+  id: ID!
+  token: Token!
+  date: Int!
+  transferCount: Int!
+  uniqueSenders: Int!
+  uniqueReceivers: Int!
+  totalVolume: BigInt!
+  holderCount: Int!
+}
+
+type HourlySnapshot @entity {
+  id: ID!
+  token: Token!
+  timestamp: Int!
+  transferCount: Int!
+  uniqueSenders: Int!
+  uniqueReceivers: Int!
+  totalVolume: BigInt!
+}

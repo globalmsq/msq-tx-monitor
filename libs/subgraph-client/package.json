@@ -1,0 +1,22 @@
+{
+  "name": "@msq-tx-monitor/subgraph-client",
+  "version": "0.0.1",
+  "private": true,
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "scripts": {
+    "codegen": "graphql-codegen --config codegen.ts"
+  },
+  "dependencies": {
+    "graphql": "^16.12.0",
+    "graphql-request": "^7.3.1",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "^6.0.1",
+    "@graphql-codegen/typescript": "^5.0.2",
+    "@graphql-codegen/typescript-graphql-request": "^6.3.0",
+    "@graphql-codegen/typescript-operations": "^5.0.2"
+  }
+}
