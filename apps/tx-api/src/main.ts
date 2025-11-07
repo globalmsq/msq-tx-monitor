@@ -1,42 +1,41 @@
-import { app } from './app';
-import {
-  initializeConnections,
-  closeConnections,
-} from './middleware/database.middleware';
-import { logger } from '@msq-tx-monitor/msq-common';
+/**
+ * MSQ Transaction Monitor API (NestJS)
+ * Subgraph-based transaction monitoring system
+ */
 
-const port = process.env.PORT || 8000;
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app/app.module';
 
-async function startServer() {
-  try {
-    // Initialize database connections
-    await initializeConnections();
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
 
-    // Start the server
-    const server = app.listen(port, () => {
-      logger.info(`🚀 TX API Server is running on port ${port}`);
-    });
+  // Global prefix for all routes
+  const globalPrefix = 'api/v1';
+  app.setGlobalPrefix(globalPrefix);
 
-    // Graceful shutdown
-    process.on('SIGTERM', async () => {
-      logger.info('📴 SIGTERM received, shutting down gracefully...');
-      server.close(async () => {
-        await closeConnections();
-        process.exit(0);
-      });
-    });
+  // Enable CORS
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN || '*',
+    credentials: true,
+  });
 
-    process.on('SIGINT', async () => {
-      logger.info('📴 SIGINT received, shutting down gracefully...');
-      server.close(async () => {
-        await closeConnections();
-        process.exit(0);
-      });
-    });
-  } catch (error) {
-    logger.fatal('❌ Failed to start server', error);
-    process.exit(1);
-  }
+  // Global validation pipe
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    })
+  );
+
+  // Start server
+  const port = process.env.PORT || 8000;
+  await app.listen(port);
+
+  Logger.log(
+    `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`
+  );
 }
 
-startServer();
+bootstrap();
