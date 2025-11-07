@@ -1238,7 +1238,7 @@ export type GetTransfersByTokenQueryVariables = Exact<{
 }>;
 
 
-export type GetTransfersByTokenQuery = { readonly __typename?: 'Query', readonly transfers: ReadonlyArray<{ readonly __typename?: 'Transfer', readonly id: string, readonly from: string, readonly to: string, readonly amount: string, readonly isMint: boolean, readonly isBurn: boolean, readonly blockNumber: string, readonly blockTimestamp: string, readonly transactionHash: string, readonly logIndex: string }> };
+export type GetTransfersByTokenQuery = { readonly __typename?: 'Query', readonly transfers: ReadonlyArray<{ readonly __typename?: 'Transfer', readonly id: string, readonly from: string, readonly to: string, readonly amount: string, readonly isMint: boolean, readonly isBurn: boolean, readonly blockNumber: string, readonly blockTimestamp: string, readonly transactionHash: string, readonly logIndex: string, readonly token: { readonly __typename?: 'Token', readonly id: string, readonly symbol: string, readonly name: string, readonly decimals: number } }> };
 
 export type GetTransfersByAddressQueryVariables = Exact<{
   address: Scalars['Bytes']['input'];
@@ -1381,6 +1381,12 @@ export const GetTransfersByTokenDocument = `
     where: {token: $token}
   ) {
     id
+    token {
+      id
+      symbol
+      name
+      decimals
+    }
     from
     to
     amount

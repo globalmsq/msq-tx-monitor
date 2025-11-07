@@ -72,6 +72,12 @@ query GetTransfersByToken(
     where: { token: $token }
   ) {
     id
+    token {
+      id
+      symbol
+      name
+      decimals
+    }
     from
     to
     amount
