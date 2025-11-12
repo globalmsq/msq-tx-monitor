@@ -49,6 +49,7 @@
     "@nx/jest": "21.5.2",
     "@nx/js": "22.0.2",
     "@nx/nest": "22.0.2",
+    "@nx/next": "^22.0.3",
     "@nx/node": "22.0.2",
     "@nx/react": "21.5.2",
     "@nx/vite": "21.5.2",
@@ -88,6 +89,12 @@
   },
   "nx": {
     "includedScripts": []
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "18.3.1",
+      "@types/react-dom": "18.3.0"
+    }
   },
   "dependencies": {
     "@apollo/server": "^5.1.0",

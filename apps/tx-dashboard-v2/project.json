@@ -1,0 +1,59 @@
+{
+  "name": "tx-dashboard-v2",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/tx-dashboard-v2/src",
+  "projectType": "application",
+  "tags": ["type:app", "scope:frontend"],
+  "targets": {
+    "serve": {
+      "executor": "@nx/next:server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "tx-dashboard-v2:build",
+        "dev": true,
+        "port": 3001
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "tx-dashboard-v2:build:development",
+          "dev": true
+        },
+        "production": {
+          "buildTarget": "tx-dashboard-v2:build:production",
+          "dev": false
+        }
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/apps/tx-dashboard-v2/.next"],
+      "defaultConfiguration": "production",
+      "options": {
+        "command": "next build",
+        "cwd": "apps/tx-dashboard-v2"
+      },
+      "configurations": {
+        "development": {
+          "command": "next build"
+        },
+        "production": {
+          "command": "next build"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/tx-dashboard-v2/**/*.{ts,tsx,js,jsx}"]
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit",
+        "cwd": "apps/tx-dashboard-v2"
+      }
+    }
+  }
+}

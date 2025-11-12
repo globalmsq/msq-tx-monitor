@@ -88,10 +88,7 @@ export class SubgraphClient {
     'https://api.studio.thegraph.com/query/1704765/msq-tokens-subgraph/version/latest';
 
   constructor(config: SubgraphClientConfig = {}) {
-    const {
-      endpoint = SubgraphClient.DEFAULT_ENDPOINT,
-      headers = {},
-    } = config;
+    const { endpoint = SubgraphClient.DEFAULT_ENDPOINT, headers = {} } = config;
 
     this.client = new GraphQLClient(endpoint, {
       headers: {
@@ -99,7 +96,7 @@ export class SubgraphClient {
         ...headers,
       },
       // GraphQLClient uses requestConfig.timeout instead of direct timeout property
-      requestMiddleware: (request) => {
+      requestMiddleware: request => {
         return {
           ...request,
           signal: config.timeout
@@ -128,10 +125,7 @@ export class SubgraphClient {
    * @param skip Number of tokens to skip (default: 0)
    * @returns Array of token data
    */
-  async getTokens(
-    first = 10,
-    skip = 0
-  ): Promise<GetTokensQuery['tokens']> {
+  async getTokens(first = 10, skip = 0): Promise<GetTokensQuery['tokens']> {
     const result = await this.sdk.GetTokens({ first, skip });
     return result.tokens;
   }
@@ -141,13 +135,15 @@ export class SubgraphClient {
    * @param options Query options
    * @returns Array of transfer data
    */
-  async getTransfers(options: {
-    first?: number;
-    skip?: number;
-    orderBy?: Transfer_OrderBy;
-    orderDirection?: OrderDirection;
-    where?: Transfer_Filter;
-  } = {}): Promise<GetTransfersQuery['transfers']> {
+  async getTransfers(
+    options: {
+      first?: number;
+      skip?: number;
+      orderBy?: Transfer_OrderBy;
+      orderDirection?: OrderDirection;
+      where?: Transfer_Filter;
+    } = {}
+  ): Promise<GetTransfersQuery['transfers']> {
     const result = await this.sdk.GetTransfers(options);
     return result.transfers;
   }

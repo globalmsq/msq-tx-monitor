@@ -1,7 +1,4 @@
-import {
-  ApolloServerPlugin,
-  GraphQLRequestListener,
-} from '@apollo/server';
+import { ApolloServerPlugin, GraphQLRequestListener } from '@apollo/server';
 import { Plugin } from '@nestjs/apollo';
 import { GraphQLError } from 'graphql';
 import {

@@ -21,10 +21,7 @@ export class GraphQLConfigService implements GqlOptionsFactory {
 
     return {
       driver: ApolloDriver,
-      autoSchemaFile: join(
-        process.cwd(),
-        'apps/tx-api/src/graphql/schema.gql'
-      ),
+      autoSchemaFile: join(process.cwd(), 'apps/tx-api/src/graphql/schema.gql'),
       sortSchema: true,
       introspection: isDevelopment,
       context: ({ req, res }: any) => ({ req, res }),

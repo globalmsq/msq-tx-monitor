@@ -17,11 +17,11 @@ export class TokenDataLoader {
       const tokens = await this.fetchTokensByIds([...tokenIds]);
 
       // Create a map for quick lookup
-      const tokenMap = new Map(tokens.map((token) => [token.id, token]));
+      const tokenMap = new Map(tokens.map(token => [token.id, token]));
 
       // Return tokens in the same order as requested IDs
       // Return null for tokens that don't exist
-      return tokenIds.map((id) => tokenMap.get(id) || null);
+      return tokenIds.map(id => tokenMap.get(id) || null);
     },
     {
       cache: true,
@@ -52,9 +52,9 @@ export class TokenDataLoader {
     const tokens = await this.subgraphClient.getTokens(100, 0);
 
     // Filter to only requested IDs and create map
-    const filteredTokens = tokens.filter((token) => ids.includes(token.id));
+    const filteredTokens = tokens.filter(token => ids.includes(token.id));
 
-    return filteredTokens.map((token) => ({
+    return filteredTokens.map(token => ({
       id: token.id,
       symbol: token.symbol,
       name: token.name,

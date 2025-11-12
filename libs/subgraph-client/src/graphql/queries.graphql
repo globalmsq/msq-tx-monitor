@@ -13,7 +13,12 @@ query GetToken($id: ID!) {
 }
 
 query GetTokens($first: Int = 10, $skip: Int = 0) {
-  tokens(first: $first, skip: $skip, orderBy: holderCount, orderDirection: desc) {
+  tokens(
+    first: $first
+    skip: $skip
+    orderBy: holderCount
+    orderDirection: desc
+  ) {
     id
     address
     symbol
@@ -59,11 +64,7 @@ query GetTransfers(
   }
 }
 
-query GetTransfersByToken(
-  $token: String!
-  $first: Int = 100
-  $skip: Int = 0
-) {
+query GetTransfersByToken($token: String!, $first: Int = 100, $skip: Int = 0) {
   transfers(
     first: $first
     skip: $skip
@@ -100,12 +101,7 @@ query GetTransfersByAddress(
     skip: $skip
     orderBy: blockTimestamp
     orderDirection: desc
-    where: {
-      or: [
-        { from: $address }
-        { to: $address }
-      ]
-    }
+    where: { or: [{ from: $address }, { to: $address }] }
   ) {
     id
     token {
@@ -195,11 +191,7 @@ query GetDailySnapshots(
     first: $first
     orderBy: date
     orderDirection: asc
-    where: {
-      token: $token
-      date_gte: $date_gte
-      date_lte: $date_lte
-    }
+    where: { token: $token, date_gte: $date_gte, date_lte: $date_lte }
   ) {
     id
     date
@@ -244,11 +236,7 @@ query GetHourlySnapshots(
     first: $first
     orderBy: hour
     orderDirection: asc
-    where: {
-      token: $token
-      hour_gte: $hour_gte
-      hour_lte: $hour_lte
-    }
+    where: { token: $token, hour_gte: $hour_gte, hour_lte: $hour_lte }
   ) {
     id
     hour

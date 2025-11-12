@@ -50,9 +50,7 @@ export class StatisticsResolver {
   async tokenStatistics(
     @Args('tokenAddress') tokenAddress: string
   ): Promise<TokenStatisticsModel | null> {
-    this.logger.log(
-      `GraphQL Query: tokenStatistics - Token: ${tokenAddress}`
-    );
+    this.logger.log(`GraphQL Query: tokenStatistics - Token: ${tokenAddress}`);
 
     // TODO: Implement statistics fetching from tx-analyzer service
     // This is a placeholder implementation

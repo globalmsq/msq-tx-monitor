@@ -8,7 +8,10 @@ import {
   Transfer_OrderBy,
   GetTransfersQuery,
 } from '@msq-tx-monitor/subgraph-client';
-import { GetTransactionsQueryDto, OrderDirection } from './dto/get-transactions-query.dto';
+import {
+  GetTransactionsQueryDto,
+  OrderDirection,
+} from './dto/get-transactions-query.dto';
 import {
   TransactionResponseDto,
   TransactionsResponseDto,
@@ -32,60 +35,56 @@ export class TransactionsService {
   ): Promise<TransactionsResponseDto> {
     const cacheKey = this.generateCacheKey('query', query);
 
-    return this.withCache(
-      cacheKey,
-      CacheTTL.TRANSACTIONS_QUERY,
-      async () => {
-        this.logger.log(
-          `Fetching transactions with query: ${JSON.stringify(query)}`
-        );
+    return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_QUERY, async () => {
+      this.logger.log(
+        `Fetching transactions with query: ${JSON.stringify(query)}`
+      );
 
-        try {
-          const where: any = {};
+      try {
+        const where: any = {};
 
-          // Build filter object
-          if (query.token) {
-            where.token = query.token;
-          }
-          if (query.from) {
-            where.from = query.from;
-          }
-          if (query.to) {
-            where.to = query.to;
-          }
-          if (query.blockTimestamp_gte) {
-            where.blockTimestamp_gte = query.blockTimestamp_gte;
-          }
-          if (query.blockTimestamp_lte) {
-            where.blockTimestamp_lte = query.blockTimestamp_lte;
-          }
-
-          // Fetch from Subgraph
-          const transfers = await this.subgraphClient.getTransfers({
-            first: query.limit,
-            skip: query.skip,
-            orderBy: this.mapOrderBy(query.orderBy),
-            orderDirection: this.mapOrderDirection(query.orderDirection),
-            where: Object.keys(where).length > 0 ? where : undefined,
-          });
-
-          // Transform to response format
-          const transactions = transfers.map(this.transformTransfer);
-
-          return {
-            transactions,
-            total: transfers.length,
-            limit: query.limit || 100,
-            skip: query.skip || 0,
-          };
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
-          this.logger.error(`Error fetching transactions: ${errorMessage}`);
-          throw error;
+        // Build filter object
+        if (query.token) {
+          where.token = query.token;
         }
+        if (query.from) {
+          where.from = query.from;
+        }
+        if (query.to) {
+          where.to = query.to;
+        }
+        if (query.blockTimestamp_gte) {
+          where.blockTimestamp_gte = query.blockTimestamp_gte;
+        }
+        if (query.blockTimestamp_lte) {
+          where.blockTimestamp_lte = query.blockTimestamp_lte;
+        }
+
+        // Fetch from Subgraph
+        const transfers = await this.subgraphClient.getTransfers({
+          first: query.limit,
+          skip: query.skip,
+          orderBy: this.mapOrderBy(query.orderBy),
+          orderDirection: this.mapOrderDirection(query.orderDirection),
+          where: Object.keys(where).length > 0 ? where : undefined,
+        });
+
+        // Transform to response format
+        const transactions = transfers.map(this.transformTransfer);
+
+        return {
+          transactions,
+          total: transfers.length,
+          limit: query.limit || 100,
+          skip: query.skip || 0,
+        };
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        this.logger.error(`Error fetching transactions: ${errorMessage}`);
+        throw error;
       }
-    );
+    });
   }
 
   /**
@@ -111,7 +110,7 @@ export class TransactionsService {
             skip
           );
 
-          return transfers.map((transfer) => this.transformTransfer(transfer));
+          return transfers.map(transfer => this.transformTransfer(transfer));
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
@@ -147,7 +146,7 @@ export class TransactionsService {
             skip
           );
 
-          return transfers.map((transfer) => this.transformTransfer(transfer));
+          return transfers.map(transfer => this.transformTransfer(transfer));
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
@@ -166,30 +165,26 @@ export class TransactionsService {
   async getRecentTransactions(limit = 100): Promise<TransactionResponseDto[]> {
     const cacheKey = `${CacheKeyPrefix.TRANSACTIONS}:recent:${limit}`;
 
-    return this.withCache(
-      cacheKey,
-      CacheTTL.TRANSACTIONS_RECENT,
-      async () => {
-        this.logger.log(`Fetching recent ${limit} transactions`);
+    return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_RECENT, async () => {
+      this.logger.log(`Fetching recent ${limit} transactions`);
 
-        try {
-          const transfers = await this.subgraphClient.getTransfers({
-            first: limit,
-            orderBy: 'blockTimestamp' as Transfer_OrderBy,
-            orderDirection: 'desc' as SubgraphOrderDirection,
-          });
+      try {
+        const transfers = await this.subgraphClient.getTransfers({
+          first: limit,
+          orderBy: 'blockTimestamp' as Transfer_OrderBy,
+          orderDirection: 'desc' as SubgraphOrderDirection,
+        });
 
-          return transfers.map((transfer) => this.transformTransfer(transfer));
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
-          this.logger.error(
-            `Error fetching recent transactions: ${errorMessage}`
-          );
-          throw error;
-        }
+        return transfers.map(transfer => this.transformTransfer(transfer));
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        this.logger.error(
+          `Error fetching recent transactions: ${errorMessage}`
+        );
+        throw error;
       }
-    );
+    });
   }
 
   /**

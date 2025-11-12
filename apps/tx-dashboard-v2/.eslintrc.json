@@ -1,0 +1,25 @@
+{
+  "extends": [
+    "../../.eslintrc.json",
+    "next/core-web-vitals"
+  ],
+  "ignorePatterns": ["!**/*", ".next/**/*", "next-env.d.ts", "node_modules/**/*"],
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
+      "rules": {}
+    },
+    {
+      "files": ["*.ts", "*.tsx"],
+      "rules": {
+        "@typescript-eslint/no-unused-vars": [
+          "error",
+          {
+            "argsIgnorePattern": "^_",
+            "varsIgnorePattern": "^_"
+          }
+        ]
+      }
+    }
+  ]
+}
