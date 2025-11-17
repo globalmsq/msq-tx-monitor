@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver } from '@nestjs/apollo';
-import { GraphQLConfigService } from './config/graphql.config';
-import { ComplexityPlugin } from './config/complexity.plugin';
-import { TransactionResolver } from './resolvers/transaction.resolver';
-import { StatisticsResolver } from './resolvers/statistics.resolver';
-import { TokenDataLoader } from './dataloaders/token.dataloader';
-import { DataLoaderProvider } from './dataloaders/dataloader.provider';
-import { TransactionsModule } from '../transactions/transactions.module';
+import { GraphQLConfigService } from './config/graphql.config.js';
+import { ComplexityPlugin } from './config/complexity.plugin.js';
+import { TransactionResolver } from './resolvers/transaction.resolver.js';
+import { StatisticsResolver } from './resolvers/statistics.resolver.js';
+import { TokenDataLoader } from './dataloaders/token.dataloader.js';
+import { DataLoaderProvider } from './dataloaders/dataloader.provider.js';
+import { TransactionsModule } from '../transactions/transactions.module.js';
 
 /**
  * GraphQL Module
@@ -18,13 +19,20 @@ import { TransactionsModule } from '../transactions/transactions.module';
   imports: [
     GraphQLModule.forRootAsync({
       driver: ApolloDriver,
-      useClass: GraphQLConfigService,
-      inject: [GraphQLConfigService, ComplexityPlugin],
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => {
+        const complexityPlugin = new ComplexityPlugin();
+        const gqlConfigService = new GraphQLConfigService(
+          configService,
+          complexityPlugin
+        );
+        return gqlConfigService.createGqlOptions();
+      },
+      inject: [ConfigService],
     }),
     TransactionsModule,
   ],
   providers: [
-    GraphQLConfigService,
     ComplexityPlugin,
     TransactionResolver,
     StatisticsResolver,

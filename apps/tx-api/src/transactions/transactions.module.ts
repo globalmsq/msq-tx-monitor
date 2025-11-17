@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { TransactionsController } from './transactions.controller';
-import { TransactionsService } from './transactions.service';
-import { TransactionsGateway } from './transactions.gateway';
+import { TransactionsController } from './transactions.controller.js';
+import { TransactionsService } from './transactions.service.js';
+import { TransactionsGateway } from './transactions.gateway.js';
 import { SubgraphClient } from '@msq-tx-monitor/subgraph-client';
 import { ConfigService } from '@nestjs/config';
 
@@ -21,6 +21,6 @@ import { ConfigService } from '@nestjs/config';
       inject: [ConfigService],
     },
   ],
-  exports: [TransactionsService, TransactionsGateway],
+  exports: [TransactionsService, TransactionsGateway, SubgraphClient],
 })
 export class TransactionsModule {}

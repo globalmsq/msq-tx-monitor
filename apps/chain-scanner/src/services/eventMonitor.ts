@@ -1,7 +1,7 @@
 import { createClient, RedisClientType } from 'redis';
-import { Web3Service } from './web3Service';
-import { DatabaseService, TransactionData } from './databaseService';
-import { config } from '../config';
+import { Web3Service } from './web3Service.js';
+import { DatabaseService, TransactionData } from './databaseService.js';
+import { config } from '../config/index.js';
 import {
   TOKEN_ADDRESSES,
   TRANSFER_EVENT_SIGNATURE,
@@ -9,8 +9,8 @@ import {
   EVENT_TYPES,
   REDIS_KEYS,
   MIN_DEPLOYMENT_BLOCK,
-} from '../config/constants';
-import { TokenService } from './tokenService';
+} from '../config/constants.js';
+import { TokenService } from './tokenService.js';
 import { logger } from '@msq-tx-monitor/msq-common';
 import { Block, Transaction, TransactionReceipt } from 'web3';
 

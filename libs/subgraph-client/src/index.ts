@@ -1,9 +1,9 @@
 // Main client
-export { SubgraphClient } from './lib/subgraph-client';
+export { SubgraphClient } from './lib/subgraph-client.js';
 export type {
   SubgraphClientConfig,
   TransferFilters,
-} from './lib/subgraph-client';
+} from './lib/subgraph-client.js';
 
 // Generated types and operations
 export type {
@@ -32,7 +32,7 @@ export type {
   OrderDirection,
   // Filter types
   Transfer_Filter,
-} from './generated/graphql';
+} from './generated/graphql.js';
 
 // Re-export SDK for advanced usage
-export { getSdk } from './generated/graphql';
+export { getSdk } from './generated/graphql.js';

@@ -1,8 +1,8 @@
-import WebSocket from 'ws';
+import { WebSocketServer as WSServer, WebSocket } from 'ws';
 import { createServer } from 'http';
-import { config } from '../config';
-import { EVENT_TYPES, CONNECTION_STATUS } from '../config/constants';
-import { StatisticsService } from './statisticsService';
+import { config } from '../config/index.js';
+import { EVENT_TYPES, CONNECTION_STATUS } from '../config/constants.js';
+import { StatisticsService } from './statisticsService.js';
 import { logger } from '@msq-tx-monitor/msq-common';
 
 export interface Client {
@@ -21,7 +21,7 @@ export interface BroadcastMessage {
 }
 
 export class WebSocketServer {
-  private server: WebSocket.Server | null = null;
+  private server: WSServer | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private httpServer: any = null;
   private clients: Map<string, Client> = new Map();
@@ -45,7 +45,7 @@ export class WebSocketServer {
       this.httpServer = createServer();
 
       // Create WebSocket server
-      this.server = new WebSocket.Server({
+      this.server = new WSServer({
         server: this.httpServer,
         maxPayload: 16 * 1024, // 16KB max payload
       });

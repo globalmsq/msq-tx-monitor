@@ -10,8 +10,8 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
-import { TransactionsService } from './transactions.service';
-import { TransactionResponseDto } from './dto/transaction-response.dto';
+import { TransactionsService } from './transactions.service.js';
+import { TransactionResponseDto } from './dto/transaction-response.dto.js';
 
 /**
  * WebSocket Gateway for real-time transaction updates

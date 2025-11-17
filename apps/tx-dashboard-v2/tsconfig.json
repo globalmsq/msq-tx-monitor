@@ -22,7 +22,7 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@msq-tx-monitor/subgraph-client": ["../../libs/subgraph-client/src/index.ts"]
+      "@msq-tx-monitor/subgraph-client": ["../../dist/libs/subgraph-client/src"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

@@ -1,5 +1,5 @@
 import { ObjectType, Field, ID } from '@nestjs/graphql';
-import { TokenModel } from './token.model';
+import { TokenModel } from './token.model.js';
 
 /**
  * GraphQL Transaction model

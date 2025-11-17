@@ -1,12 +1,33 @@
 import 'dotenv/config';
-import { Web3Service } from './services/web3Service';
-import { DatabaseService } from './services/databaseService';
-import { TokenService } from './services/tokenService';
-import { EventMonitor } from './services/eventMonitor';
-import { WebSocketServer } from './services/websocketServer';
-import { StatisticsService } from './services/statisticsService';
-import { config } from './config';
-import { EVENT_TYPES } from './config/constants';
+
+// Global unhandled rejection handler - MUST be at the very top
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('='.repeat(80));
+  console.error('GLOBAL UNHANDLED REJECTION CAUGHT:');
+  console.error('='.repeat(80));
+  console.error('Rejection reason:', reason);
+  console.error('Rejection type:', typeof reason);
+  console.error(
+    'Rejection details:',
+    JSON.stringify(reason, Object.getOwnPropertyNames(reason), 2)
+  );
+  if (reason instanceof Error) {
+    console.error('Error message:', reason.message);
+    console.error('Error stack:', reason.stack);
+  }
+  console.error('Promise:', promise);
+  console.error('='.repeat(80));
+  process.exit(1);
+});
+
+import { Web3Service } from './services/web3Service.js';
+import { DatabaseService } from './services/databaseService.js';
+import { TokenService } from './services/tokenService.js';
+import { EventMonitor } from './services/eventMonitor.js';
+import { WebSocketServer } from './services/websocketServer.js';
+import { StatisticsService } from './services/statisticsService.js';
+import { config } from './config/index.js';
+import { EVENT_TYPES } from './config/constants.js';
 import { logger } from '@msq-tx-monitor/msq-common';
 
 class ChainScanner {
@@ -175,10 +196,22 @@ class ChainScanner {
     process.on('SIGINT', this.gracefulShutdown.bind(this));
     process.on('uncaughtException', error => {
       logger.error('Uncaught exception:', error);
+      console.error(
+        'Full error details:',
+        JSON.stringify(error, Object.getOwnPropertyNames(error))
+      );
       this.gracefulShutdown();
     });
     process.on('unhandledRejection', (reason, promise) => {
       logger.error('Unhandled rejection:', { promise, reason });
+      console.error(
+        'Rejection reason details:',
+        JSON.stringify(reason, Object.getOwnPropertyNames(reason))
+      );
+      console.error('Rejection reason type:', typeof reason);
+      if (reason instanceof Error) {
+        console.error('Error stack:', reason.stack);
+      }
       this.gracefulShutdown();
     });
   }

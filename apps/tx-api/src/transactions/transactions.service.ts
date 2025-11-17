@@ -11,12 +11,12 @@ import {
 import {
   GetTransactionsQueryDto,
   OrderDirection,
-} from './dto/get-transactions-query.dto';
+} from './dto/get-transactions-query.dto.js';
 import {
   TransactionResponseDto,
   TransactionsResponseDto,
-} from './dto/transaction-response.dto';
-import { CacheTTL, CacheKeyPrefix } from '../config/cache.config';
+} from './dto/transaction-response.dto.js';
+import { CacheTTL, CacheKeyPrefix } from '../config/cache.config.js';
 
 @Injectable()
 export class TransactionsService {

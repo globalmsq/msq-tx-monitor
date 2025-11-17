@@ -1,11 +1,11 @@
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { prisma } from '@msq-tx-monitor/database';
-import { config } from '../config';
-import Web3 from 'web3';
+import { config } from '../config/index.js';
+import { Web3 } from 'web3';
 import { formatUnits } from 'ethers';
-import { TokenService } from './tokenService';
+import { TokenService } from './tokenService.js';
 import { logger } from '@msq-tx-monitor/msq-common';
-import { AddressStatsCacheService } from './addressStatsCacheService';
+import { AddressStatsCacheService } from './addressStatsCacheService.js';
 
 // Type for Prisma Decimal values
 type PrismaDecimal = { toString(): string };

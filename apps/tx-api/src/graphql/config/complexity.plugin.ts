@@ -1,17 +1,18 @@
 import { ApolloServerPlugin, GraphQLRequestListener } from '@apollo/server';
 import { Plugin } from '@nestjs/apollo';
+import { Injectable, Logger } from '@nestjs/common';
 import { GraphQLError } from 'graphql';
 import {
   fieldExtensionsEstimator,
   getComplexity,
   simpleEstimator,
 } from 'graphql-query-complexity';
-import { Logger } from '@nestjs/common';
 
 /**
  * GraphQL query complexity plugin
  * Prevents expensive queries from overloading the server
  */
+@Injectable()
 @Plugin()
 export class ComplexityPlugin implements ApolloServerPlugin {
   private readonly logger = new Logger(ComplexityPlugin.name);

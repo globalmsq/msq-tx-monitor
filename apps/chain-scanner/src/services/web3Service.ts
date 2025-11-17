@@ -1,5 +1,5 @@
 import { Web3 } from 'web3';
-import { CONNECTION_STATUS } from '../config/constants';
+import { CONNECTION_STATUS } from '../config/constants.js';
 import { logger } from '@msq-tx-monitor/msq-common';
 
 interface LogFilter {

@@ -5,8 +5,8 @@ import {
   TokenAnalytics,
   VolumeAnalysis,
   AnalyticsFilters,
-} from '../types/analyze.types';
-import { redisService } from './redis.service';
+} from '../types/analyze.types.js';
+import { redisService } from './redis.service.js';
 
 export class AnalyzeService {
   /**

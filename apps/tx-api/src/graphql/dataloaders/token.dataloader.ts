@@ -1,7 +1,7 @@
 import { Injectable, Scope } from '@nestjs/common';
 import DataLoader from 'dataloader';
 import { SubgraphClient } from '@msq-tx-monitor/subgraph-client';
-import { TokenModel } from '../models/token.model';
+import { TokenModel } from '../models/token.model.js';
 
 /**
  * Token DataLoader for batching and caching token queries

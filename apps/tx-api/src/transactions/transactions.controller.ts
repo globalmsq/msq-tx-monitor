@@ -1,10 +1,10 @@
 import { Controller, Get, Query, Param, Logger } from '@nestjs/common';
-import { TransactionsService } from './transactions.service';
-import { GetTransactionsQueryDto } from './dto/get-transactions-query.dto';
+import { TransactionsService } from './transactions.service.js';
+import { GetTransactionsQueryDto } from './dto/get-transactions-query.dto.js';
 import {
   TransactionResponseDto,
   TransactionsResponseDto,
-} from './dto/transaction-response.dto';
+} from './dto/transaction-response.dto.js';
 
 @Controller('transactions')
 export class TransactionsController {

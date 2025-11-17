@@ -3,7 +3,8 @@
 // on the Polygon network for MSQ ecosystem tokens (MSQ, SUT, KWT, P2UC)
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "binary"
 }
 
 datasource db {

@@ -1,5 +1,5 @@
 import { prisma } from '@msq-tx-monitor/database';
-import { redisService } from './redis.service';
+import { redisService } from './redis.service.js';
 import { logger } from '@msq-tx-monitor/msq-common';
 import {
   StatisticsFilters,
@@ -16,7 +16,7 @@ import {
   TokenDistribution,
   CACHE_KEYS,
   CACHE_TTL,
-} from '../types/analytics.types';
+} from '../types/analytics.types.js';
 
 export class AnalyticsService {
   /**

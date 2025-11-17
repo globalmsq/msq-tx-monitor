@@ -2,11 +2,11 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { validate } from '../config/env.validation';
-import { TransactionsModule } from '../transactions/transactions.module';
-import { GraphqlModule } from '../graphql/graphql.module';
+import { AppController } from './app.controller.js';
+import { AppService } from './app.service.js';
+import { validate } from '../config/env.validation.js';
+import { TransactionsModule } from '../transactions/transactions.module.js';
+import { GraphqlModule } from '../graphql/graphql.module.js';
 
 @Module({
   imports: [

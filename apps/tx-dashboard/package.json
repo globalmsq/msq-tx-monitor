@@ -6,9 +6,9 @@
   "private": true,
   "main": "dist/index.html",
   "scripts": {
-    "dev": "vite --port 3000",
+    "dev": "vite --port 3000 --host",
     "build": "vite build",
-    "start": "vite preview --port 3000",
+    "start": "vite --port 3000 --host",
     "start:prod": "vite preview --port 3000",
     "preview": "vite preview --port 3000",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives",

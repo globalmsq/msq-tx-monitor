@@ -5,7 +5,6 @@ const nextConfig = {
     '@msq-tx-monitor/tx-types',
     '@msq-tx-monitor/chain-utils',
     '@msq-tx-monitor/msq-common',
-    '@msq-tx-monitor/subgraph-client',
   ],
   async rewrites() {
     return [

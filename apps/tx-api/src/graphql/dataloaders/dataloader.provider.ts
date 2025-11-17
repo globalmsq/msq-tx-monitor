@@ -1,5 +1,5 @@
 import { Provider, Scope } from '@nestjs/common';
-import { TokenDataLoader } from './token.dataloader';
+import { TokenDataLoader } from './token.dataloader.js';
 
 /**
  * DataLoader provider token

@@ -17,7 +17,7 @@ import {
   Transfer_OrderBy,
   OrderDirection,
   Transfer_Filter,
-} from '../generated/graphql';
+} from '../generated/graphql.js';
 
 /**
  * Configuration options for SubgraphClient

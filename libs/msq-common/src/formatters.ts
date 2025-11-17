@@ -3,7 +3,7 @@
  * Provides consistent number and volume formatting across all services
  */
 
-import { MSQ_TOKENS } from './index';
+import { MSQ_TOKENS } from './constants.js';
 
 export interface FormatOptions {
   decimals?: number; // Token decimals (auto-detected from token symbol)

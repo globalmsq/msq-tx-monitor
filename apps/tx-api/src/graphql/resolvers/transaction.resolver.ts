@@ -1,11 +1,14 @@
 import { Resolver, Query, Args, Int } from '@nestjs/graphql';
 import { Logger, Inject } from '@nestjs/common';
-import { TransactionsService } from '../../transactions/transactions.service';
-import { TransactionModel } from '../models/transaction.model';
-import { PaginatedTransactions } from '../models/pagination.model';
-import { TransactionFilterInput } from '../inputs/transaction-filter.input';
-import { PaginationInput } from '../inputs/pagination.input';
-import { DATALOADERS, DataLoaders } from '../dataloaders/dataloader.provider';
+import { TransactionsService } from '../../transactions/transactions.service.js';
+import { TransactionModel } from '../models/transaction.model.js';
+import { PaginatedTransactions } from '../models/pagination.model.js';
+import { TransactionFilterInput } from '../inputs/transaction-filter.input.js';
+import { PaginationInput } from '../inputs/pagination.input.js';
+import {
+  DATALOADERS,
+  DataLoaders,
+} from '../dataloaders/dataloader.provider.js';
 
 /**
  * Transaction GraphQL resolver

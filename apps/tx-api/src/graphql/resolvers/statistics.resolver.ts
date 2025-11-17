@@ -3,7 +3,7 @@ import { Logger } from '@nestjs/common';
 import {
   AddressStatisticsModel,
   TokenStatisticsModel,
-} from '../models/statistics.model';
+} from '../models/statistics.model.js';
 
 /**
  * Statistics GraphQL resolver

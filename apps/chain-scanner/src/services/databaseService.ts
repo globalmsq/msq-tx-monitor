@@ -1,12 +1,12 @@
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { prisma, initializeDatabaseConfig } from '@msq-tx-monitor/database';
-import { config } from '../config';
+import { config } from '../config/index.js';
 import { logger } from '@msq-tx-monitor/msq-common';
-import { AddressStatsCalculator } from './addressStatsCalculator';
+import { AddressStatsCalculator } from './addressStatsCalculator.js';
 import {
   AddressStatsCacheService,
   CachedAddressStats,
-} from './addressStatsCacheService';
+} from './addressStatsCacheService.js';
 
 export interface TransactionData {
   hash: string;

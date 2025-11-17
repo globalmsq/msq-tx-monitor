@@ -1,6 +1,6 @@
 import { ObjectType, Field, Int } from '@nestjs/graphql';
 import { Type } from '@nestjs/common';
-import { TransactionModel } from './transaction.model';
+import { TransactionModel } from './transaction.model.js';
 
 /**
  * Generic pagination wrapper factory

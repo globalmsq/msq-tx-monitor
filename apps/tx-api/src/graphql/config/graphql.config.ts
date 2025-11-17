@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { GqlOptionsFactory, GqlModuleOptions } from '@nestjs/graphql';
-import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { ApolloDriver } from '@nestjs/apollo';
 import { ConfigService } from '@nestjs/config';
 import { join } from 'path';
-import { ComplexityPlugin } from './complexity.plugin';
+import { ComplexityPlugin } from './complexity.plugin.js';
 
 /**
  * GraphQL configuration service

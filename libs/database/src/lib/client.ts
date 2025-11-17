@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { initializeDatabaseConfig } from './config';
+import { initializeDatabaseConfig } from './config.js';
 import { logger } from '@msq-tx-monitor/msq-common';
 
 // Ensure database configuration is loaded before Prisma initialization
