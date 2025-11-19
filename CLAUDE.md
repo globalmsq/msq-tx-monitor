@@ -4,8 +4,9 @@
 
 MSQ Transaction Monitor is a real-time blockchain transaction monitoring system built as an NX monorepo. The system tracks token transactions on the Polygon network for MSQ ecosystem tokens (MSQ, SUT, KWT, P2UC).
 
-**Architecture**: NX Monorepo with 4 microservices
-**Primary Technology**: TypeScript, React 18, Express.js, MySQL, Redis
+**Architecture**: NX Monorepo with 5 applications
+**Primary Technology**: TypeScript, React 18, Next.js, NestJS, MySQL, Redis
+**Data Sources**: The Graph Subgraph (primary), MySQL (analytics), Redis (cache)
 **Blockchain**: Polygon Network via https://polygon-rpc.com
 **Deployment**: Docker containerized with unified Dockerfile.packages
 
@@ -13,16 +14,19 @@ MSQ Transaction Monitor is a real-time blockchain transaction monitoring system 
 
 ### Core Applications
 
-- **tx-dashboard** (port 3000): React 18 dashboard with real-time WebSocket updates
-- **tx-api** (port 8000): Express.js REST API with MySQL/Redis integration
-- **chain-scanner** (port 8001): Node.js blockchain scanner with Web3.js
-- **tx-analyzer** (port 8002): Express.js analytics service with real-time statistics
+- **tx-dashboard-v2** (port 3001, route `/`): Next.js primary dashboard (in development)
+- **tx-dashboard** (port 3000, route `/v1/`): React 18 legacy dashboard with real-time WebSocket updates
+- **tx-api** (port 8000): NestJS REST/GraphQL API with Subgraph/Redis integration
+- **chain-scanner** (port 8001): Node.js blockchain scanner with Web3.js and WebSocket server
+- **tx-analyzer** (port 8002): Express.js analytics service (currently disabled, migrated to tx-api, may be reactivated)
 
 ### Shared Libraries
 
+- **database**: Prisma client and database configuration
+- **subgraph-client**: GraphQL client for The Graph Subgraph queries
 - **tx-types**: TypeScript type definitions for transactions and addresses
 - **chain-utils**: Blockchain utility functions (Web3 helpers, validators)
-- **msq-common**: MSQ ecosystem common functions (risk scoring, whale detection)
+- **msq-common**: MSQ ecosystem common functions (formatters, logger, constants)
 
 ## Development Guidelines
 
@@ -30,26 +34,28 @@ MSQ Transaction Monitor is a real-time blockchain transaction monitoring system 
 
 ```bash
 # Serve individual applications
-nx serve tx-dashboard    # React dashboard
-nx serve tx-api         # Express API
-nx serve chain-scanner  # Blockchain scanner
-nx serve tx-analyzer    # Analytics service
+pnpm nx serve tx-dashboard-v2  # Next.js dashboard
+pnpm nx serve tx-dashboard     # React dashboard (legacy)
+pnpm nx serve tx-api           # NestJS API
+pnpm nx serve chain-scanner    # Blockchain scanner
 
 # Build and test
-nx build-all
-nx test-all
-nx run-many --target=lint --all
+pnpm run build                 # Build all packages
+pnpm run test                  # Test all packages
+pnpm run lint                  # Lint all packages
 ```
 
 ### Docker Development
 
 ```bash
 # Development with hot reload
-npm run docker:dev
+pnpm run docker:dev
 
-# Production build and deploy
-npm run docker:build
-npm run docker:up
+# Production deployment
+pnpm run docker:prod
+
+# Stop all services
+pnpm run docker:down
 ```
 
 ### Environment Configuration
@@ -59,12 +65,17 @@ Each application maintains independent .env files:
 - No global environment variables
 - Docker services use service names for internal communication
 - Polygon RPC endpoint: https://polygon-rpc.com (configurable with backups)
+- Subgraph endpoint: https://api.studio.thegraph.com/query/1704765/msq-tokens-subgraph/version/latest
 
-### Database Schema Focus
+### Database Schema (MySQL/Prisma)
 
-- **transactions**: Blockchain transaction data with anomaly scoring
+- **tokens**: Token metadata (MSQ, SUT, KWT, P2UC)
+- **transactions**: Blockchain transaction data
 - **address_statistics**: Real-time address analytics and risk profiling
-- **anomalies**: ML-detected suspicious transaction patterns
+- **anomalies**: Detected suspicious transaction patterns
+- **system_statistics**: Aggregated system-wide metrics
+- **block_processing_status**: Block sync tracking
+- **sync_status**: Historical/realtime/statistics sync state
 
 ## Task Master AI Instructions
 

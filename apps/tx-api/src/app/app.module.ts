@@ -7,6 +7,8 @@ import { AppService } from './app.service.js';
 import { validate } from '../config/env.validation.js';
 import { TransactionsModule } from '../transactions/transactions.module.js';
 import { GraphqlModule } from '../graphql/graphql.module.js';
+import { AnalyticsModule } from '../analytics/analytics.module.js';
+import { AddressesModule } from '../addresses/addresses.module.js';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { GraphqlModule } from '../graphql/graphql.module.js';
     }),
     TransactionsModule,
     GraphqlModule,
+    AnalyticsModule,
+    AddressesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

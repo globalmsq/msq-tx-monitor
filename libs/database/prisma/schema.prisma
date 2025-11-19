@@ -211,3 +211,34 @@ model BlockProcessingStatus {
   @@index([isSyncing])
   @@map("block_processing_status")
 }
+
+// =============================================================================
+// Sync Status Model - Track enriched statistics synchronization
+// Source of truth for last synced block (replaces Redis-based tracking)
+// =============================================================================
+enum SyncType {
+  HISTORICAL  // Subgraph-based historical catch-up
+  REALTIME    // RPC-based real-time monitoring
+  STATISTICS  // Background enriched statistics calculation
+}
+
+model SyncStatus {
+  id                    Int      @id @default(autoincrement())
+  syncType              SyncType
+  lastSyncedBlock       BigInt   @default(0)
+  lastSyncedTimestamp   DateTime
+  lastSyncedTxCount     Int      @default(0)  // Number of transactions synced
+  isSyncing             Boolean  @default(false)
+  syncProgress          Decimal  @default(0.00) @db.Decimal(5, 2) // Percentage 0-100
+  errorCount            Int      @default(0)
+  lastError             String?  @db.Text
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([syncType])
+  @@index([syncType])
+  @@index([lastSyncedBlock])
+  @@index([isSyncing])
+  @@index([updatedAt])
+  @@map("sync_status")
+}

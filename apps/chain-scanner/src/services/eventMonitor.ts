@@ -1,4 +1,3 @@
-import { createClient, RedisClientType } from 'redis';
 import { Web3Service } from './web3Service.js';
 import { DatabaseService, TransactionData } from './databaseService.js';
 import { config } from '../config/index.js';
@@ -7,7 +6,6 @@ import {
   TRANSFER_EVENT_SIGNATURE,
   MONITORING_INTERVALS,
   EVENT_TYPES,
-  REDIS_KEYS,
   MIN_DEPLOYMENT_BLOCK,
 } from '../config/constants.js';
 import { TokenService } from './tokenService.js';
@@ -50,7 +48,6 @@ export class EventMonitor {
   private eventListeners: Map<string, ((data?: unknown) => void)[]> = new Map();
   private lastProcessedBlock: number = 0;
   private blockPollingTimer: NodeJS.Timeout | null = null;
-  private redisClient: RedisClientType | null = null;
 
   constructor(
     private web3Service: Web3Service,
@@ -58,33 +55,6 @@ export class EventMonitor {
     private tokenService: TokenService
   ) {
     this.setupEventHandlers();
-    this.initializeRedis();
-  }
-
-  private async initializeRedis(): Promise<void> {
-    try {
-      this.redisClient = createClient({
-        socket: {
-          host: config.redis.host,
-          port: config.redis.port,
-        },
-        password: config.redis.password,
-        database: config.redis.db,
-      });
-
-      this.redisClient.on('error', error => {
-        logger.error('❌ Redis error:', error);
-      });
-
-      await this.redisClient.connect();
-      logger.info('✅ Redis connected for block sync');
-    } catch (error) {
-      logger.warn(
-        '⚠️ Redis connection failed, block sync will use database only:',
-        error
-      );
-      this.redisClient = null;
-    }
   }
 
   private setupEventHandlers(): void {
@@ -103,43 +73,36 @@ export class EventMonitor {
   }
 
   /**
-   * Get last processed block number from database (source of truth)
-   * Priority: Database -> MIN_DEPLOYMENT_BLOCK
-   * Redis is synchronized with database value on startup
+   * Get last processed block number from MySQL SyncStatus (source of truth)
+   * Priority: SyncStatus (REALTIME) -> transactions table -> MIN_DEPLOYMENT_BLOCK
    * Ensures returned block is never below MIN_DEPLOYMENT_BLOCK (earliest token deployment)
    */
   private async getLastProcessedBlockNumber(): Promise<number> {
     try {
-      // 1. Always prioritize database as source of truth
-      const dbBlock = await this.databaseService.getLastProcessedBlock();
+      // 1. Get last synced block from MySQL SyncStatus
+      const syncedBlock =
+        await this.databaseService.getLastSyncedBlock('REALTIME');
 
-      if (dbBlock && dbBlock > 0) {
-        const effectiveBlock = Math.max(dbBlock, MIN_DEPLOYMENT_BLOCK);
+      if (syncedBlock && syncedBlock > 0) {
+        const effectiveBlock = Math.max(syncedBlock, MIN_DEPLOYMENT_BLOCK);
 
-        if (effectiveBlock > dbBlock) {
+        if (effectiveBlock > syncedBlock) {
           logger.info(
-            `📖 Loaded block ${dbBlock} from database, adjusted to min deployment block ${effectiveBlock}`
+            `📖 Loaded block ${syncedBlock} from SyncStatus, adjusted to min deployment block ${effectiveBlock}`
           );
         } else {
           logger.info(
-            `📖 Loaded last processed block from database: ${dbBlock}`
+            `📖 Loaded last processed block from SyncStatus: ${syncedBlock}`
           );
         }
-
-        // Sync Redis with database value
-        await this.saveLastProcessedBlockNumber(effectiveBlock);
-        logger.info(`🔄 Redis synchronized with database: ${effectiveBlock}`);
 
         return effectiveBlock;
       }
 
-      // 2. No database records - start from minimum deployment block
+      // 2. No sync status - start from minimum deployment block
       logger.info(
-        `📖 No saved block found in database, starting from min deployment block ${MIN_DEPLOYMENT_BLOCK}`
+        `📖 No saved block found in SyncStatus, starting from min deployment block ${MIN_DEPLOYMENT_BLOCK}`
       );
-
-      // Initialize Redis with minimum deployment block
-      await this.saveLastProcessedBlockNumber(MIN_DEPLOYMENT_BLOCK);
 
       return MIN_DEPLOYMENT_BLOCK;
     } catch (error) {
@@ -149,32 +112,15 @@ export class EventMonitor {
   }
 
   /**
-   * Save last processed block number to Redis
-   */
-  private async saveLastProcessedBlockNumber(
-    blockNumber: number
-  ): Promise<void> {
-    try {
-      if (this.redisClient) {
-        await this.redisClient.set(
-          REDIS_KEYS.LAST_PROCESSED_BLOCK,
-          blockNumber.toString()
-        );
-      }
-    } catch (error) {
-      logger.error('❌ Error saving last processed block to Redis:', error);
-    }
-  }
-
-  /**
-   * Fast catch-up mode for processing many blocks quickly
+   * Fast catch-up mode for processing recent blocks via RPC
+   * Used for small gaps (≤50 blocks) where RPC is efficient
    */
   private async fastCatchUp(fromBlock: number, toBlock: number): Promise<void> {
     const batchSize = config.monitoring.catchUpBatchSize;
     const totalBlocks = toBlock - fromBlock;
 
     logger.info(
-      `🚀 Catch-up mode: processing ${totalBlocks} blocks in batches of ${batchSize}`
+      `🚀 RPC catch-up mode: processing ${totalBlocks} blocks in batches of ${batchSize}`
     );
 
     for (let start = fromBlock + 1; start <= toBlock; start += batchSize) {
@@ -190,11 +136,18 @@ export class EventMonitor {
 
         this.lastProcessedBlock = end;
 
-        // Save progress every batch
-        await this.saveLastProcessedBlockNumber(end);
+        // Save progress every batch to MySQL
+        await this.databaseService.updateSyncStatus({
+          syncType: 'REALTIME',
+          lastSyncedBlock: end,
+          isSyncing: true,
+          syncProgress: ((end - fromBlock) / totalBlocks) * 100,
+        });
 
         const progress = (((end - fromBlock) / totalBlocks) * 100).toFixed(1);
-        logger.info(`📦 Catch-up progress: ${end}/${toBlock} (${progress}%)`);
+        logger.info(
+          `📦 RPC catch-up progress: ${end}/${toBlock} (${progress}%)`
+        );
 
         // Rate limit prevention delay
         await new Promise(resolve =>
@@ -206,7 +159,15 @@ export class EventMonitor {
       }
     }
 
-    logger.info(`✅ Catch-up completed: ${totalBlocks} blocks processed`);
+    // Mark sync as complete
+    await this.databaseService.updateSyncStatus({
+      syncType: 'REALTIME',
+      lastSyncedBlock: toBlock,
+      isSyncing: false,
+      syncProgress: 100,
+    });
+
+    logger.info(`✅ RPC catch-up completed: ${totalBlocks} blocks processed`);
   }
 
   async startMonitoring(): Promise<void> {
@@ -214,81 +175,31 @@ export class EventMonitor {
       throw new Error('Web3 service not connected');
     }
 
-    logger.info(
-      '🚀 Starting ERC-20 Transfer event monitoring with HTTP RPC polling...'
-    );
+    logger.info('🚀 Starting real-time ERC-20 Transfer event monitoring...');
 
     try {
-      const savedBlock = await this.getLastProcessedBlockNumber();
       const currentBlock = await this.web3Service.getLatestBlockNumber();
-      const gap = currentBlock - savedBlock;
 
+      // Start from current block - real-time only, no historical catch-up
+      this.lastProcessedBlock = currentBlock;
+
+      logger.info(`📊 Starting from current block: ${currentBlock}`);
       logger.info(
-        `📊 Block status: saved=${savedBlock}, current=${currentBlock}, gap=${gap}`
+        '📋 Real-time mode: monitoring new blocks only (no historical catch-up)'
       );
 
-      // Start event processing queue first (required for processing caught-up events)
-      logger.info('📋 Starting event processing queue...');
+      // Start event processing queue
       this.startProcessingQueue();
 
-      let needsCatchUp = false;
+      // Update sync status to current block
+      await this.databaseService.updateSyncStatus({
+        syncType: 'REALTIME',
+        lastSyncedBlock: currentBlock,
+        isSyncing: false,
+        syncProgress: 100,
+      });
 
-      // Determine strategy based on gap size
-      if (gap > config.monitoring.catchUpMaxGap) {
-        // Too far behind - only process recent blocks, but never go below min deployment block
-        const calculatedStart =
-          currentBlock - config.monitoring.catchUpMaxBlocks;
-        this.lastProcessedBlock = Math.max(
-          calculatedStart,
-          MIN_DEPLOYMENT_BLOCK
-        );
-
-        logger.warn(
-          `⚠️ ${gap} blocks behind, limiting catch-up to recent ${config.monitoring.catchUpMaxBlocks} blocks`
-        );
-        logger.info(
-          `📍 Catch-up range: ${this.lastProcessedBlock} → ${currentBlock}`
-        );
-
-        if (
-          this.lastProcessedBlock === MIN_DEPLOYMENT_BLOCK &&
-          calculatedStart < MIN_DEPLOYMENT_BLOCK
-        ) {
-          logger.info(
-            `📍 Adjusted start block to minimum deployment block ${MIN_DEPLOYMENT_BLOCK} (earliest token: MSQ)`
-          );
-        }
-
-        await this.saveLastProcessedBlockNumber(this.lastProcessedBlock);
-        needsCatchUp = true;
-        await this.fastCatchUp(this.lastProcessedBlock, currentBlock);
-      } else if (gap > 10) {
-        // Gap > 10 blocks (~20 seconds) - fast catch-up mode
-        logger.info(
-          `📦 Gap detected: ${gap} blocks to catch up, starting catch-up mode`
-        );
-        logger.info(`📍 Catch-up range: ${savedBlock} → ${currentBlock}`);
-
-        this.lastProcessedBlock = savedBlock > 0 ? savedBlock : currentBlock;
-        needsCatchUp = true;
-        await this.fastCatchUp(this.lastProcessedBlock, currentBlock);
-      } else {
-        // Small gap (≤10 blocks ~20 seconds) - real-time mode for near-realtime processing
-        this.lastProcessedBlock = savedBlock > 0 ? savedBlock : currentBlock;
-        logger.info(
-          `✅ Small gap (${gap} blocks), starting real-time monitoring from block ${this.lastProcessedBlock}`
-        );
-      }
-
-      // Wait a moment for queued events to be processed before starting real-time polling
-      if (needsCatchUp) {
-        logger.info(
-          '⏳ Waiting for catch-up events to process before starting real-time monitoring...'
-        );
-        await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
-      }
-
-      // Start real-time HTTP polling (only after catch-up is complete)
+      // Start real-time HTTP polling
       logger.info(
         '🔴 Starting real-time block polling for new transactions...'
       );
@@ -299,7 +210,7 @@ export class EventMonitor {
         `📊 Monitoring ${tokenAddresses.length} tokens for Transfer events`
       );
       logger.info(`🎯 Tokens: ${Object.keys(TOKEN_ADDRESSES).join(', ')}`);
-      logger.info(`✅ Event monitoring fully initialized and running`);
+      logger.info(`✅ Real-time event monitoring initialized and running`);
     } catch (error) {
       logger.error('❌ Failed to start monitoring:', error);
       throw error;
@@ -327,19 +238,21 @@ export class EventMonitor {
       if (currentBlockNumber > this.lastProcessedBlock) {
         const gap = currentBlockNumber - this.lastProcessedBlock;
 
-        // If gap exceeds 10 blocks (~20 seconds), switch to catch-up mode for fast processing
-        if (gap > 10) {
-          logger.info(
-            `📦 Gap detected during polling: ${gap} blocks, switching to catch-up mode`
+        // If gap > 100 blocks, skip to current (real-time only mode)
+        if (gap > 100) {
+          logger.warn(
+            `⚠️ Large gap detected: ${gap} blocks. Skipping to current block (real-time mode)`
           );
-          logger.info(
-            `📍 Catch-up range: ${this.lastProcessedBlock} → ${currentBlockNumber}`
-          );
-          await this.fastCatchUp(this.lastProcessedBlock, currentBlockNumber);
-          return; // fastCatchUp already updates lastProcessedBlock and saves to Redis
+          this.lastProcessedBlock = currentBlockNumber;
+          await this.databaseService.updateSyncStatus({
+            syncType: 'REALTIME',
+            lastSyncedBlock: currentBlockNumber,
+            isSyncing: false,
+          });
+          return;
         }
 
-        // Normal polling for small gaps (≤100 blocks)
+        // Normal polling for manageable gaps (≤100 blocks)
         const totalBlocksToProcess = gap;
         const maxBlocksThisPoll = Math.min(
           totalBlocksToProcess,
@@ -368,9 +281,13 @@ export class EventMonitor {
 
         this.lastProcessedBlock = endBlock;
 
-        // Save progress periodically (every N blocks)
+        // Save progress periodically (every N blocks) to MySQL
         if (endBlock % config.monitoring.blockSaveInterval === 0) {
-          await this.saveLastProcessedBlockNumber(endBlock);
+          await this.databaseService.updateSyncStatus({
+            syncType: 'REALTIME',
+            lastSyncedBlock: endBlock,
+            isSyncing: false,
+          });
         }
 
         // Log remaining blocks if any
@@ -1012,16 +929,16 @@ export class EventMonitor {
       await this.processQueuedEvents();
     }
 
-    // Save final block number before stopping
+    // Save final block number to MySQL before stopping
     if (this.lastProcessedBlock > 0) {
-      await this.saveLastProcessedBlockNumber(this.lastProcessedBlock);
-      logger.info(`💾 Saved last processed block: ${this.lastProcessedBlock}`);
-    }
-
-    // Disconnect Redis
-    if (this.redisClient) {
-      await this.redisClient.quit();
-      logger.info('✅ Redis disconnected');
+      await this.databaseService.updateSyncStatus({
+        syncType: 'REALTIME',
+        lastSyncedBlock: this.lastProcessedBlock,
+        isSyncing: false,
+      });
+      logger.info(
+        `💾 Saved last processed block to MySQL: ${this.lastProcessedBlock}`
+      );
     }
 
     logger.info('Event monitoring stopped');

@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import { Injectable, Logger, Inject, HttpException } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import * as crypto from 'crypto';
@@ -264,11 +264,23 @@ export class TransactionsService {
 
     // Cache miss - fetch data
     this.logger.debug(`Cache miss: ${key}`);
-    const result = await fn();
+    try {
+      const result = await fn();
 
-    // Store in cache with TTL (convert to milliseconds)
-    await this.cacheManager.set(key, result, ttl * 1000);
+      // Store in cache with TTL (convert to milliseconds)
+      await this.cacheManager.set(key, result, ttl * 1000);
 
-    return result;
+      return result;
+    } catch (error: unknown) {
+      // Pass through Subgraph error status codes (429, 5xx, etc.)
+      const err = error as { response?: { status?: number }; message?: string };
+      if (err.response?.status) {
+        throw new HttpException(
+          err.message || 'Subgraph error',
+          err.response.status
+        );
+      }
+      throw error;
+    }
   }
 }

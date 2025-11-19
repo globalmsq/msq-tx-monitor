@@ -76,6 +76,50 @@ export interface ApiTransaction {
   updated_at: string;
 }
 
+// Subgraph-based endpoint interfaces
+export interface SubgraphPaginationParams {
+  limit: number;
+  skip: number;
+  orderBy?: 'blockTimestamp' | 'amount' | 'blockNumber';
+  orderDirection?: 'asc' | 'desc';
+}
+
+export interface SubgraphTransactionFilters {
+  token?: string;  // TOKEN ADDRESS, not symbol
+  from?: string;
+  to?: string;
+  blockTimestamp_gte?: string;
+  blockTimestamp_lte?: string;
+}
+
+export interface SubgraphTokenDto {
+  id: string;
+  symbol: string;
+  name: string;
+  decimals: string;
+}
+
+export interface SubgraphTransaction {
+  id: string;
+  token: SubgraphTokenDto;
+  from: string;
+  to: string;
+  amount: string;
+  isMint: boolean;
+  isBurn: boolean;
+  blockNumber: string;
+  blockTimestamp: string;
+  transactionHash: string;
+  logIndex: string;
+}
+
+export interface SubgraphPaginatedResponse {
+  transactions: SubgraphTransaction[];
+  total: number;
+  limit: number;
+  skip: number;
+}
+
 class ApiService {
   private config: ApiConfig;
 
@@ -205,6 +249,36 @@ class ApiService {
     const endpoint = `/transactions/cursor?${queryString}`;
 
     return this.request<CursorPaginatedResponse<ApiTransaction>>(endpoint);
+  }
+
+  /**
+   * Get transactions from subgraph-based endpoint
+   */
+  async getTransactionsSubgraph(
+    filters: SubgraphTransactionFilters = {},
+    pagination: SubgraphPaginationParams = { limit: 50, skip: 0, orderDirection: 'desc' }
+  ): Promise<SubgraphPaginatedResponse> {
+    const params = new URLSearchParams();
+
+    // Add pagination
+    params.append('limit', pagination.limit.toString());
+    params.append('skip', pagination.skip.toString());
+    if (pagination.orderBy) {
+      params.append('orderBy', pagination.orderBy);
+    }
+    if (pagination.orderDirection) {
+      params.append('orderDirection', pagination.orderDirection);
+    }
+
+    // Add filters
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, value.toString());
+      }
+    });
+
+    const endpoint = `/transactions?${params.toString()}`;
+    return this.request<SubgraphPaginatedResponse>(endpoint);
   }
 
   /**

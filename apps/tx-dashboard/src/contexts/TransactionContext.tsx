@@ -19,9 +19,10 @@ import {
 import {
   Transaction,
   adaptWebSocketTransactionForUI,
-  adaptApiTransactionForUI,
+  adaptSubgraphTransactionForUI,
 } from '../types/transaction';
-import { apiService, TransactionFilters } from '../services/api';
+import { apiService, SubgraphTransactionFilters } from '../services/api';
+import { getTokenConfigBySymbol } from '../config/tokens';
 
 interface TokenStats {
   tokenSymbol: string;
@@ -56,9 +57,9 @@ interface TransactionState {
   // Enhanced filters
   filters: FilterState;
 
-  // Cursor pagination state
+  // Offset pagination state
   hasMore: boolean;
-  lastTransactionId: number | null;
+  currentSkip: number;
   totalCount: number;
   isInitialLoad: boolean;
 
@@ -78,7 +79,7 @@ type TransactionAction =
         transactions: Transaction[];
         totalCount?: number;
         hasMore: boolean;
-        lastId?: number;
+        currentSkip?: number;
       };
     }
   | {
@@ -86,7 +87,7 @@ type TransactionAction =
       payload: {
         transactions: Transaction[];
         hasMore: boolean;
-        lastId?: number;
+        newSkip?: number;
       };
     }
   | { type: 'SET_INITIAL_LOAD_COMPLETE' }
@@ -125,7 +126,7 @@ const initialState: TransactionState = {
     riskLevel: 'all',
   },
   hasMore: true,
-  lastTransactionId: null,
+  currentSkip: 0,
   totalCount: 0,
   isInitialLoad: true,
   isLoading: false,
@@ -151,48 +152,42 @@ function applyFiltersToState(state: TransactionState): TransactionState {
   };
 }
 
-// Helper function to convert frontend filters to API filters for server-side filtering
-function convertFiltersForAPI(filters: FilterState): TransactionFilters {
-  const apiFilters: TransactionFilters = {};
+// Helper function to convert frontend filters to Subgraph API filters
+function convertFiltersForSubgraph(filters: FilterState): SubgraphTransactionFilters {
+  const apiFilters: SubgraphTransactionFilters = {};
 
-  // Convert address search to from_address/to_address for server-side filtering
+  // Convert address search to from for server-side filtering
+  // Note: Subgraph doesn't support OR logic, so we only search by 'from'
   if (filters.addressSearch && filters.addressSearch.trim()) {
     const searchTerms = parseAddressSearch(filters.addressSearch);
     if (searchTerms.length > 0) {
       const address = searchTerms[0].toLowerCase();
-      // Set both from_address and to_address to match either direction
-      // Backend will use OR logic when both are set
-      apiFilters.from_address = address;
-      apiFilters.to_address = address;
+      apiFilters.from = address;
     }
   }
 
-  // Apply token filter if specific tokens are selected
-  // Support multiple tokens by joining with comma (e.g., "KWT,SUT")
+  // Convert token symbols to addresses
+  // The /transactions endpoint expects TOKEN ADDRESS, not symbol
+  // Note: Subgraph doesn't support multiple token filter in one call
   if (filters.tokens && filters.tokens.length > 0) {
-    apiFilters.token = filters.tokens.join(',');
+    // Use first token only (subgraph limitation)
+    const tokenConfig = getTokenConfigBySymbol(filters.tokens[0]);
+    if (tokenConfig) {
+      apiFilters.token = tokenConfig.address.toLowerCase();
+    }
   }
 
-  // Apply amount range filters
-  if (filters.amountRange?.min) {
-    apiFilters.min_amount = filters.amountRange.min;
-  }
-  if (filters.amountRange?.max) {
-    apiFilters.max_amount = filters.amountRange.max;
-  }
-
-  // Apply time range filters
+  // Convert time range to blockTimestamp format (Unix timestamp in seconds)
   if (filters.timeRange?.from) {
-    apiFilters.start_date = filters.timeRange.from;
+    const timestamp = Math.floor(new Date(filters.timeRange.from).getTime() / 1000);
+    apiFilters.blockTimestamp_gte = timestamp.toString();
   }
   if (filters.timeRange?.to) {
-    apiFilters.end_date = filters.timeRange.to;
+    const timestamp = Math.floor(new Date(filters.timeRange.to).getTime() / 1000);
+    apiFilters.blockTimestamp_lte = timestamp.toString();
   }
 
-  // Apply anomaly filter
-  if (filters.showAnomalies) {
-    apiFilters.has_anomaly = true;
-  }
+  // Note: amount range and anomaly filters not supported by subgraph endpoint
 
   return apiFilters;
 }
@@ -273,7 +268,7 @@ function transactionReducer(
         recentTransactions: action.payload.transactions.slice(0, 50),
         totalCount: newTotalCount,
         hasMore: action.payload.hasMore,
-        lastTransactionId: action.payload.lastId || null,
+        currentSkip: action.payload.currentSkip || action.payload.transactions.length,
         isInitialLoad: false,
         isLoading: false,
       };
@@ -294,7 +289,7 @@ function transactionReducer(
         transactions: updatedTransactions,
         recentTransactions: updatedTransactions, // Show all loaded transactions
         hasMore: action.payload.hasMore,
-        lastTransactionId: action.payload.lastId || state.lastTransactionId,
+        currentSkip: action.payload.newSkip || state.currentSkip + newTransactions.length,
         isLoading: false,
       };
       return applyFiltersToState(newState);
@@ -458,25 +453,23 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
           ...urlFilters, // Override with URL filters if present
         };
 
-        // Convert frontend filters to API filters for server-side filtering
-        const apiFilters = convertFiltersForAPI(filtersToUse);
-        const response = await apiService.getTransactionsCursor(apiFilters, {
+        // Convert frontend filters to Subgraph API filters for server-side filtering
+        const apiFilters = convertFiltersForSubgraph(filtersToUse);
+        const response = await apiService.getTransactionsSubgraph(apiFilters, {
           limit: 50,
+          skip: 0,
+          orderDirection: 'desc',
         });
 
-        const uiTransactions = response.data.map(adaptApiTransactionForUI);
-        const lastId =
-          uiTransactions.length > 0
-            ? Number(uiTransactions[uiTransactions.length - 1].id)
-            : undefined;
+        const uiTransactions = response.transactions.map(adaptSubgraphTransactionForUI);
 
         dispatch({
           type: 'SET_INITIAL_DATA',
           payload: {
             transactions: uiTransactions,
-            totalCount: response.cursor.total,
-            hasMore: response.cursor.hasNext,
-            lastId,
+            totalCount: response.total,
+            hasMore: response.skip + response.transactions.length < response.total,
+            currentSkip: response.transactions.length,
           },
         });
       } catch (error) {
@@ -505,25 +498,23 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       dispatch({ type: 'CLEAR_ERROR' });
 
       try {
-        // Convert frontend filters to API filters
-        const apiFilters = convertFiltersForAPI(state.filters);
-        const response = await apiService.getTransactionsCursor(apiFilters, {
+        // Convert frontend filters to Subgraph API filters
+        const apiFilters = convertFiltersForSubgraph(state.filters);
+        const response = await apiService.getTransactionsSubgraph(apiFilters, {
           limit: 50,
+          skip: 0,
+          orderDirection: 'desc',
         });
 
-        const uiTransactions = response.data.map(adaptApiTransactionForUI);
-        const lastId =
-          uiTransactions.length > 0
-            ? Number(uiTransactions[uiTransactions.length - 1].id)
-            : undefined;
+        const uiTransactions = response.transactions.map(adaptSubgraphTransactionForUI);
 
         dispatch({
           type: 'SET_INITIAL_DATA',
           payload: {
             transactions: uiTransactions,
-            totalCount: response.cursor.total,
-            hasMore: response.cursor.hasNext,
-            lastId,
+            totalCount: response.total,
+            hasMore: response.skip + response.transactions.length < response.total,
+            currentSkip: response.transactions.length,
           },
         });
       } catch (error) {
@@ -691,31 +682,29 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
     },
 
     loadMore: async () => {
-      if (state.isLoading || !state.hasMore || !state.lastTransactionId) return;
+      if (state.isLoading || !state.hasMore) return;
 
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
       try {
-        // Convert frontend filters to API filters for server-side filtering
-        const apiFilters = convertFiltersForAPI(state.filters);
-        const response = await apiService.getTransactionsCursor(apiFilters, {
+        // Convert frontend filters to Subgraph API filters for server-side filtering
+        const apiFilters = convertFiltersForSubgraph(state.filters);
+        const response = await apiService.getTransactionsSubgraph(apiFilters, {
           limit: 50,
-          afterId: state.lastTransactionId,
+          skip: state.currentSkip,
+          orderDirection: 'desc',
         });
 
-        const uiTransactions = response.data.map(adaptApiTransactionForUI);
-        const lastId =
-          uiTransactions.length > 0
-            ? Number(uiTransactions[uiTransactions.length - 1].id)
-            : undefined;
+        const uiTransactions = response.transactions.map(adaptSubgraphTransactionForUI);
+        const newSkip = state.currentSkip + response.transactions.length;
 
         dispatch({
           type: 'LOAD_MORE_DATA',
           payload: {
             transactions: uiTransactions,
-            hasMore: response.cursor.hasNext,
-            lastId,
+            hasMore: newSkip < response.total,
+            newSkip,
           },
         });
       } catch (error) {
@@ -733,24 +722,23 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
       dispatch({ type: 'CLEAR_ERROR' });
 
       try {
-        const response = await apiService.getTransactionsCursor(
-          {}, // No filters for refresh
-          { limit: 50 }
-        );
+        // Use current filters for refresh
+        const apiFilters = convertFiltersForSubgraph(state.filters);
+        const response = await apiService.getTransactionsSubgraph(apiFilters, {
+          limit: 50,
+          skip: 0,
+          orderDirection: 'desc',
+        });
 
-        const uiTransactions = response.data.map(adaptApiTransactionForUI);
-        const lastId =
-          uiTransactions.length > 0
-            ? Number(uiTransactions[uiTransactions.length - 1].id)
-            : undefined;
+        const uiTransactions = response.transactions.map(adaptSubgraphTransactionForUI);
 
         dispatch({
           type: 'SET_INITIAL_DATA',
           payload: {
             transactions: uiTransactions,
-            totalCount: response.cursor.total,
-            hasMore: response.cursor.hasNext,
-            lastId,
+            totalCount: response.total,
+            hasMore: response.skip + response.transactions.length < response.total,
+            currentSkip: response.transactions.length,
           },
         });
       } catch (error) {
@@ -815,7 +803,7 @@ export function useTransactionData() {
     isInitialLoad: state.isInitialLoad,
     statsLoading: state.statsLoading,
     hasMore: state.hasMore,
-    lastTransactionId: state.lastTransactionId,
+    currentSkip: state.currentSkip,
     totalCount: state.totalCount,
     loadMore: actions.loadMore,
     refreshData: actions.refreshData,

@@ -28,6 +28,13 @@ export const config = {
     // Environment variables: MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE, MYSQL_USERNAME, MYSQL_PASSWORD
   },
 
+  subgraph: {
+    endpoint:
+      process.env.SUBGRAPH_ENDPOINT ||
+      'https://api.studio.thegraph.com/query/1704765/msq-tokens-subgraph/version/latest',
+    timeout: parseInt(process.env.SUBGRAPH_TIMEOUT || '30000', 10), // 30 seconds for large queries
+  },
+
   redis: {
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379', 10),

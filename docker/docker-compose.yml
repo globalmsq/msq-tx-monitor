@@ -82,6 +82,11 @@ services:
     # No external port exposure - accessed through Nginx
     expose:
       - "3000"
+    environment:
+      - NODE_ENV=production
+      - VITE_TX_API_URL=/api/v1
+      - VITE_TX_ANALYZER_URL=/api/v1
+      - VITE_WS_URL=/ws
     networks:
       - msq-tx-monitor-network
     depends_on:

@@ -26,6 +26,8 @@ import { TokenService } from './services/tokenService.js';
 import { EventMonitor } from './services/eventMonitor.js';
 import { WebSocketServer } from './services/websocketServer.js';
 import { StatisticsService } from './services/statisticsService.js';
+import { StatisticsWorker } from './services/statisticsWorker.js';
+import { SubgraphService } from './services/subgraphService.js';
 import { config } from './config/index.js';
 import { EVENT_TYPES } from './config/constants.js';
 import { logger } from '@msq-tx-monitor/msq-common';
@@ -37,6 +39,8 @@ class ChainScanner {
   private eventMonitor: EventMonitor;
   private websocketServer: WebSocketServer;
   private statisticsService: StatisticsService;
+  private subgraphService: SubgraphService;
+  private statisticsWorker: StatisticsWorker;
   private isRunning = false;
   private statsUpdateInterval: NodeJS.Timeout | null = null;
 
@@ -53,6 +57,11 @@ class ChainScanner {
     this.databaseService = new DatabaseService();
     this.tokenService = new TokenService(this.databaseService);
     this.statisticsService = new StatisticsService(this.tokenService);
+    this.subgraphService = new SubgraphService();
+    this.statisticsWorker = new StatisticsWorker(
+      this.databaseService,
+      this.subgraphService
+    );
     this.eventMonitor = new EventMonitor(
       this.web3Service,
       this.databaseService,
@@ -143,7 +152,11 @@ class ChainScanner {
       // 6. Health check
       await this.performHealthCheck();
 
-      // 7. Start periodic statistics updates
+      // 7. Start background statistics worker
+      logger.info('Starting background statistics worker...');
+      await this.statisticsWorker.start();
+
+      // 8. Start periodic statistics updates
       this.startStatsUpdates();
 
       this.isRunning = true;
@@ -153,6 +166,9 @@ class ChainScanner {
       );
       logger.info(
         `🔗 WebSocket server: ${JSON.stringify(this.websocketServer.getServerStatus(), null, 2)}`
+      );
+      logger.info(
+        `🎯 Statistics worker: ${JSON.stringify(this.statisticsWorker.getStatus(), null, 2)}`
       );
     } catch (error) {
       logger.error('❌ Failed to start chain scanner:', error);
@@ -253,19 +269,23 @@ class ChainScanner {
         logger.info('Statistics updates stopped');
       }
 
-      // 2. Stop event monitoring
+      // 2. Stop background statistics worker
+      logger.info('Stopping background statistics worker...');
+      await this.statisticsWorker.stop();
+
+      // 3. Stop event monitoring
       logger.info('Stopping event monitoring...');
       await this.eventMonitor.stopMonitoring();
 
-      // 3. Disconnect from blockchain
+      // 4. Disconnect from blockchain
       logger.info('Disconnecting from blockchain...');
       await this.web3Service.disconnect();
 
-      // 4. Stop WebSocket server
+      // 5. Stop WebSocket server
       logger.info('Stopping WebSocket server...');
       await this.websocketServer.stop();
 
-      // 5. Disconnect from database
+      // 6. Disconnect from database
       logger.info('Disconnecting from database...');
       await this.databaseService.disconnect();
 
@@ -284,6 +304,8 @@ class ChainScanner {
     monitoringStatus: any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     websocketStatus: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    statisticsWorkerStatus: any;
     environment: string;
   } {
     return {
@@ -291,6 +313,7 @@ class ChainScanner {
       web3Status: this.web3Service.getConnectionStatus(),
       monitoringStatus: this.eventMonitor.getMonitoringStatus(),
       websocketStatus: this.websocketServer.getServerStatus(),
+      statisticsWorkerStatus: this.statisticsWorker.getStatus(),
       environment: config.server.env,
     };
   }
