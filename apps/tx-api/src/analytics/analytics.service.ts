@@ -3,6 +3,11 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { SubgraphClient } from '@msq-tx-monitor/subgraph-client';
 import { CacheTTL } from '../config/cache.config.js';
+import {
+  TOKEN_ADDRESSES,
+  getTokenAddress,
+  getAllTokenAddresses,
+} from '../config/tokens.config.js';
 
 interface VolumeDataPoint {
   timestamp: number;
@@ -62,12 +67,6 @@ export class AnalyticsService {
     return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_RECENT, async () => {
       // Get latest daily snapshots for each token
       const tokens = ['MSQ', 'SUT', 'KWT', 'P2UC'];
-      const tokenAddresses: Record<string, string> = {
-        MSQ: '0x6a8ec5f30645827384f1d3aaba5e29ed52abcdcb',
-        SUT: '0xc1f6c86abee8e2e0b6fd5bd80f0b51fef783635c',
-        KWT: '0x1e9c1b9d0064fcb7f0c6b7d379c1ba6c3e855fc5',
-        P2UC: '0x71ed5740c5f4f8cc9f6c5b8e7c7b98f1c9f2b5a8',
-      };
 
       const tokenStats = [];
       let totalVolume = BigInt(0);
@@ -78,8 +77,11 @@ export class AnalyticsService {
         if (token && token !== tokenSymbol) continue;
 
         try {
+          const tokenAddress = getTokenAddress(tokenSymbol);
+          if (!tokenAddress) continue;
+
           const snapshots = await this.subgraphClient.getLatestDailySnapshot(
-            tokenAddresses[tokenSymbol]
+            tokenAddress
           );
           const snapshot = snapshots[0];
 
@@ -126,7 +128,7 @@ export class AnalyticsService {
       const now = Math.floor(Date.now() / 1000);
       const startHour = now - (limit * 3600);
 
-      const tokenAddress = token ? this.getTokenAddress(token) : this.getTokenAddress('MSQ');
+      const tokenAddress = token ? getTokenAddress(token) : getTokenAddress('MSQ');
       if (!tokenAddress) {
         return [];
       }
@@ -158,7 +160,7 @@ export class AnalyticsService {
       const now = Math.floor(Date.now() / 1000);
       const startDate = now - (limit * 86400);
 
-      const tokenAddress = token ? this.getTokenAddress(token) : this.getTokenAddress('MSQ');
+      const tokenAddress = token ? getTokenAddress(token) : getTokenAddress('MSQ');
       if (!tokenAddress) {
         return [];
       }
@@ -229,7 +231,7 @@ export class AnalyticsService {
     const cacheKey = `analytics:distribution:${token}:${limit}`;
 
     return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_TOKEN, async () => {
-      const tokenAddress = this.getTokenAddress(token);
+      const tokenAddress = getTokenAddress(token);
       if (!tokenAddress) {
         return [];
       }
@@ -263,7 +265,7 @@ export class AnalyticsService {
     const cacheKey = `analytics:addresses:top:${token || 'all'}:${limit}`;
 
     return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_ADDRESS, async () => {
-      const tokenAddress = token ? this.getTokenAddress(token) : this.getTokenAddress('MSQ');
+      const tokenAddress = token ? getTokenAddress(token) : getTokenAddress('MSQ');
 
       if (tokenAddress) {
         const accounts = await this.subgraphClient.getTokenAccountsByToken(
@@ -292,7 +294,7 @@ export class AnalyticsService {
     const cacheKey = `analytics:addresses:senders:${token || 'all'}:${limit}`;
 
     return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_ADDRESS, async () => {
-      const tokenAddress = token ? this.getTokenAddress(token) : this.getTokenAddress('MSQ');
+      const tokenAddress = token ? getTokenAddress(token) : getTokenAddress('MSQ');
 
       if (tokenAddress) {
         const accounts = await this.subgraphClient.getTokenAccountsByToken(
@@ -320,7 +322,7 @@ export class AnalyticsService {
     const cacheKey = `analytics:addresses:receivers:${token || 'all'}:${limit}`;
 
     return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_ADDRESS, async () => {
-      const tokenAddress = token ? this.getTokenAddress(token) : this.getTokenAddress('MSQ');
+      const tokenAddress = token ? getTokenAddress(token) : getTokenAddress('MSQ');
 
       if (tokenAddress) {
         const accounts = await this.subgraphClient.getTokenAccountsByToken(
@@ -348,12 +350,7 @@ export class AnalyticsService {
     const cacheKey = 'analytics:network';
 
     return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_TOKEN, async () => {
-      const tokens = [
-        '0x6a8ec5f30645827384f1d3aaba5e29ed52abcdcb', // MSQ
-        '0xc1f6c86abee8e2e0b6fd5bd80f0b51fef783635c', // SUT
-        '0x1e9c1b9d0064fcb7f0c6b7d379c1ba6c3e855fc5', // KWT
-        '0x71ed5740c5f4f8cc9f6c5b8e7c7b98f1c9f2b5a8', // P2UC
-      ];
+      const tokens = getAllTokenAddresses();
 
       let totalVolume = BigInt(0);
       let totalTransactions = 0;
@@ -404,18 +401,6 @@ export class AnalyticsService {
     };
   }
 
-  /**
-   * Helper: Convert token symbol to address
-   */
-  private getTokenAddress(symbol: string): string | undefined {
-    const addresses: Record<string, string> = {
-      MSQ: '0x6a8ec5f30645827384f1d3aaba5e29ed52abcdcb',
-      SUT: '0xc1f6c86abee8e2e0b6fd5bd80f0b51fef783635c',
-      KWT: '0x1e9c1b9d0064fcb7f0c6b7d379c1ba6c3e855fc5',
-      P2UC: '0x71ed5740c5f4f8cc9f6c5b8e7c7b98f1c9f2b5a8',
-    };
-    return addresses[symbol.toUpperCase()];
-  }
 
   /**
    * Cache wrapper with error handling

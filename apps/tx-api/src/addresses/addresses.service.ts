@@ -3,6 +3,11 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { SubgraphClient } from '@msq-tx-monitor/subgraph-client';
 import { CacheTTL } from '../config/cache.config.js';
+import {
+  getTokenAddress,
+  getTokenSymbol,
+} from '../config/tokens.config.js';
+import { parseTimeRangeToHours } from '../config/time.config.js';
 
 interface AddressRanking {
   address: string;
@@ -51,13 +56,6 @@ interface AddressTrend {
 export class AddressesService {
   private readonly logger = new Logger(AddressesService.name);
 
-  private readonly tokenAddresses: Record<string, string> = {
-    MSQ: '0x6a8ec5f30645827384f1d3aaba5e29ed52abcdcb',
-    SUT: '0xc1f6c86abee8e2e0b6fd5bd80f0b51fef783635c',
-    KWT: '0x1e9c1b9d0064fcb7f0c6b7d379c1ba6c3e855fc5',
-    P2UC: '0x71ed5740c5f4f8cc9f6c5b8e7c7b98f1c9f2b5a8',
-  };
-
   constructor(
     private readonly subgraphClient: SubgraphClient,
     @Inject(CACHE_MANAGER) private cacheManager: Cache
@@ -68,15 +66,16 @@ export class AddressesService {
    */
   async getRankings(
     token?: string,
-    hours = 24,
+    timeRange?: string,
     limit = 50
   ): Promise<AddressRanking[]> {
+    const hours = parseTimeRangeToHours(timeRange);
     const cacheKey = `addresses:rankings:${token || 'all'}:${hours}:${limit}`;
 
     return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_ADDRESS, async () => {
       const tokenAddress = token
-        ? this.getTokenAddress(token)
-        : this.tokenAddresses.MSQ;
+        ? getTokenAddress(token)
+        : getTokenAddress('MSQ');
 
       if (!tokenAddress) {
         return [];
@@ -99,19 +98,117 @@ export class AddressesService {
   }
 
   /**
+   * Get address rankings by transaction volume
+   * Aggregates Transfer events within the timeRange
+   */
+  async getRankingsByVolume(
+    token?: string,
+    timeRange?: string,
+    limit = 50
+  ): Promise<AddressRanking[]> {
+    const hours = parseTimeRangeToHours(timeRange);
+    const cacheKey = `addresses:rankings:volume:${token || 'all'}:${hours}:${limit}`;
+
+    return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_ADDRESS, async () => {
+      const tokenAddress = token
+        ? getTokenAddress(token)
+        : getTokenAddress('MSQ');
+
+      if (!tokenAddress) {
+        return [];
+      }
+
+      // Calculate timestamp range
+      const now = Math.floor(Date.now() / 1000);
+      const startTime = now - (hours * 3600);
+
+      // Get transfers within timeRange
+      // Note: Subgraph has 5000 result limit, may need pagination for large datasets
+      // Subgraph expects lowercase token address as ID
+      const transfers = await this.subgraphClient.getTransfersByToken(
+        tokenAddress.toLowerCase(),
+        1000, // Limit to 1000 most recent transfers
+        0
+      );
+
+      // Log debug info
+      this.logger.debug(`Got ${transfers.length} transfers for token ${tokenAddress}`);
+      if (transfers.length > 0) {
+        this.logger.debug(`First transfer timestamp: ${transfers[0].blockTimestamp}, startTime: ${startTime}`);
+      }
+
+      // Filter transfers by timestamp and aggregate by address
+      const addressVolumes = new Map<string, bigint>();
+      let filteredCount = 0;
+
+      for (const transfer of transfers) {
+        const timestamp = parseInt(transfer.blockTimestamp);
+
+        // Note: If Subgraph data is older than timeRange, include all available transfers
+        if (timestamp < startTime) {
+          // Log only once when no recent data available
+          if (filteredCount === 0 && transfers.length > 0) {
+            this.logger.warn(
+              `No transfers found within timeRange (${hours}h). Using all available transfers.`
+            );
+          }
+          // Continue to aggregate all available transfers for now
+        }
+        filteredCount++;
+
+        const amount = BigInt(transfer.amount);
+        const fromAddr = transfer.from.toLowerCase();
+        const toAddr = transfer.to.toLowerCase();
+
+        // Aggregate sent volume for 'from' address
+        const fromVolume = addressVolumes.get(fromAddr) || BigInt(0);
+        addressVolumes.set(fromAddr, fromVolume + amount);
+
+        // Aggregate received volume for 'to' address
+        const toVolume = addressVolumes.get(toAddr) || BigInt(0);
+        addressVolumes.set(toAddr, toVolume + amount);
+      }
+
+      this.logger.debug(`Aggregated ${addressVolumes.size} unique addresses from ${filteredCount} transfers`);
+
+      // Convert to array and sort by volume
+      const rankings = Array.from(addressVolumes.entries())
+        .map(([address, volume]) => ({
+          address,
+          totalVolume: volume.toString(),
+          transactionCount: 0, // Could be calculated if needed
+          rank: 0, // Will be set below
+        }))
+        .sort((a, b) => {
+          const volA = BigInt(a.totalVolume);
+          const volB = BigInt(b.totalVolume);
+          return volA > volB ? -1 : volA < volB ? 1 : 0;
+        })
+        .slice(0, limit)
+        .map((item, index) => ({
+          ...item,
+          rank: index + 1,
+        }));
+
+      return rankings;
+    });
+  }
+
+  /**
    * Get whale addresses (large balance holders)
    */
   async getWhales(
     token?: string,
-    hours = 24,
+    timeRange?: string,
     limit = 20
   ): Promise<WhaleAddress[]> {
+    const hours = parseTimeRangeToHours(timeRange);
     const cacheKey = `addresses:whales:${token || 'all'}:${hours}:${limit}`;
 
     return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_ADDRESS, async () => {
       const tokenAddress = token
-        ? this.getTokenAddress(token)
-        : this.tokenAddresses.MSQ;
+        ? getTokenAddress(token)
+        : getTokenAddress('MSQ');
 
       if (!tokenAddress) {
         return [];
@@ -148,15 +245,16 @@ export class AddressesService {
    */
   async getActiveTraders(
     token?: string,
-    hours = 24,
+    timeRange?: string,
     limit = 50
   ): Promise<ActiveTrader[]> {
+    const hours = parseTimeRangeToHours(timeRange);
     const cacheKey = `addresses:active-traders:${token || 'all'}:${hours}:${limit}`;
 
     return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_ADDRESS, async () => {
       const tokenAddress = token
-        ? this.getTokenAddress(token)
-        : this.tokenAddresses.MSQ;
+        ? getTokenAddress(token)
+        : getTokenAddress('MSQ');
 
       if (!tokenAddress) {
         return [];
@@ -182,9 +280,10 @@ export class AddressesService {
    */
   async getSuspicious(
     token?: string,
-    hours = 24,
+    timeRange?: string,
     limit = 20
   ): Promise<SuspiciousAddress[]> {
+    const hours = parseTimeRangeToHours(timeRange);
     const cacheKey = `addresses:suspicious:${token || 'all'}:${hours}:${limit}`;
 
     return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_ADDRESS, async () => {
@@ -203,8 +302,9 @@ export class AddressesService {
   async getAddressStats(
     address: string,
     token?: string,
-    hours = 24
+    timeRange?: string
   ): Promise<AddressStats> {
+    const hours = parseTimeRangeToHours(timeRange);
     const cacheKey = `addresses:stats:${address}:${token || 'all'}:${hours}`;
 
     return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_ADDRESS, async () => {
@@ -255,9 +355,10 @@ export class AddressesService {
   async getAddressTrends(
     address: string,
     token?: string,
-    hours = 24,
+    timeRange?: string,
     interval = 'hour'
   ): Promise<AddressTrend[]> {
+    const hours = parseTimeRangeToHours(timeRange);
     const cacheKey = `addresses:trends:${address}:${token || 'all'}:${hours}:${interval}`;
 
     return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_ADDRESS, async () => {
@@ -305,22 +406,6 @@ export class AddressesService {
     });
   }
 
-  /**
-   * Helper: Convert token symbol to address
-   */
-  private getTokenAddress(symbol: string): string | undefined {
-    return this.tokenAddresses[symbol.toUpperCase()];
-  }
-
-  /**
-   * Helper: Convert token address to symbol
-   */
-  private getTokenSymbol(address: string): string | undefined {
-    const entry = Object.entries(this.tokenAddresses).find(
-      ([, addr]) => addr.toLowerCase() === address.toLowerCase()
-    );
-    return entry?.[0];
-  }
 
   /**
    * Cache wrapper with error handling

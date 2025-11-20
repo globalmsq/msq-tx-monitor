@@ -121,10 +121,11 @@ export class SubgraphService {
       // For now, we use getClient() to make a custom query
       const client = this.client.getClient();
 
-      // Custom query for AccountStats (will be available after subgraph deployment)
+      // Custom query for AccountStats
+      // Note: The Graph uses '_collection' suffix for plural queries when entity name ends in 's'
       const query = `
         query GetAccountStats($addresses: [Bytes!]!) {
-          accountStats(
+          accountStats_collection(
             where: { account_in: $addresses }
             first: 1000
           ) {
@@ -143,7 +144,7 @@ export class SubgraphService {
       `;
 
       const result = await client.request<{
-        accountStats: Array<{
+        accountStats_collection: Array<{
           id: string;
           account: string;
           totalTransferCount: string;
@@ -160,10 +161,10 @@ export class SubgraphService {
       });
 
       logger.info(
-        `✅ Retrieved ${result.accountStats.length} AccountStats from Subgraph`
+        `✅ Retrieved ${result.accountStats_collection.length} AccountStats from Subgraph`
       );
 
-      return result.accountStats;
+      return result.accountStats_collection;
     } catch (error) {
       logger.warn(
         `⚠️ AccountStats query failed (may not be deployed yet):`,
