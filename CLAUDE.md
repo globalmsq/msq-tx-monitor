@@ -10,6 +10,23 @@ MSQ Transaction Monitor is a real-time blockchain transaction monitoring system 
 **Blockchain**: Polygon Network via https://polygon-rpc.com
 **Deployment**: Docker containerized with unified Dockerfile.packages
 
+## Multi-Agent System
+
+This project uses a multi-agent coordination system for efficient development across different domains.
+
+**Agent Structure:**
+- **Leader Agent**: Entry point, coordinates work distribution and infrastructure
+- **API Agent**: NestJS API, shared libraries, database, and Subgraph integration
+- **Blockchain Agent**: Chain scanner, WebSocket server, and blockchain monitoring
+- **Frontend Agent**: React 18 and Next.js dashboards
+
+**Lazy Loading Strategy:**
+The Leader Agent loads first with a lightweight project overview. When work is assigned to a specific domain, the relevant specialized agent's guidelines are loaded on-demand.
+
+**Import Leader Agent for coordination:**
+
+@./.claude/agents/leader-agent.md
+
 ## Application Structure
 
 ### Core Applications
