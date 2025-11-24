@@ -30,7 +30,7 @@ export class AddressStatisticsModel {
 
 /**
  * Token statistics model
- * Future integration with tx-analyzer service
+ * Integrated with Subgraph for real-time statistics
  */
 @ObjectType({ description: 'Token statistics' })
 export class TokenStatisticsModel {
@@ -45,4 +45,10 @@ export class TokenStatisticsModel {
 
   @Field(() => Int, { description: 'Unique holders count' })
   uniqueHolders!: number;
+
+  @Field({ description: '24h volume transferred', nullable: true })
+  volume24h?: string;
+
+  @Field(() => Int, { description: '24h transaction count', nullable: true })
+  transactions24h?: number;
 }

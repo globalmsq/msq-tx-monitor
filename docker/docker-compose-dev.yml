@@ -154,6 +154,7 @@ services:
       - REDIS_ENABLED=false
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - SUBGRAPH_ENDPOINT=https://api.studio.thegraph.com/query/1704765/msq-tokens-subgraph/version/latest
     volumes:
       - ../:/app
       - /app/node_modules
@@ -206,6 +207,7 @@ services:
       - IGNORE_ZERO_VALUE_TRANSFERS=true
       - BLOCK_POLLING_INTERVAL=10000
       - REQUEST_DELAY=500
+      - SUBGRAPH_ENDPOINT=https://api.studio.thegraph.com/query/1704765/msq-tokens-subgraph/version/latest
     volumes:
       - ../:/app
       - /app/node_modules

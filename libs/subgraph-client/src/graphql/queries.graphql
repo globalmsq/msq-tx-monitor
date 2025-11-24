@@ -196,12 +196,15 @@ query GetDailySnapshots(
     id
     date
     transferCount
+    volumeTransferred
+    uniqueSenders
+    uniqueReceivers
+    uniqueAddresses
+    holderCount
     mintCount
     burnCount
-    uniqueAddresses
     mintVolume
     burnVolume
-    holderCount
   }
 }
 
@@ -215,12 +218,15 @@ query GetLatestDailySnapshot($token: String!) {
     id
     date
     transferCount
+    volumeTransferred
+    uniqueSenders
+    uniqueReceivers
+    uniqueAddresses
+    holderCount
     mintCount
     burnCount
-    uniqueAddresses
     mintVolume
     burnVolume
-    holderCount
   }
 }
 
@@ -241,9 +247,10 @@ query GetHourlySnapshots(
     id
     hour
     transferCount
+    volumeTransferred
+    uniqueAddresses
     mintCount
     burnCount
-    uniqueAddresses
   }
 }
 
@@ -257,9 +264,10 @@ query GetLatestHourlySnapshot($token: String!) {
     id
     hour
     transferCount
+    volumeTransferred
+    uniqueAddresses
     mintCount
     burnCount
-    uniqueAddresses
   }
 }
 

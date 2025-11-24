@@ -6,6 +6,7 @@ import { formatUnits } from 'ethers';
 import { TokenService } from './tokenService.js';
 import { logger } from '@msq-tx-monitor/msq-common';
 import { AddressStatsCacheService } from './addressStatsCacheService.js';
+import { SubgraphClient } from '@msq-tx-monitor/subgraph-client';
 
 // Type for Prisma Decimal values
 type PrismaDecimal = { toString(): string };
@@ -31,9 +32,11 @@ export interface DashboardStats {
 export class StatisticsService {
   private initialized = false;
   private tokenService?: TokenService;
+  private subgraphClient: SubgraphClient;
 
-  constructor(tokenService?: TokenService) {
+  constructor(tokenService?: TokenService, subgraphClient?: SubgraphClient) {
     this.tokenService = tokenService;
+    this.subgraphClient = subgraphClient || new SubgraphClient();
   }
 
   /**
@@ -338,20 +341,24 @@ export class StatisticsService {
   }
 
   /**
-   * Get total volume for specific token
+   * Get total volume for specific token from Subgraph DailySnapshots
    */
   private async getTokenTotalVolume(tokenAddress: string): Promise<bigint> {
     try {
-      const result = await prisma.transaction.aggregate({
-        _sum: {
-          value: true,
-        },
-        where: {
-          tokenAddress,
-        },
-      });
+      // Get the latest daily snapshot which has cumulative volumeTransferred
+      const snapshots = await this.subgraphClient.getDailySnapshots(
+        tokenAddress.toLowerCase(),
+        0,
+        Math.floor(Date.now() / 1000),
+        1000
+      );
 
-      return this.safeBigInt(result._sum.value);
+      // Sum all daily volumes to get total volume
+      const totalVolume = snapshots.reduce((sum, snapshot) => {
+        return sum + BigInt(snapshot.volumeTransferred || '0');
+      }, 0n);
+
+      return totalVolume;
     } catch (error) {
       logger.error(`Error getting total volume for ${tokenAddress}:`, error);
       return 0n;
@@ -359,21 +366,26 @@ export class StatisticsService {
   }
 
   /**
-   * Get 24h volume for specific token (returns raw bigint for proper formatting)
+   * Get 24h volume for specific token from Subgraph HourlySnapshots
    */
   private async getToken24hVolume(tokenAddress: string): Promise<bigint> {
     try {
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const now = Math.floor(Date.now() / 1000);
+      const twentyFourHoursAgo = now - 24 * 60 * 60;
 
-      const result = await prisma.transaction.aggregate({
-        _sum: { value: true },
-        where: {
-          tokenAddress,
-          timestamp: { gte: twentyFourHoursAgo },
-        },
-      });
+      const snapshots = await this.subgraphClient.getHourlySnapshots(
+        tokenAddress.toLowerCase(),
+        twentyFourHoursAgo,
+        now,
+        24
+      );
 
-      return this.safeBigInt(result._sum.value);
+      // Sum volume from all hourly snapshots
+      const totalVolume = snapshots.reduce((sum, snapshot) => {
+        return sum + BigInt(snapshot.volumeTransferred || '0');
+      }, 0n);
+
+      return totalVolume;
     } catch (error) {
       logger.error(`Error getting 24h volume for ${tokenAddress}:`, error);
       return 0n;

@@ -56,8 +56,11 @@ class ChainScanner {
 
     this.databaseService = new DatabaseService();
     this.tokenService = new TokenService(this.databaseService);
-    this.statisticsService = new StatisticsService(this.tokenService);
     this.subgraphService = new SubgraphService();
+    this.statisticsService = new StatisticsService(
+      this.tokenService,
+      this.subgraphService.getClient()
+    );
     this.statisticsWorker = new StatisticsWorker(
       this.databaseService,
       this.subgraphService

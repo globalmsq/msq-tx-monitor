@@ -41,10 +41,14 @@ interface RealtimeStats {
   volume24h: string;
   volumeChange24h: number;
   tokenStats: Array<{
-    symbol: string;
+    tokenSymbol: string;
     volume24h: string;
+    totalVolume: string;
+    volume: string;
     transactionCount: number;
     holderCount: number;
+    uniqueAddresses24h: number;
+    percentage: number;
   }>;
 }
 
@@ -77,10 +81,22 @@ export class AnalyticsService {
 
         try {
           const tokenAddress = getTokenAddress(tokenSymbol);
-          if (!tokenAddress) continue;
+          if (!tokenAddress) {
+            this.logger.warn(`No address configured for token: ${tokenSymbol}`);
+            continue;
+          }
+
+          this.logger.debug(
+            `Fetching daily snapshot for ${tokenSymbol} (${tokenAddress})`
+          );
 
           const snapshots =
             await this.subgraphClient.getLatestDailySnapshot(tokenAddress);
+
+          this.logger.debug(
+            `Daily snapshots for ${tokenSymbol}: ${JSON.stringify(snapshots)}`
+          );
+
           const snapshot = snapshots[0];
 
           if (snapshot) {
@@ -88,25 +104,63 @@ export class AnalyticsService {
             totalTransactions += parseInt(snapshot.transferCount) || 0;
             totalActiveAddresses += parseInt(snapshot.uniqueAddresses) || 0;
 
-            // Calculate volume from mint + burn volumes
-            const mintVol = BigInt(snapshot.mintVolume || '0');
-            const burnVol = BigInt(snapshot.burnVolume || '0');
-            const volume = mintVol + burnVol;
+            // Use volumeTransferred from snapshot (preferred)
+            const volume = BigInt(snapshot.volumeTransferred || '0');
             totalVolume += volume;
 
+            this.logger.debug(
+              `${tokenSymbol} stats: volume=${volume.toString()}, transfers=${snapshot.transferCount}, addresses=${snapshot.uniqueAddresses}`
+            );
+
+            const uniqueAddresses = parseInt(snapshot.uniqueAddresses) || 0;
+
             tokenStats.push({
-              symbol: tokenSymbol,
+              tokenSymbol: tokenSymbol,
               volume24h: volume.toString(),
+              totalVolume: volume.toString(),
+              volume: volume.toString(),
               transactionCount: parseInt(snapshot.transferCount) || 0,
               holderCount: parseInt(snapshot.holderCount) || 0,
+              uniqueAddresses24h: uniqueAddresses,
+              percentage: 0, // Calculated later if needed
+            });
+          } else {
+            this.logger.warn(
+              `No daily snapshot data found for ${tokenSymbol}. Subgraph may not have indexed data yet.`
+            );
+            // Return zero stats if no snapshot data
+            tokenStats.push({
+              tokenSymbol: tokenSymbol,
+              volume24h: '0',
+              totalVolume: '0',
+              volume: '0',
+              transactionCount: 0,
+              holderCount: 0,
+              uniqueAddresses24h: 0,
+              percentage: 0,
             });
           }
         } catch (error) {
-          this.logger.warn(
+          this.logger.error(
             `Failed to get snapshot for ${tokenSymbol}: ${error}`
           );
+          // Return zero stats on error
+          tokenStats.push({
+            tokenSymbol: tokenSymbol,
+            volume24h: '0',
+            totalVolume: '0',
+            volume: '0',
+            transactionCount: 0,
+            holderCount: 0,
+            uniqueAddresses24h: 0,
+            percentage: 0,
+          });
         }
       }
+
+      this.logger.log(
+        `Realtime stats summary: totalTx=${totalTransactions}, totalVolume=${totalVolume.toString()}, activeAddr=${totalActiveAddresses}`
+      );
 
       return {
         totalTransactions,
@@ -147,7 +201,7 @@ export class AnalyticsService {
 
       return snapshots.map(snapshot => ({
         timestamp: parseInt(snapshot.hour) * 1000,
-        volume: '0', // HourlySnapshot doesn't include volume in query
+        volume: snapshot.volumeTransferred || '0',
         transferCount: parseInt(snapshot.transferCount) || 0,
         mintCount: parseInt(snapshot.mintCount) || 0,
         burnCount: parseInt(snapshot.burnCount) || 0,
