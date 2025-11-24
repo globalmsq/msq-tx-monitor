@@ -3,7 +3,7 @@
     "../../.eslintrc.json",
     "next/core-web-vitals"
   ],
-  "ignorePatterns": ["!**/*", ".next/**/*", "next-env.d.ts", "node_modules/**/*"],
+  "ignorePatterns": [".next/**/*", "next-env.d.ts"],
   "overrides": [
     {
       "files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
