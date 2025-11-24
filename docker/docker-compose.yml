@@ -23,8 +23,8 @@ services:
     depends_on:
       tx-dashboard:
         condition: service_healthy
-      tx-dashboard-v2:
-        condition: service_healthy
+      # tx-dashboard-v2:
+      #   condition: service_healthy
       tx-api:
         condition: service_healthy
       chain-scanner:
@@ -97,25 +97,25 @@ services:
       timeout: 10s
       retries: 5
 
-  tx-dashboard-v2:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.packages
-      target: tx-dashboard-v2
-    container_name: msq-tx-monitor-dashboard-v2
-    restart: unless-stopped
-    # No external port exposure - accessed through Nginx
-    expose:
-      - "3001"
-    networks:
-      - msq-tx-monitor-network
-    depends_on:
-      tx-api:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
-      timeout: 10s
-      retries: 5
+  # tx-dashboard-v2:
+  #   build:
+  #     context: ..
+  #     dockerfile: docker/Dockerfile.packages
+  #     target: tx-dashboard-v2
+  #   container_name: msq-tx-monitor-dashboard-v2
+  #   restart: unless-stopped
+  #   # No external port exposure - accessed through Nginx
+  #   expose:
+  #     - "3001"
+  #   networks:
+  #     - msq-tx-monitor-network
+  #   depends_on:
+  #     tx-api:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+  #     timeout: 10s
+  #     retries: 5
 
   tx-api:
     build:
