@@ -85,7 +85,7 @@ export interface SubgraphPaginationParams {
 }
 
 export interface SubgraphTransactionFilters {
-  token?: string;  // TOKEN ADDRESS, not symbol
+  token?: string; // TOKEN ADDRESS, not symbol
   from?: string;
   to?: string;
   blockTimestamp_gte?: string;
@@ -256,7 +256,11 @@ class ApiService {
    */
   async getTransactionsSubgraph(
     filters: SubgraphTransactionFilters = {},
-    pagination: SubgraphPaginationParams = { limit: 50, skip: 0, orderDirection: 'desc' }
+    pagination: SubgraphPaginationParams = {
+      limit: 50,
+      skip: 0,
+      orderDirection: 'desc',
+    }
   ): Promise<SubgraphPaginatedResponse> {
     const params = new URLSearchParams();
 

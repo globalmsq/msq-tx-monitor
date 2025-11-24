@@ -4,6 +4,16 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json",
+    "lint": "eslint \"src/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
+    "format": "prettier --write \"**/*.{ts,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,json,md}\"",
+    "test": "echo 'No tests configured for chain-utils library'",
+    "clean": "rm -rf node_modules .nx ../../dist/libs/chain-utils"
+  },
   "dependencies": {
     "ethers": "^6.15.0",
     "web3": "^4.8.0",

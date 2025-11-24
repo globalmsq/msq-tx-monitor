@@ -153,7 +153,9 @@ function applyFiltersToState(state: TransactionState): TransactionState {
 }
 
 // Helper function to convert frontend filters to Subgraph API filters
-function convertFiltersForSubgraph(filters: FilterState): SubgraphTransactionFilters {
+function convertFiltersForSubgraph(
+  filters: FilterState
+): SubgraphTransactionFilters {
   const apiFilters: SubgraphTransactionFilters = {};
 
   // Convert address search to from for server-side filtering
@@ -179,11 +181,15 @@ function convertFiltersForSubgraph(filters: FilterState): SubgraphTransactionFil
 
   // Convert time range to blockTimestamp format (Unix timestamp in seconds)
   if (filters.timeRange?.from) {
-    const timestamp = Math.floor(new Date(filters.timeRange.from).getTime() / 1000);
+    const timestamp = Math.floor(
+      new Date(filters.timeRange.from).getTime() / 1000
+    );
     apiFilters.blockTimestamp_gte = timestamp.toString();
   }
   if (filters.timeRange?.to) {
-    const timestamp = Math.floor(new Date(filters.timeRange.to).getTime() / 1000);
+    const timestamp = Math.floor(
+      new Date(filters.timeRange.to).getTime() / 1000
+    );
     apiFilters.blockTimestamp_lte = timestamp.toString();
   }
 
@@ -268,7 +274,8 @@ function transactionReducer(
         recentTransactions: action.payload.transactions.slice(0, 50),
         totalCount: newTotalCount,
         hasMore: action.payload.hasMore,
-        currentSkip: action.payload.currentSkip || action.payload.transactions.length,
+        currentSkip:
+          action.payload.currentSkip || action.payload.transactions.length,
         isInitialLoad: false,
         isLoading: false,
       };
@@ -289,7 +296,8 @@ function transactionReducer(
         transactions: updatedTransactions,
         recentTransactions: updatedTransactions, // Show all loaded transactions
         hasMore: action.payload.hasMore,
-        currentSkip: action.payload.newSkip || state.currentSkip + newTransactions.length,
+        currentSkip:
+          action.payload.newSkip || state.currentSkip + newTransactions.length,
         isLoading: false,
       };
       return applyFiltersToState(newState);
@@ -461,14 +469,17 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
           orderDirection: 'desc',
         });
 
-        const uiTransactions = response.transactions.map(adaptSubgraphTransactionForUI);
+        const uiTransactions = response.transactions.map(
+          adaptSubgraphTransactionForUI
+        );
 
         dispatch({
           type: 'SET_INITIAL_DATA',
           payload: {
             transactions: uiTransactions,
             totalCount: response.total,
-            hasMore: response.skip + response.transactions.length < response.total,
+            hasMore:
+              response.skip + response.transactions.length < response.total,
             currentSkip: response.transactions.length,
           },
         });
@@ -506,14 +517,17 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
           orderDirection: 'desc',
         });
 
-        const uiTransactions = response.transactions.map(adaptSubgraphTransactionForUI);
+        const uiTransactions = response.transactions.map(
+          adaptSubgraphTransactionForUI
+        );
 
         dispatch({
           type: 'SET_INITIAL_DATA',
           payload: {
             transactions: uiTransactions,
             totalCount: response.total,
-            hasMore: response.skip + response.transactions.length < response.total,
+            hasMore:
+              response.skip + response.transactions.length < response.total,
             currentSkip: response.transactions.length,
           },
         });
@@ -696,7 +710,9 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
           orderDirection: 'desc',
         });
 
-        const uiTransactions = response.transactions.map(adaptSubgraphTransactionForUI);
+        const uiTransactions = response.transactions.map(
+          adaptSubgraphTransactionForUI
+        );
         const newSkip = state.currentSkip + response.transactions.length;
 
         dispatch({
@@ -730,14 +746,17 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
           orderDirection: 'desc',
         });
 
-        const uiTransactions = response.transactions.map(adaptSubgraphTransactionForUI);
+        const uiTransactions = response.transactions.map(
+          adaptSubgraphTransactionForUI
+        );
 
         dispatch({
           type: 'SET_INITIAL_DATA',
           payload: {
             transactions: uiTransactions,
             totalCount: response.total,
-            hasMore: response.skip + response.transactions.length < response.total,
+            hasMore:
+              response.skip + response.transactions.length < response.total,
             currentSkip: response.transactions.length,
           },
         });

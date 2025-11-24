@@ -21,6 +21,39 @@
       "options": {
         "lintFilePatterns": ["libs/tx-types/**/*.ts"]
       }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/tx-types/tsconfig.lib.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"libs/tx-types/**/*.{ts,json,md}\"",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "echo 'No tests configured for tx-types library'",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "rm -rf dist/libs/tx-types",
+          "rm -rf libs/tx-types/node_modules",
+          "rm -rf libs/tx-types/.nx"
+        ],
+        "cwd": "{workspaceRoot}",
+        "parallel": false
+      }
     }
   }
 }

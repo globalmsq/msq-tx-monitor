@@ -16,7 +16,8 @@ export class AddressesController {
   @Get('rankings')
   async getRankings(@Query() query: AddressRankingQueryDto) {
     // Backward compatibility: convert hours to timeRange format if provided
-    const effectiveTimeRange = query.timeRange || (query.hours ? `${query.hours}h` : undefined);
+    const effectiveTimeRange =
+      query.timeRange || (query.hours ? `${query.hours}h` : undefined);
     const metric = query.metric || 'balance';
 
     this.logger.debug(

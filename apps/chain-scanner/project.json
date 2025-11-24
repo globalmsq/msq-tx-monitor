@@ -45,6 +45,32 @@
       "options": {
         "jestConfig": "apps/chain-scanner/jest.config.ts"
       }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit --project tsconfig.app.json",
+        "cwd": "apps/chain-scanner"
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"apps/chain-scanner/**/*.{ts,json,md}\"",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "rm -rf apps/chain-scanner/dist",
+          "rm -rf apps/chain-scanner/node_modules",
+          "rm -rf apps/chain-scanner/.nx"
+        ],
+        "cwd": "{workspaceRoot}",
+        "parallel": false
+      }
     }
   }
 }

@@ -1,0 +1,72 @@
+{
+  "name": "database",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "libs/database/src",
+  "tags": ["type:lib", "scope:shared"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/database",
+        "main": "libs/database/src/index.ts",
+        "tsConfig": "libs/database/tsconfig.lib.json",
+        "assets": [
+          {
+            "glob": "prisma/schema.prisma",
+            "input": "libs/database",
+            "output": "."
+          }
+        ]
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/database/tsconfig.lib.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/database/**/*.ts"]
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"libs/database/**/*.{ts,json,md}\"",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "echo 'No tests configured for database library'",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "rm -rf dist/libs/database",
+          "rm -rf libs/database/node_modules",
+          "rm -rf libs/database/.nx"
+        ],
+        "cwd": "{workspaceRoot}",
+        "parallel": false
+      }
+    },
+    "prisma-generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prisma generate --schema=libs/database/prisma/schema.prisma",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

@@ -100,7 +100,9 @@ export class DatabaseService {
         }
       });
 
-      logger.info(`Address stats updated for ${transactions.length} transactions`);
+      logger.info(
+        `Address stats updated for ${transactions.length} transactions`
+      );
     } catch (error) {
       logger.error('Error updating address statistics batch:', error);
       throw error;

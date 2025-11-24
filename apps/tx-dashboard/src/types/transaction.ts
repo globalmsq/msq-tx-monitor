@@ -149,7 +149,9 @@ export function adaptApiTransactionForUI(apiTx: ApiTransaction): UITransaction {
 }
 
 // Adapter function to convert Subgraph transaction to UI Transaction
-export function adaptSubgraphTransactionForUI(tx: SubgraphTransaction): UITransaction {
+export function adaptSubgraphTransactionForUI(
+  tx: SubgraphTransaction
+): UITransaction {
   return {
     id: tx.id,
     hash: tx.transactionHash,
@@ -161,7 +163,7 @@ export function adaptSubgraphTransactionForUI(tx: SubgraphTransaction): UITransa
     tokenAddress: tx.token.id,
     timestamp: parseInt(tx.blockTimestamp) * 1000, // Convert seconds to milliseconds
     blockNumber: parseInt(tx.blockNumber),
-    gasUsed: '0',  // Not available from subgraph
+    gasUsed: '0', // Not available from subgraph
     gasPrice: '0', // Not available from subgraph
     txnFee: undefined, // Not available from subgraph
     status: 'confirmed' as const,

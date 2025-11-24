@@ -4,7 +4,6 @@ import { Cache } from 'cache-manager';
 import { SubgraphClient } from '@msq-tx-monitor/subgraph-client';
 import { CacheTTL } from '../config/cache.config.js';
 import {
-  TOKEN_ADDRESSES,
   getTokenAddress,
   getAllTokenAddresses,
 } from '../config/tokens.config.js';
@@ -80,9 +79,8 @@ export class AnalyticsService {
           const tokenAddress = getTokenAddress(tokenSymbol);
           if (!tokenAddress) continue;
 
-          const snapshots = await this.subgraphClient.getLatestDailySnapshot(
-            tokenAddress
-          );
+          const snapshots =
+            await this.subgraphClient.getLatestDailySnapshot(tokenAddress);
           const snapshot = snapshots[0];
 
           if (snapshot) {
@@ -104,7 +102,9 @@ export class AnalyticsService {
             });
           }
         } catch (error) {
-          this.logger.warn(`Failed to get snapshot for ${tokenSymbol}: ${error}`);
+          this.logger.warn(
+            `Failed to get snapshot for ${tokenSymbol}: ${error}`
+          );
         }
       }
 
@@ -121,14 +121,19 @@ export class AnalyticsService {
   /**
    * Get hourly volume statistics
    */
-  async getVolumeHourly(token?: string, limit = 24): Promise<VolumeDataPoint[]> {
+  async getVolumeHourly(
+    token?: string,
+    limit = 24
+  ): Promise<VolumeDataPoint[]> {
     const cacheKey = `analytics:volume:hourly:${token || 'all'}:${limit}`;
 
     return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_QUERY, async () => {
       const now = Math.floor(Date.now() / 1000);
-      const startHour = now - (limit * 3600);
+      const startHour = now - limit * 3600;
 
-      const tokenAddress = token ? getTokenAddress(token) : getTokenAddress('MSQ');
+      const tokenAddress = token
+        ? getTokenAddress(token)
+        : getTokenAddress('MSQ');
       if (!tokenAddress) {
         return [];
       }
@@ -156,106 +161,127 @@ export class AnalyticsService {
   async getVolumeDaily(token?: string, limit = 30): Promise<VolumeDataPoint[]> {
     const cacheKey = `analytics:volume:daily:${token || 'all'}:${limit}`;
 
-    return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_TOKEN, async () => {
-      const now = Math.floor(Date.now() / 1000);
-      const startDate = now - (limit * 86400);
+    return this.withCache(
+      cacheKey,
+      CacheTTL.TRANSACTIONS_BY_TOKEN,
+      async () => {
+        const now = Math.floor(Date.now() / 1000);
+        const startDate = now - limit * 86400;
 
-      const tokenAddress = token ? getTokenAddress(token) : getTokenAddress('MSQ');
-      if (!tokenAddress) {
-        return [];
+        const tokenAddress = token
+          ? getTokenAddress(token)
+          : getTokenAddress('MSQ');
+        if (!tokenAddress) {
+          return [];
+        }
+
+        const snapshots = await this.subgraphClient.getDailySnapshots(
+          tokenAddress,
+          startDate,
+          now,
+          limit
+        );
+
+        return snapshots.map(snapshot => {
+          // Calculate volume from mint + burn volumes
+          const mintVol = BigInt(snapshot.mintVolume || '0');
+          const burnVol = BigInt(snapshot.burnVolume || '0');
+          const volume = mintVol + burnVol;
+
+          return {
+            timestamp: parseInt(snapshot.date) * 1000,
+            volume: volume.toString(),
+            transferCount: parseInt(snapshot.transferCount) || 0,
+            mintCount: parseInt(snapshot.mintCount) || 0,
+            burnCount: parseInt(snapshot.burnCount) || 0,
+          };
+        });
       }
-
-      const snapshots = await this.subgraphClient.getDailySnapshots(
-        tokenAddress,
-        startDate,
-        now,
-        limit
-      );
-
-      return snapshots.map(snapshot => {
-        // Calculate volume from mint + burn volumes
-        const mintVol = BigInt(snapshot.mintVolume || '0');
-        const burnVol = BigInt(snapshot.burnVolume || '0');
-        const volume = mintVol + burnVol;
-
-        return {
-          timestamp: parseInt(snapshot.date) * 1000,
-          volume: volume.toString(),
-          transferCount: parseInt(snapshot.transferCount) || 0,
-          mintCount: parseInt(snapshot.mintCount) || 0,
-          burnCount: parseInt(snapshot.burnCount) || 0,
-        };
-      });
-    });
+    );
   }
 
   /**
    * Get weekly volume statistics (aggregated from daily)
    */
-  async getVolumeWeekly(token?: string, limit = 12): Promise<VolumeDataPoint[]> {
+  async getVolumeWeekly(
+    token?: string,
+    limit = 12
+  ): Promise<VolumeDataPoint[]> {
     const cacheKey = `analytics:volume:weekly:${token || 'all'}:${limit}`;
 
-    return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_TOKEN, async () => {
-      const dailyData = await this.getVolumeDaily(token, limit * 7);
+    return this.withCache(
+      cacheKey,
+      CacheTTL.TRANSACTIONS_BY_TOKEN,
+      async () => {
+        const dailyData = await this.getVolumeDaily(token, limit * 7);
 
-      // Aggregate into weeks
-      const weeks: VolumeDataPoint[] = [];
-      for (let i = 0; i < dailyData.length; i += 7) {
-        const weekData = dailyData.slice(i, i + 7);
-        if (weekData.length === 0) continue;
+        // Aggregate into weeks
+        const weeks: VolumeDataPoint[] = [];
+        for (let i = 0; i < dailyData.length; i += 7) {
+          const weekData = dailyData.slice(i, i + 7);
+          if (weekData.length === 0) continue;
 
-        const volume = weekData.reduce(
-          (sum, d) => sum + BigInt(d.volume),
-          BigInt(0)
-        );
-        const transferCount = weekData.reduce(
-          (sum, d) => sum + d.transferCount,
-          0
-        );
+          const volume = weekData.reduce(
+            (sum, d) => sum + BigInt(d.volume),
+            BigInt(0)
+          );
+          const transferCount = weekData.reduce(
+            (sum, d) => sum + d.transferCount,
+            0
+          );
 
-        weeks.push({
-          timestamp: weekData[0].timestamp,
-          volume: volume.toString(),
-          transferCount,
-        });
+          weeks.push({
+            timestamp: weekData[0].timestamp,
+            volume: volume.toString(),
+            transferCount,
+          });
+        }
+
+        return weeks;
       }
-
-      return weeks;
-    });
+    );
   }
 
   /**
    * Get token distribution (top holders)
    */
-  async getTokenDistribution(token: string, limit = 100): Promise<TokenDistribution[]> {
+  async getTokenDistribution(
+    token: string,
+    limit = 100
+  ): Promise<TokenDistribution[]> {
     const cacheKey = `analytics:distribution:${token}:${limit}`;
 
-    return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_TOKEN, async () => {
-      const tokenAddress = getTokenAddress(token);
-      if (!tokenAddress) {
-        return [];
+    return this.withCache(
+      cacheKey,
+      CacheTTL.TRANSACTIONS_BY_TOKEN,
+      async () => {
+        const tokenAddress = getTokenAddress(token);
+        if (!tokenAddress) {
+          return [];
+        }
+
+        const accounts = await this.subgraphClient.getTokenAccountsByToken(
+          tokenAddress,
+          limit,
+          0
+        );
+
+        // Calculate total for percentage
+        const total = accounts.reduce(
+          (sum, acc) => sum + BigInt(acc.balance),
+          BigInt(0)
+        );
+
+        return accounts.map(account => ({
+          address: account.account,
+          balance: account.balance,
+          percentage:
+            total > 0
+              ? Number((BigInt(account.balance) * BigInt(10000)) / total) / 100
+              : 0,
+        }));
       }
-
-      const accounts = await this.subgraphClient.getTokenAccountsByToken(
-        tokenAddress,
-        limit,
-        0
-      );
-
-      // Calculate total for percentage
-      const total = accounts.reduce(
-        (sum, acc) => sum + BigInt(acc.balance),
-        BigInt(0)
-      );
-
-      return accounts.map(account => ({
-        address: account.account,
-        balance: account.balance,
-        percentage: total > 0
-          ? Number((BigInt(account.balance) * BigInt(10000) / total)) / 100
-          : 0,
-      }));
-    });
+    );
   }
 
   /**
@@ -264,27 +290,33 @@ export class AnalyticsService {
   async getTopAddresses(token?: string, limit = 50): Promise<AddressStats[]> {
     const cacheKey = `analytics:addresses:top:${token || 'all'}:${limit}`;
 
-    return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_ADDRESS, async () => {
-      const tokenAddress = token ? getTokenAddress(token) : getTokenAddress('MSQ');
+    return this.withCache(
+      cacheKey,
+      CacheTTL.TRANSACTIONS_BY_ADDRESS,
+      async () => {
+        const tokenAddress = token
+          ? getTokenAddress(token)
+          : getTokenAddress('MSQ');
 
-      if (tokenAddress) {
-        const accounts = await this.subgraphClient.getTokenAccountsByToken(
-          tokenAddress,
-          limit,
-          0
-        );
+        if (tokenAddress) {
+          const accounts = await this.subgraphClient.getTokenAccountsByToken(
+            tokenAddress,
+            limit,
+            0
+          );
 
-        // Query only returns id, account, balance - no transaction counts
-        return accounts.map(account => ({
-          address: account.account,
-          totalAmount: account.balance,
-          transactionCount: 0, // Not available in current query
-        }));
+          // Query only returns id, account, balance - no transaction counts
+          return accounts.map(account => ({
+            address: account.account,
+            totalAmount: account.balance,
+            transactionCount: 0, // Not available in current query
+          }));
+        }
+
+        // If no token specified, return empty for now
+        return [];
       }
-
-      // If no token specified, return empty for now
-      return [];
-    });
+    );
   }
 
   /**
@@ -293,26 +325,32 @@ export class AnalyticsService {
   async getTopSenders(token?: string, limit = 50): Promise<AddressStats[]> {
     const cacheKey = `analytics:addresses:senders:${token || 'all'}:${limit}`;
 
-    return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_ADDRESS, async () => {
-      const tokenAddress = token ? getTokenAddress(token) : getTokenAddress('MSQ');
+    return this.withCache(
+      cacheKey,
+      CacheTTL.TRANSACTIONS_BY_ADDRESS,
+      async () => {
+        const tokenAddress = token
+          ? getTokenAddress(token)
+          : getTokenAddress('MSQ');
 
-      if (tokenAddress) {
-        const accounts = await this.subgraphClient.getTokenAccountsByToken(
-          tokenAddress,
-          limit,
-          0
-        );
+        if (tokenAddress) {
+          const accounts = await this.subgraphClient.getTokenAccountsByToken(
+            tokenAddress,
+            limit,
+            0
+          );
 
-        // Query only returns id, account, balance - sorted by balance
-        return accounts.map(account => ({
-          address: account.account,
-          totalAmount: account.balance,
-          transactionCount: 0, // sentCount not available in current query
-        }));
+          // Query only returns id, account, balance - sorted by balance
+          return accounts.map(account => ({
+            address: account.account,
+            totalAmount: account.balance,
+            transactionCount: 0, // sentCount not available in current query
+          }));
+        }
+
+        return [];
       }
-
-      return [];
-    });
+    );
   }
 
   /**
@@ -321,26 +359,32 @@ export class AnalyticsService {
   async getTopReceivers(token?: string, limit = 50): Promise<AddressStats[]> {
     const cacheKey = `analytics:addresses:receivers:${token || 'all'}:${limit}`;
 
-    return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_ADDRESS, async () => {
-      const tokenAddress = token ? getTokenAddress(token) : getTokenAddress('MSQ');
+    return this.withCache(
+      cacheKey,
+      CacheTTL.TRANSACTIONS_BY_ADDRESS,
+      async () => {
+        const tokenAddress = token
+          ? getTokenAddress(token)
+          : getTokenAddress('MSQ');
 
-      if (tokenAddress) {
-        const accounts = await this.subgraphClient.getTokenAccountsByToken(
-          tokenAddress,
-          limit,
-          0
-        );
+        if (tokenAddress) {
+          const accounts = await this.subgraphClient.getTokenAccountsByToken(
+            tokenAddress,
+            limit,
+            0
+          );
 
-        // Query only returns id, account, balance - sorted by balance
-        return accounts.map(account => ({
-          address: account.account,
-          totalAmount: account.balance,
-          transactionCount: 0, // receivedCount not available in current query
-        }));
+          // Query only returns id, account, balance - sorted by balance
+          return accounts.map(account => ({
+            address: account.account,
+            totalAmount: account.balance,
+            transactionCount: 0, // receivedCount not available in current query
+          }));
+        }
+
+        return [];
       }
-
-      return [];
-    });
+    );
   }
 
   /**
@@ -349,47 +393,53 @@ export class AnalyticsService {
   async getNetworkStats(): Promise<NetworkStats> {
     const cacheKey = 'analytics:network';
 
-    return this.withCache(cacheKey, CacheTTL.TRANSACTIONS_BY_TOKEN, async () => {
-      const tokens = getAllTokenAddresses();
+    return this.withCache(
+      cacheKey,
+      CacheTTL.TRANSACTIONS_BY_TOKEN,
+      async () => {
+        const tokens = getAllTokenAddresses();
 
-      let totalVolume = BigInt(0);
-      let totalTransactions = 0;
-      let totalHolders = 0;
+        let totalVolume = BigInt(0);
+        let totalTransactions = 0;
+        let totalHolders = 0;
 
-      for (const tokenAddress of tokens) {
-        try {
-          const stats = await this.subgraphClient.getTokenStatistics(
-            tokenAddress,
-            tokenAddress
-          );
+        for (const tokenAddress of tokens) {
+          try {
+            const stats = await this.subgraphClient.getTokenStatistics(
+              tokenAddress,
+              tokenAddress
+            );
 
-          if (stats.token) {
-            // Token query doesn't include transferCount or totalVolumeTransferred
-            // Use holderCount and calculate volume from daily snapshots
-            totalHolders += parseInt(stats.token.holderCount) || 0;
-          }
-
-          // Get volume from daily snapshots
-          if (stats.dailySnapshots && stats.dailySnapshots.length > 0) {
-            for (const snapshot of stats.dailySnapshots) {
-              const mintVol = BigInt(snapshot.mintVolume || '0');
-              const burnVol = BigInt(snapshot.burnVolume || '0');
-              totalVolume += mintVol + burnVol;
-              totalTransactions += parseInt(snapshot.transferCount) || 0;
+            if (stats.token) {
+              // Token query doesn't include transferCount or totalVolumeTransferred
+              // Use holderCount and calculate volume from daily snapshots
+              totalHolders += parseInt(stats.token.holderCount) || 0;
             }
-          }
-        } catch (error) {
-          this.logger.warn(`Failed to get stats for token ${tokenAddress}: ${error}`);
-        }
-      }
 
-      return {
-        totalVolume: totalVolume.toString(),
-        totalTransactions,
-        totalHolders,
-        tokenCount: tokens.length,
-      };
-    });
+            // Get volume from daily snapshots
+            if (stats.dailySnapshots && stats.dailySnapshots.length > 0) {
+              for (const snapshot of stats.dailySnapshots) {
+                const mintVol = BigInt(snapshot.mintVolume || '0');
+                const burnVol = BigInt(snapshot.burnVolume || '0');
+                totalVolume += mintVol + burnVol;
+                totalTransactions += parseInt(snapshot.transferCount) || 0;
+              }
+            }
+          } catch (error) {
+            this.logger.warn(
+              `Failed to get stats for token ${tokenAddress}: ${error}`
+            );
+          }
+        }
+
+        return {
+          totalVolume: totalVolume.toString(),
+          totalTransactions,
+          totalHolders,
+          tokenCount: tokens.length,
+        };
+      }
+    );
   }
 
   /**
@@ -397,10 +447,10 @@ export class AnalyticsService {
    */
   async getAnomalyStats(): Promise<{ message: string }> {
     return {
-      message: 'Anomaly detection not available via Subgraph. Requires database integration.',
+      message:
+        'Anomaly detection not available via Subgraph. Requires database integration.',
     };
   }
-
 
   /**
    * Cache wrapper with error handling

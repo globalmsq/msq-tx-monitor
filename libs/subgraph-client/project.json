@@ -14,6 +14,46 @@
         "tsConfig": "libs/subgraph-client/tsconfig.lib.json",
         "assets": ["libs/subgraph-client/*.md"]
       }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/subgraph-client/**/*.ts"]
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/subgraph-client/tsconfig.lib.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"libs/subgraph-client/**/*.{ts,json,md}\"",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "echo 'No tests configured for subgraph-client library'",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "rm -rf dist/libs/subgraph-client",
+          "rm -rf libs/subgraph-client/node_modules",
+          "rm -rf libs/subgraph-client/.nx"
+        ],
+        "cwd": "{workspaceRoot}",
+        "parallel": false
+      }
     }
   }
 }

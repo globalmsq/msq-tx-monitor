@@ -15,6 +15,7 @@
     "format": "prettier --check \"src/**/*.ts\"",
     "format:fix": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit --project tsconfig.app.json",
+    "clean": "rm -rf dist node_modules .nx",
     "depcheck": "depcheck"
   },
   "dependencies": {

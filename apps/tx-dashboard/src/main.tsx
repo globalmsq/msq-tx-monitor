@@ -7,7 +7,7 @@ const root = ReactDOM.createRoot(
 );
 
 root.render(
-  <BrowserRouter basename="/v1">
+  <BrowserRouter basename='/v1'>
     <App />
   </BrowserRouter>
 );

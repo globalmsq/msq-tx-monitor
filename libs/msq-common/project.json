@@ -21,6 +21,39 @@
       "options": {
         "lintFilePatterns": ["libs/msq-common/**/*.ts"]
       }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p libs/msq-common/tsconfig.lib.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"libs/msq-common/**/*.{ts,json,md}\"",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "echo 'No tests configured for msq-common library'",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "rm -rf dist/libs/msq-common",
+          "rm -rf libs/msq-common/node_modules",
+          "rm -rf libs/msq-common/.nx"
+        ],
+        "cwd": "{workspaceRoot}",
+        "parallel": false
+      }
     }
   }
 }

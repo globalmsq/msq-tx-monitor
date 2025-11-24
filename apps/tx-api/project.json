@@ -59,6 +59,46 @@
           "buildTarget": "tx-api:build:production"
         }
       }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit --project tsconfig.app.json",
+        "cwd": "apps/tx-api"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/tx-api/**/*.ts"]
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"apps/tx-api/**/*.{ts,json,md}\"",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "jest --config jest.config.ts",
+        "cwd": "apps/tx-api"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "rm -rf dist/apps/tx-api",
+          "rm -rf apps/tx-api/node_modules",
+          "rm -rf apps/tx-api/.nx"
+        ],
+        "cwd": "{workspaceRoot}",
+        "parallel": false
+      }
     }
   },
   "tags": ["scope:tx-api", "type:app"]

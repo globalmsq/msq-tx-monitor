@@ -15,8 +15,10 @@
     "lint:fix": "eslint src --ext ts,tsx --fix",
     "format": "prettier --check \"**/*.{ts,tsx}\"",
     "format:fix": "prettier --write \"**/*.{ts,tsx}\"",
-    "depcheck": "depcheck",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'No tests configured for tx-dashboard'",
+    "clean": "rm -rf dist node_modules .nx",
+    "depcheck": "depcheck"
   },
   "dependencies": {
     "@msq-tx-monitor/msq-common": "workspace:^",
