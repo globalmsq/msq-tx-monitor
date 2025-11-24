@@ -1,4 +1,4 @@
-import { DatabaseService } from './databaseService';
+import { DatabaseService } from './databaseService.js';
 import { logger } from '@msq-tx-monitor/msq-common';
 
 export interface TokenInfo {

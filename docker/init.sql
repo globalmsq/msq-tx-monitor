@@ -208,4 +208,27 @@ CREATE TABLE `block_processing_status` (
 -- Initialize Polygon block processing status
 INSERT INTO `block_processing_status` (`chainId`, `lastProcessedBlock`, `currentBlock`) VALUES (137, 0, 0);
 
+-- =============================================================================
+-- SyncStatus Model - Hybrid sync tracking (Subgraph + RPC)
+-- =============================================================================
+CREATE TABLE `sync_status` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `syncType` ENUM('HISTORICAL', 'REALTIME', 'STATISTICS') NOT NULL,
+    `lastSyncedBlock` BIGINT NOT NULL DEFAULT 0,
+    `lastSyncedTimestamp` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `lastSyncedTxCount` INT NOT NULL DEFAULT 0,
+    `isSyncing` BOOLEAN NOT NULL DEFAULT false,
+    `syncProgress` DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+    `errorCount` INT NOT NULL DEFAULT 0,
+    `lastError` TEXT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `sync_status_syncType_key` (`syncType`),
+    INDEX `sync_status_syncType_idx` (`syncType`),
+    INDEX `sync_status_isSyncing_idx` (`isSyncing`),
+    INDEX `sync_status_lastSyncedBlock_idx` (`lastSyncedBlock`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 COMMIT;

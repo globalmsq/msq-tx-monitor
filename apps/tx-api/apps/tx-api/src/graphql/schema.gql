@@ -1,0 +1,306 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+"""
+Address transaction statistics
+"""
+type AddressStatisticsModel {
+  """
+  Ethereum address
+  """
+  address: String!
+
+  """
+  First transaction timestamp
+  """
+  firstTransactionAt: String!
+
+  """
+  Last transaction timestamp
+  """
+  lastTransactionAt: String!
+
+  """
+  Total volume received (in wei)
+  """
+  totalVolumeReceived: String!
+
+  """
+  Total volume sent (in wei)
+  """
+  totalVolumeSent: String!
+
+  """
+  Total transactions received
+  """
+  transactionsReceived: Int!
+
+  """
+  Total transactions sent
+  """
+  transactionsSent: Int!
+}
+
+"""
+Paginated transaction results
+"""
+type PaginatedTransactions {
+  """
+  Whether there are more items
+  """
+  hasMore: Boolean!
+
+  """
+  List of items
+  """
+  items: [TransactionModel!]!
+
+  """
+  Number of items per page
+  """
+  limit: Int!
+
+  """
+  Number of items to skip
+  """
+  skip: Int!
+
+  """
+  Total count of items
+  """
+  total: Int!
+}
+
+"""
+Pagination parameters
+"""
+input PaginationInput {
+  """
+  Number of items to return
+  """
+  limit: Int = 100
+
+  """
+  Number of items to skip
+  """
+  skip: Int = 0
+}
+
+type Query {
+  """
+  Get transaction statistics for an address
+  """
+  addressStatistics(address: String!): AddressStatisticsModel
+
+  """
+  Get recent transactions
+  """
+  recentTransactions(limit: Int = 100): [TransactionModel!]!
+
+  """
+  Get statistics for a specific token
+  """
+  tokenStatistics(tokenAddress: String!): TokenStatisticsModel
+
+  """
+  Get paginated list of transactions with optional filters
+  """
+  transactions(
+    filter: TransactionFilterInput
+    pagination: PaginationInput
+  ): PaginatedTransactions!
+
+  """
+  Get transactions by address (sender or receiver)
+  """
+  transactionsByAddress(
+    address: String!
+    pagination: PaginationInput
+  ): [TransactionModel!]!
+
+  """
+  Get transactions by token address
+  """
+  transactionsByToken(
+    pagination: PaginationInput
+    token: String!
+  ): [TransactionModel!]!
+}
+
+"""
+Sort order for query results
+"""
+enum SortOrder {
+  ASC
+  DESC
+}
+
+"""
+ERC20 Token information
+"""
+type TokenModel {
+  """
+  Token decimals
+  """
+  decimals: String!
+
+  """
+  Token contract address
+  """
+  id: ID!
+
+  """
+  Token full name
+  """
+  name: String!
+
+  """
+  Token symbol (e.g., MSQ, SUT)
+  """
+  symbol: String!
+}
+
+"""
+Token statistics
+"""
+type TokenStatisticsModel {
+  """
+  Token address
+  """
+  tokenAddress: String!
+
+  """
+  Total transfer count
+  """
+  totalTransfers: Int!
+
+  """
+  Total volume transferred
+  """
+  totalVolume: String!
+
+  """
+  24h transaction count
+  """
+  transactions24h: Int
+
+  """
+  Unique holders count
+  """
+  uniqueHolders: Int!
+
+  """
+  24h volume transferred
+  """
+  volume24h: String
+}
+
+"""
+Filter criteria for transactions
+"""
+input TransactionFilterInput {
+  """
+  Filter by minimum timestamp
+  """
+  blockTimestampGte: String
+
+  """
+  Filter by maximum timestamp
+  """
+  blockTimestampLte: String
+
+  """
+  Filter by sender address
+  """
+  from: String
+
+  """
+  Field to sort by
+  """
+  sortBy: TransactionSortField = BLOCK_TIMESTAMP
+
+  """
+  Sort order
+  """
+  sortOrder: SortOrder = DESC
+
+  """
+  Filter by receiver address
+  """
+  to: String
+
+  """
+  Filter by token address
+  """
+  token: String
+}
+
+"""
+Blockchain transaction transfer event
+"""
+type TransactionModel {
+  """
+  Transfer amount in wei
+  """
+  amount: String!
+
+  """
+  Block number where transaction occurred
+  """
+  blockNumber: String!
+
+  """
+  Unix timestamp of the block
+  """
+  blockTimestamp: String!
+
+  """
+  Sender address
+  """
+  from: String!
+
+  """
+  Unique transaction identifier
+  """
+  id: ID!
+
+  """
+  Whether this is a burn operation
+  """
+  isBurn: Boolean!
+
+  """
+  Whether this is a mint operation
+  """
+  isMint: Boolean!
+
+  """
+  Log index within the transaction
+  """
+  logIndex: String!
+
+  """
+  Receiver address
+  """
+  to: String!
+
+  """
+  Token being transferred
+  """
+  token: TokenModel!
+
+  """
+  Transaction hash on blockchain
+  """
+  transactionHash: String!
+}
+
+"""
+Fields available for sorting transactions
+"""
+enum TransactionSortField {
+  AMOUNT
+  BLOCK_NUMBER
+  BLOCK_TIMESTAMP
+}

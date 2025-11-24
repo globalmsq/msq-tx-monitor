@@ -7,9 +7,11 @@ import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
 export default defineConfig(() => ({
   root: __dirname,
   cacheDir: '../../node_modules/.vite/apps/tx-dashboard',
+  base: '/v1/',
   server: {
     port: 3000,
     host: '0.0.0.0',
+    allowedHosts: ['tx-dashboard', 'localhost', '.localhost'],
   },
   preview: {
     port: 3000,

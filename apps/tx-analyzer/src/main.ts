@@ -1,9 +1,9 @@
 import 'dotenv/config';
 // import cron from 'node-cron';
-import { createApp } from './app';
-import { redisService } from './services/redis.service';
-// import { aggregationService } from './services/aggregation.service';
-import { config } from './config';
+import { createApp } from './app.js';
+import { redisService } from './services/redis.service.js';
+// import { aggregationService } from './services/aggregation.service.js';
+import { config } from './config.js';
 import { logger } from '@msq-tx-monitor/msq-common';
 
 const PORT = config.server.port;

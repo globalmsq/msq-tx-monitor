@@ -1,12 +1,12 @@
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { prisma, initializeDatabaseConfig } from '@msq-tx-monitor/database';
-import { config } from '../config';
+import { config } from '../config/index.js';
 import { logger } from '@msq-tx-monitor/msq-common';
-import { AddressStatsCalculator } from './addressStatsCalculator';
+import { AddressStatsCalculator } from './addressStatsCalculator.js';
 import {
   AddressStatsCacheService,
   CachedAddressStats,
-} from './addressStatsCacheService';
+} from './addressStatsCacheService.js';
 
 export interface TransactionData {
   hash: string;
@@ -68,43 +68,17 @@ export class DatabaseService {
 
   async saveTransaction(transactionData: TransactionData): Promise<void> {
     try {
-      await prisma.transaction.create({
-        data: {
-          hash: transactionData.hash,
-          blockNumber: BigInt(transactionData.blockNumber),
-          transactionIndex: transactionData.transactionIndex,
-          fromAddress: transactionData.from,
-          toAddress: transactionData.to,
-          value: transactionData.value,
-          gasPrice: BigInt(transactionData.gasPrice),
-          gasUsed: BigInt(transactionData.gasUsed),
-          tokenAddress: transactionData.tokenAddress,
-          tokenSymbol: transactionData.tokenSymbol,
-          tokenDecimals: transactionData.tokenDecimals,
-          timestamp: transactionData.timestamp,
-        },
-      });
-
       // Update address statistics using advanced calculator
+      // Note: Transaction data is stored in Subgraph, not MySQL
       await this.addressStatsCalculator.updateAddressStatistics(
         transactionData
       );
 
       if (config.logging.enableDatabaseLogs) {
-        logger.info(`Transaction saved: ${transactionData.hash}`);
+        logger.info(`Address stats updated for tx: ${transactionData.hash}`);
       }
     } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message.includes('Unique constraint')
-      ) {
-        // Transaction already exists, skip
-        if (config.logging.enableDatabaseLogs) {
-          logger.info(`Transaction already exists: ${transactionData.hash}`);
-        }
-        return;
-      }
-      logger.error('Error saving transaction:', error);
+      logger.error('Error updating address statistics:', error);
       throw error;
     }
   }
@@ -116,27 +90,8 @@ export class DatabaseService {
 
     try {
       await prisma.$transaction(async tx => {
-        // Use createMany for bulk insert with skipDuplicates
-        await tx.transaction.createMany({
-          data: transactions.map(t => ({
-            hash: t.hash,
-            blockNumber: BigInt(t.blockNumber),
-            transactionIndex: t.transactionIndex,
-            fromAddress: t.from,
-            toAddress: t.to,
-            value: t.value,
-            gasPrice: BigInt(t.gasPrice),
-            gasUsed: BigInt(t.gasUsed),
-            status: t.status,
-            tokenAddress: t.tokenAddress,
-            tokenSymbol: t.tokenSymbol,
-            tokenDecimals: t.tokenDecimals,
-            timestamp: t.timestamp,
-          })),
-          skipDuplicates: true,
-        });
-
         // Update address statistics for each transaction using advanced calculator
+        // Note: Transaction data is stored in Subgraph, not MySQL
         for (const transaction of transactions) {
           await this.addressStatsCalculator.updateAddressStatistics(
             transaction,
@@ -145,9 +100,11 @@ export class DatabaseService {
         }
       });
 
-      logger.info(`Batch saved: ${transactions.length} transactions`);
+      logger.info(
+        `Address stats updated for ${transactions.length} transactions`
+      );
     } catch (error) {
-      logger.error('Error saving transaction batch:', error);
+      logger.error('Error updating address statistics batch:', error);
       throw error;
     }
   }
@@ -383,6 +340,146 @@ export class DatabaseService {
       logger.error('Database health check failed:', error);
       return false;
     }
+  }
+
+  // =============================================================================
+  // Sync Status Management - MySQL-based sync tracking (replaces Redis)
+  // =============================================================================
+
+  /**
+   * Get or create sync status for a specific sync type
+   * @param syncType - Type of synchronization (HISTORICAL, REALTIME, STATISTICS)
+   * @returns SyncStatus entity
+   */
+  async getOrCreateSyncStatus(
+    syncType: 'HISTORICAL' | 'REALTIME' | 'STATISTICS'
+  ) {
+    let syncStatus = await prisma.syncStatus.findUnique({
+      where: { syncType },
+    });
+
+    if (!syncStatus) {
+      syncStatus = await prisma.syncStatus.create({
+        data: {
+          syncType,
+          lastSyncedBlock: BigInt(0),
+          lastSyncedTimestamp: new Date(),
+          lastSyncedTxCount: 0,
+          isSyncing: false,
+          syncProgress: 0,
+          errorCount: 0,
+        },
+      });
+      logger.info(`✨ Created new sync status for ${syncType}`);
+    }
+
+    return syncStatus;
+  }
+
+  /**
+   * Get last synced block number for a specific sync type
+   * Falls back to transactions table max(blockNumber) if sync status doesn't exist
+   * @param syncType - Type of synchronization
+   * @returns Last synced block number
+   */
+  async getLastSyncedBlock(
+    syncType: 'HISTORICAL' | 'REALTIME' | 'STATISTICS'
+  ): Promise<number> {
+    try {
+      const syncStatus = await this.getOrCreateSyncStatus(syncType);
+      const blockNumber = Number(syncStatus.lastSyncedBlock);
+
+      // If block number is 0, fall back to transactions table
+      if (blockNumber === 0) {
+        const lastTxBlock = await this.getLastProcessedBlock();
+        if (lastTxBlock) {
+          logger.info(
+            `📖 No sync status for ${syncType}, falling back to transactions table: ${lastTxBlock}`
+          );
+          return lastTxBlock;
+        }
+      }
+
+      logger.info(
+        `📖 Loaded last synced block for ${syncType}: ${blockNumber}`
+      );
+      return blockNumber;
+    } catch (error) {
+      logger.error(
+        `❌ Error getting last synced block for ${syncType}:`,
+        error
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * Update sync status with new block number and metadata
+   * @param data - Sync status update data
+   */
+  async updateSyncStatus(data: {
+    syncType: 'HISTORICAL' | 'REALTIME' | 'STATISTICS';
+    lastSyncedBlock: number;
+    lastSyncedTxCount?: number;
+    isSyncing?: boolean;
+    syncProgress?: number;
+    errorCount?: number;
+    lastError?: string | null;
+  }): Promise<void> {
+    try {
+      await prisma.syncStatus.upsert({
+        where: { syncType: data.syncType },
+        update: {
+          lastSyncedBlock: BigInt(data.lastSyncedBlock),
+          lastSyncedTimestamp: new Date(),
+          lastSyncedTxCount: data.lastSyncedTxCount ?? 0,
+          isSyncing: data.isSyncing ?? false,
+          syncProgress: data.syncProgress ?? 0,
+          errorCount: data.errorCount ?? 0,
+          lastError: data.lastError ?? null,
+        },
+        create: {
+          syncType: data.syncType,
+          lastSyncedBlock: BigInt(data.lastSyncedBlock),
+          lastSyncedTimestamp: new Date(),
+          lastSyncedTxCount: data.lastSyncedTxCount ?? 0,
+          isSyncing: data.isSyncing ?? false,
+          syncProgress: data.syncProgress ?? 0,
+          errorCount: data.errorCount ?? 0,
+          lastError: data.lastError ?? null,
+        },
+      });
+
+      logger.info(
+        `✅ Updated sync status for ${data.syncType}: block ${data.lastSyncedBlock}`
+      );
+    } catch (error) {
+      logger.error(
+        `❌ Error updating sync status for ${data.syncType}:`,
+        error
+      );
+    }
+  }
+
+  /**
+   * Get full sync status for a specific sync type
+   * @param syncType - Type of synchronization
+   * @returns Full SyncStatus entity or null
+   */
+  async getSyncStatus(syncType: 'HISTORICAL' | 'REALTIME' | 'STATISTICS') {
+    return await prisma.syncStatus.findUnique({
+      where: { syncType },
+    });
+  }
+
+  /**
+   * Get all sync statuses for monitoring
+   * @returns Array of all sync statuses
+   */
+  async getAllSyncStatuses() {
+    return await prisma.syncStatus.findMany({
+      orderBy: { updatedAt: 'desc' },
+    });
   }
 
   async disconnect(): Promise<void> {

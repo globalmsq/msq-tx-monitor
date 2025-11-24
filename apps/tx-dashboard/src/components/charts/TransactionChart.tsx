@@ -143,11 +143,11 @@ function formatHour(hour: string, timeRange?: string): string {
 
   // Simple: use timeRange directly to determine format
   if (timeRange === '1h' || timeRange === '24h') {
-    return `${hours}:${minutes}`;  // Time only
+    return `${hours}:${minutes}`; // Time only
   } else if (timeRange === '7d') {
-    return `${month}-${day} ${hours}:${minutes}`;  // Date + Time
+    return `${month}-${day} ${hours}:${minutes}`; // Date + Time
   } else {
-    return `${month}-${day}`;  // Date only (30d, 3m, 6m, 1y, all)
+    return `${month}-${day}`; // Date only (30d, 3m, 6m, 1y, all)
   }
 }
 
@@ -202,7 +202,7 @@ export function TransactionChart({
 
           <XAxis
             dataKey='datetime'
-            tickFormatter={(datetime) => formatHour(datetime, timeRange)}
+            tickFormatter={datetime => formatHour(datetime, timeRange)}
             axisLine={false}
             tickLine={false}
             tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 11 }}

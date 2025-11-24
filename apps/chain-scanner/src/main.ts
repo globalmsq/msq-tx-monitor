@@ -1,12 +1,35 @@
 import 'dotenv/config';
-import { Web3Service } from './services/web3Service';
-import { DatabaseService } from './services/databaseService';
-import { TokenService } from './services/tokenService';
-import { EventMonitor } from './services/eventMonitor';
-import { WebSocketServer } from './services/websocketServer';
-import { StatisticsService } from './services/statisticsService';
-import { config } from './config';
-import { EVENT_TYPES } from './config/constants';
+
+// Global unhandled rejection handler - MUST be at the very top
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('='.repeat(80));
+  console.error('GLOBAL UNHANDLED REJECTION CAUGHT:');
+  console.error('='.repeat(80));
+  console.error('Rejection reason:', reason);
+  console.error('Rejection type:', typeof reason);
+  console.error(
+    'Rejection details:',
+    JSON.stringify(reason, Object.getOwnPropertyNames(reason), 2)
+  );
+  if (reason instanceof Error) {
+    console.error('Error message:', reason.message);
+    console.error('Error stack:', reason.stack);
+  }
+  console.error('Promise:', promise);
+  console.error('='.repeat(80));
+  process.exit(1);
+});
+
+import { Web3Service } from './services/web3Service.js';
+import { DatabaseService } from './services/databaseService.js';
+import { TokenService } from './services/tokenService.js';
+import { EventMonitor } from './services/eventMonitor.js';
+import { WebSocketServer } from './services/websocketServer.js';
+import { StatisticsService } from './services/statisticsService.js';
+import { StatisticsWorker } from './services/statisticsWorker.js';
+import { SubgraphService } from './services/subgraphService.js';
+import { config } from './config/index.js';
+import { EVENT_TYPES } from './config/constants.js';
 import { logger } from '@msq-tx-monitor/msq-common';
 
 class ChainScanner {
@@ -16,6 +39,8 @@ class ChainScanner {
   private eventMonitor: EventMonitor;
   private websocketServer: WebSocketServer;
   private statisticsService: StatisticsService;
+  private subgraphService: SubgraphService;
+  private statisticsWorker: StatisticsWorker;
   private isRunning = false;
   private statsUpdateInterval: NodeJS.Timeout | null = null;
 
@@ -31,7 +56,15 @@ class ChainScanner {
 
     this.databaseService = new DatabaseService();
     this.tokenService = new TokenService(this.databaseService);
-    this.statisticsService = new StatisticsService(this.tokenService);
+    this.subgraphService = new SubgraphService();
+    this.statisticsService = new StatisticsService(
+      this.tokenService,
+      this.subgraphService.getClient()
+    );
+    this.statisticsWorker = new StatisticsWorker(
+      this.databaseService,
+      this.subgraphService
+    );
     this.eventMonitor = new EventMonitor(
       this.web3Service,
       this.databaseService,
@@ -122,7 +155,11 @@ class ChainScanner {
       // 6. Health check
       await this.performHealthCheck();
 
-      // 7. Start periodic statistics updates
+      // 7. Start background statistics worker
+      logger.info('Starting background statistics worker...');
+      await this.statisticsWorker.start();
+
+      // 8. Start periodic statistics updates
       this.startStatsUpdates();
 
       this.isRunning = true;
@@ -132,6 +169,9 @@ class ChainScanner {
       );
       logger.info(
         `🔗 WebSocket server: ${JSON.stringify(this.websocketServer.getServerStatus(), null, 2)}`
+      );
+      logger.info(
+        `🎯 Statistics worker: ${JSON.stringify(this.statisticsWorker.getStatus(), null, 2)}`
       );
     } catch (error) {
       logger.error('❌ Failed to start chain scanner:', error);
@@ -175,10 +215,22 @@ class ChainScanner {
     process.on('SIGINT', this.gracefulShutdown.bind(this));
     process.on('uncaughtException', error => {
       logger.error('Uncaught exception:', error);
+      console.error(
+        'Full error details:',
+        JSON.stringify(error, Object.getOwnPropertyNames(error))
+      );
       this.gracefulShutdown();
     });
     process.on('unhandledRejection', (reason, promise) => {
       logger.error('Unhandled rejection:', { promise, reason });
+      console.error(
+        'Rejection reason details:',
+        JSON.stringify(reason, Object.getOwnPropertyNames(reason))
+      );
+      console.error('Rejection reason type:', typeof reason);
+      if (reason instanceof Error) {
+        console.error('Error stack:', reason.stack);
+      }
       this.gracefulShutdown();
     });
   }
@@ -220,19 +272,23 @@ class ChainScanner {
         logger.info('Statistics updates stopped');
       }
 
-      // 2. Stop event monitoring
+      // 2. Stop background statistics worker
+      logger.info('Stopping background statistics worker...');
+      await this.statisticsWorker.stop();
+
+      // 3. Stop event monitoring
       logger.info('Stopping event monitoring...');
       await this.eventMonitor.stopMonitoring();
 
-      // 3. Disconnect from blockchain
+      // 4. Disconnect from blockchain
       logger.info('Disconnecting from blockchain...');
       await this.web3Service.disconnect();
 
-      // 4. Stop WebSocket server
+      // 5. Stop WebSocket server
       logger.info('Stopping WebSocket server...');
       await this.websocketServer.stop();
 
-      // 5. Disconnect from database
+      // 6. Disconnect from database
       logger.info('Disconnecting from database...');
       await this.databaseService.disconnect();
 
@@ -251,6 +307,8 @@ class ChainScanner {
     monitoringStatus: any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     websocketStatus: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    statisticsWorkerStatus: any;
     environment: string;
   } {
     return {
@@ -258,6 +316,7 @@ class ChainScanner {
       web3Status: this.web3Service.getConnectionStatus(),
       monitoringStatus: this.eventMonitor.getMonitoringStatus(),
       websocketStatus: this.websocketServer.getServerStatus(),
+      statisticsWorkerStatus: this.statisticsWorker.getStatus(),
       environment: config.server.env,
     };
   }

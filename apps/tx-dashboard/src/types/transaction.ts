@@ -1,6 +1,6 @@
 import { Transaction as SharedTransaction } from '@msq-tx-monitor/tx-types';
 import { formatTokenValue } from '../utils/tokenUtils';
-import { ApiTransaction } from '../services/api';
+import { ApiTransaction, SubgraphTransaction } from '../services/api';
 
 // UI-specific transaction interface that extends the shared type
 export interface UITransaction {
@@ -145,6 +145,29 @@ export function adaptApiTransactionForUI(apiTx: ApiTransaction): UITransaction {
     txnFee: txnFee,
     status: 'confirmed' as const, // Assume confirmed for now
     anomalyScore: apiTx.anomaly_score,
+  };
+}
+
+// Adapter function to convert Subgraph transaction to UI Transaction
+export function adaptSubgraphTransactionForUI(
+  tx: SubgraphTransaction
+): UITransaction {
+  return {
+    id: tx.id,
+    hash: tx.transactionHash,
+    from: tx.from,
+    to: tx.to,
+    value: formatTokenValue(tx.amount, tx.token.symbol, tx.token.id),
+    rawValue: tx.amount,
+    token: tx.token.symbol,
+    tokenAddress: tx.token.id,
+    timestamp: parseInt(tx.blockTimestamp) * 1000, // Convert seconds to milliseconds
+    blockNumber: parseInt(tx.blockNumber),
+    gasUsed: '0', // Not available from subgraph
+    gasPrice: '0', // Not available from subgraph
+    txnFee: undefined, // Not available from subgraph
+    status: 'confirmed' as const,
+    anomalyScore: undefined, // Not available from subgraph
   };
 }
 

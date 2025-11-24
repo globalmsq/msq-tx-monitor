@@ -3,13 +3,70 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/tx-dashboard/src",
   "projectType": "application",
-  "tags": [],
+  "tags": ["type:app", "scope:frontend", "framework:react"],
   "targets": {
-    "test": {
-      "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/tx-dashboard"],
       "options": {
-        "jestConfig": "apps/tx-dashboard/jest.config.ts"
+        "command": "vite build",
+        "cwd": "apps/tx-dashboard"
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "command": "vite --port 3000 --host",
+        "cwd": "apps/tx-dashboard"
+      },
+      "configurations": {
+        "development": {
+          "command": "vite --port 3000 --host"
+        },
+        "production": {
+          "command": "vite preview --port 3000"
+        }
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit",
+        "cwd": "apps/tx-dashboard"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/tx-dashboard/**/*.{ts,tsx}"]
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"apps/tx-dashboard/**/*.{ts,tsx,json,md}\"",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "echo 'No tests configured for tx-dashboard'",
+        "cwd": "apps/tx-dashboard"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "rm -rf dist/apps/tx-dashboard",
+          "rm -rf apps/tx-dashboard/node_modules",
+          "rm -rf apps/tx-dashboard/.nx"
+        ],
+        "cwd": "{workspaceRoot}",
+        "parallel": false
       }
     }
   }

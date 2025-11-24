@@ -65,3 +65,12 @@ WORKDIR /app/apps/tx-analyzer
 
 EXPOSE 8002
 CMD ["pnpm", "start"]
+
+# =============================================================================
+# Development stage for tx-dashboard-v2 (Next.js)
+# =============================================================================
+FROM base AS tx-dashboard-v2
+WORKDIR /app/apps/tx-dashboard-v2
+
+EXPOSE 3001
+CMD ["pnpm", "start"]

@@ -347,6 +347,10 @@ export function Analytics() {
   // Fetch analytics data with time range support and token filter
   const fetchAnalyticsData = useCallback(
     async (token: string = activeTab) => {
+      console.log('[Analytics] fetchAnalyticsData called with token:', token);
+      console.log('[Analytics] API_BASE_URL:', API_BASE_URL);
+      console.log('[Analytics] timeRange:', timeRange);
+
       try {
         // Reset all loading states
         setLoadingStates({
@@ -365,10 +369,11 @@ export function Analytics() {
         const limit = getLimitFromTimeRange(timeRange);
         const tokenParam = `&token=${token}`;
 
+        const realtimeUrl = `${API_BASE_URL}/analytics/realtime?${tokenParam.slice(1)}&timeRange=${timeRange}`;
+        console.log('[Analytics] Fetching realtime stats from:', realtimeUrl);
+
         // Fetch realtime stats
-        fetch(
-          `${API_BASE_URL}/analytics/realtime?${tokenParam.slice(1)}&timeRange=${timeRange}`
-        )
+        fetch(realtimeUrl)
           .then(res => res.json())
           .then((realtimeRes: ApiResponse<unknown>) => {
             const tokenStats = (

@@ -111,9 +111,11 @@ export class WebSocketService {
     this.setConnectionState(ConnectionState.CONNECTING);
 
     try {
+      console.log('[WebSocket] Connecting to:', this.config.url);
       this.ws = new WebSocket(this.config.url);
       this.setupEventListeners();
     } catch (error) {
+      console.error('[WebSocket] Connection failed:', error);
       logger.error('WebSocket connection failed', error);
       this.setConnectionState(ConnectionState.ERROR);
       this.scheduleReconnect();
@@ -185,6 +187,7 @@ export class WebSocketService {
     if (!this.ws) return;
 
     this.ws.onopen = () => {
+      console.log('[WebSocket] Connection opened successfully');
       logger.info('WebSocket connected');
       this.reconnectAttempts = 0;
       this.setConnectionState(ConnectionState.CONNECTED);
@@ -194,13 +197,16 @@ export class WebSocketService {
     this.ws.onmessage = event => {
       try {
         const message: TransactionMessage = JSON.parse(event.data);
+        console.log('[WebSocket] Message received:', message.type, message);
         this.handleMessage(message);
       } catch (error) {
+        console.error('[WebSocket] Failed to parse message:', error);
         logger.error('Failed to parse WebSocket message', error);
       }
     };
 
     this.ws.onclose = event => {
+      console.log('[WebSocket] Connection closed:', event.code, event.reason);
       logger.info(`WebSocket closed: ${event.code} ${event.reason}`);
       this.clearTimers();
 
@@ -214,6 +220,7 @@ export class WebSocketService {
     };
 
     this.ws.onerror = error => {
+      console.error('[WebSocket] Error occurred:', error);
       // 재연결 가능한 경우 warn, 최대 재시도 초과 시 error
       if (this.reconnectAttempts < this.config.maxReconnectAttempts) {
         logger.warn('WebSocket connection failed, will retry...', {

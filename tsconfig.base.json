@@ -27,6 +27,9 @@
       "@msq-tx-monitor/msq-common": [
         "libs/msq-common/src/index.ts"
       ],
+      "@msq-tx-monitor/subgraph-client": [
+        "libs/subgraph-client/src/index.ts"
+      ],
       "@msq-tx-monitor/tx-types": [
         "libs/tx-types/src/index.ts"
       ]

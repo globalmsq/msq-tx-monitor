@@ -23,26 +23,50 @@
     },
     "build": {
       "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/tx-analyzer"],
       "options": {
-        "command": "echo 'Skipping tx-analyzer build (excluded from monorepo)'"
-      }
-    },
-    "test": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "echo 'Skipping tx-analyzer test (excluded from monorepo)'"
-      }
-    },
-    "lint": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "echo 'Skipping tx-analyzer lint (excluded from monorepo)'"
+        "command": "tsc --project tsconfig.app.json",
+        "cwd": "apps/tx-analyzer"
       }
     },
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "echo 'Skipping tx-analyzer typecheck (excluded from monorepo)'"
+        "command": "tsc --noEmit --project tsconfig.app.json",
+        "cwd": "apps/tx-analyzer"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/tx-analyzer/**/*.ts"]
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"apps/tx-analyzer/**/*.{ts,json,md}\"",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "jest --config jest.config.ts",
+        "cwd": "apps/tx-analyzer"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "rm -rf dist/apps/tx-analyzer",
+          "rm -rf apps/tx-analyzer/node_modules",
+          "rm -rf apps/tx-analyzer/.nx"
+        ],
+        "cwd": "{workspaceRoot}",
+        "parallel": false
       }
     }
   }

@@ -47,13 +47,9 @@ All services are accessed through a single Nginx reverse proxy on **port 80**, e
   ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
   │ tx-dashboard │      │   tx-api     │      │chain-scanner │
   │   (3000)     │      │   (8000)     │      │   (8001)     │
-  └──────────────┘      └──────────────┘      └──────┬───────┘
-         │                       │                    │
-         │                       │                    ▼
-         │                       │           ┌──────────────┐
-         │                       │           │ tx-analyzer  │
-         │                       │           │   (8002)     │
-         │                       │           └──────────────┘
+  └──────────────┘      └──────────────┘      └──────────────┘
+         │                       │
+         │                       │
          │                       ▼
          │              ┌──────────────────┐
          └─────────────►│  MySQL + Redis   │
@@ -62,19 +58,17 @@ All services are accessed through a single Nginx reverse proxy on **port 80**, e
 
 ### Applications
 
-| App               | Role               | Technology              | Internal Port | Nginx Route          |
-| ----------------- | ------------------ | ----------------------- | ------------- | -------------------- |
-| **tx-dashboard**  | React Frontend     | React 18 + TypeScript   | 3000          | `/`                  |
-| **tx-api**        | REST API Server    | Express.js + TypeScript | 8000          | `/api/v1/transactions`, `/api/v1/addresses` |
-| **chain-scanner** | Blockchain Monitor | Node.js + Web3.js       | 8001          | `/ws`                |
-| **tx-analyzer**   | Analytics Engine   | Express.js + TypeScript | 8002          | `/api/v1/analyze`, `/api/v1/statistics` |
+| App               | Role                  | Technology              | Internal Port | Nginx Route          |
+| ----------------- | --------------------- | ----------------------- | ------------- | -------------------- |
+| **tx-dashboard**  | React Frontend        | React 18 + TypeScript   | 3000          | `/`                  |
+| **tx-api**        | GraphQL API Server    | NestJS + GraphQL        | 8000          | `/graphql`           |
+| **chain-scanner** | Blockchain Monitor    | Node.js + Web3.js       | 8001          | `/ws`                |
+| **tx-analyzer**   | (Temporarily Unused)  | -                       | -             | -                    |
 
 ### Data Flow
 
 ```
 Polygon Network → chain-scanner → MySQL → tx-api
-                      ↓
-                 tx-analyzer (Real-time Analysis)
                       ↓
                  Nginx (Unified Access)
                       ↓
@@ -97,7 +91,6 @@ cd msq-tx-monitor
 # Copy environment files
 cp apps/tx-api/.env.example apps/tx-api/.env
 cp apps/chain-scanner/.env.example apps/chain-scanner/.env
-cp apps/tx-analyzer/.env.example apps/tx-analyzer/.env
 ```
 
 ### 3. Start with Docker
@@ -165,7 +158,6 @@ cp apps/tx-dashboard/.env.development apps/tx-dashboard/.env
 
 # Start services manually
 pnpm --filter=tx-api dev          # Port 8000
-pnpm --filter=tx-analyzer dev      # Port 8002
 pnpm --filter=chain-scanner dev    # Port 8001
 pnpm --filter=tx-dashboard dev     # Port 3000
 ```
@@ -182,7 +174,6 @@ For **Mode 1 (Docker + Nginx)**:
 ```env
 # apps/tx-dashboard/.env.production
 VITE_TX_API_URL=/api/v1
-VITE_TX_ANALYZER_URL=/api/v1
 VITE_WS_URL=/ws
 ```
 
@@ -190,7 +181,6 @@ For **Mode 2 (Direct Execution)**:
 ```env
 # apps/tx-dashboard/.env.development
 VITE_TX_API_URL=http://localhost:8000/api/v1
-VITE_TX_ANALYZER_URL=http://localhost:8002/api/v1
 VITE_WS_URL=ws://localhost:8001
 ```
 
@@ -207,7 +197,6 @@ npm install
 # Serve individual apps
 nx serve tx-api         # Express API
 nx serve chain-scanner  # Blockchain scanner
-nx serve tx-analyzer    # Analytics service
 
 # Build all apps
 nx build-all
@@ -226,9 +215,8 @@ nx test-all
 
 Upstreams:
 - tx-dashboard:3000  → /
-- tx-api:8000        → /api/v1/transactions, /api/v1/addresses
+- tx-api:8000        → /api/v1/graphql
 - chain-scanner:8001 → /ws
-- tx-analyzer:8002   → /api/v1/analyze, /api/v1/statistics
 ```
 
 #### tx-api
@@ -253,15 +241,6 @@ WS_PORT=8001
 CORS_ORIGIN=http://localhost  # Simplified via Nginx
 ```
 
-#### tx-analyzer
-
-```env
-PORT=8002
-ANOMALY_THRESHOLD=0.85
-WHALE_THRESHOLD=1000000
-CORS_ORIGIN=http://localhost  # Simplified via Nginx
-```
-
 #### tx-dashboard
 
 ```env
@@ -275,9 +254,9 @@ VITE_WS_URL=/ws                # Relative path for Nginx routing
 msq-tx-monitor/
 ├── apps/
 │   ├── tx-dashboard/     # React frontend (port 3000)
-│   ├── tx-api/           # Express.js API (port 8000)
+│   ├── tx-api/           # NestJS (GraphQL) API (port 8000)
 │   ├── chain-scanner/    # Blockchain scanner (port 8001)
-│   └── tx-analyzer/      # Analytics service (port 8002)
+│   └── tx-analyzer/      # Analytics service (Temporarily Unused)
 ├── docker/
 │   ├── docker-compose.yml      # Orchestrates all services + Nginx
 │   ├── nginx.conf              # Nginx reverse proxy config
@@ -307,34 +286,7 @@ All endpoints accessed through **http://localhost** via Nginx:
 ### Transaction API (tx-api)
 
 ```bash
-GET /api/v1/transactions           # List transactions
-GET /api/v1/transactions/:hash     # Transaction details
-GET /api/v1/addresses/:address     # Address statistics
-GET /api/v1/statistics             # Global statistics
-GET /api/v1/anomalies             # Detected anomalies
-```
-
-### Analysis API (tx-analyzer)
-
-```bash
-GET /api/v1/analyze/summary              # Transaction summary
-GET /api/v1/analyze/trends/hourly        # Hourly trends
-GET /api/v1/analyze/trends/daily         # Daily trends
-GET /api/v1/analyze/tokens               # Token analysis
-GET /api/v1/analyze/volume               # Volume analysis
-```
-
-### Statistics API (tx-analyzer)
-
-```bash
-GET /api/v1/statistics/realtime          # Real-time statistics
-GET /api/v1/statistics/volume/hourly     # Hourly volume stats
-GET /api/v1/statistics/volume/daily      # Daily volume stats
-GET /api/v1/statistics/tokens            # Token statistics
-GET /api/v1/statistics/addresses/top     # Top addresses
-GET /api/v1/statistics/anomalies         # Anomaly statistics
-GET /api/v1/statistics/network           # Network statistics
-GET /api/v1/statistics/distribution/token # Token distribution
+POST /graphql           # Single endpoint for all GraphQL queries and mutations.
 ```
 
 ### WebSocket Events
@@ -351,22 +303,6 @@ ws://localhost/ws
 // - error: Error notifications
 ```
 
-## 🧠 AI Features
-
-### Anomaly Detection
-
-- **Volume Anomalies**: Unusually large transactions
-- **Frequency Anomalies**: High-frequency trading patterns
-- **Behavioral Anomalies**: Suspicious address behaviors
-- **Pattern Recognition**: Wash trading, bot detection
-
-### Analytics
-
-- **Whale Tracking**: Large holder identification
-- **Risk Scoring**: Address risk assessment
-- **Pattern Analysis**: Trading pattern classification
-- **Trend Detection**: Market trend identification
-
 ## 🐳 Docker Services
 
 ### Infrastructure Services
@@ -380,9 +316,8 @@ ws://localhost/ws
 All services are internally networked through Docker Compose:
 
 - **tx-dashboard** (3000): React frontend with Vite dev server
-- **tx-api** (8000): Express.js REST API with MySQL/Redis
+- **tx-api** (8000): NestJS GraphQL API with MySQL/Redis
 - **chain-scanner** (8001): Blockchain scanner with WebSocket server
-- **tx-analyzer** (8002): Analytics service with real-time processing
 
 **Features:**
 - Hot-reload enabled for development

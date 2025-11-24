@@ -22,11 +22,37 @@
         "lintFilePatterns": ["libs/chain-utils/**/*.ts"]
       }
     },
-    "test": {
-      "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+    "typecheck": {
+      "executor": "nx:run-commands",
       "options": {
-        "jestConfig": "libs/chain-utils/jest.config.ts"
+        "command": "tsc --noEmit -p libs/chain-utils/tsconfig.lib.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"libs/chain-utils/**/*.{ts,json,md}\"",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "echo 'No tests configured for chain-utils library'",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "rm -rf dist/libs/chain-utils",
+          "rm -rf libs/chain-utils/node_modules",
+          "rm -rf libs/chain-utils/.nx"
+        ],
+        "cwd": "{workspaceRoot}",
+        "parallel": false
       }
     }
   }

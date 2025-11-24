@@ -7,7 +7,7 @@
  */
 
 import { createClient, RedisClientType } from 'redis';
-import { config } from '../config';
+import { config } from '../config/index.js';
 import { logger } from '@msq-tx-monitor/msq-common';
 
 export interface CachedAddressStats {

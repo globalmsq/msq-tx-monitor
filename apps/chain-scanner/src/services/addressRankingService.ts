@@ -11,7 +11,7 @@ import { prisma } from '@msq-tx-monitor/database';
 import {
   AddressStatsCacheService,
   AddressRanking,
-} from './addressStatsCacheService';
+} from './addressStatsCacheService.js';
 
 export interface RankingCriteria {
   volumeWeight: number; // Total volume weight

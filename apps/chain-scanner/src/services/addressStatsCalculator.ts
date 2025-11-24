@@ -9,12 +9,12 @@
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { prisma } from '@msq-tx-monitor/database';
 // Note: Removed Decimal import - using simplified conversion approach
-import { TransactionData } from './databaseService';
+import { TransactionData } from './databaseService.js';
 import {
   AddressStatsCacheService,
   CachedAddressStats,
-} from './addressStatsCacheService';
-import { AddressRankingService } from './addressRankingService';
+} from './addressStatsCacheService.js';
+import { AddressRankingService } from './addressRankingService.js';
 import { logger } from '@msq-tx-monitor/msq-common';
 
 interface BehavioralFlags {

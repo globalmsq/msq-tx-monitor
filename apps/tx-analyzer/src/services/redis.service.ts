@@ -1,5 +1,5 @@
 import { createClient, RedisClientType } from 'redis';
-import { config } from '../config';
+import { config } from '../config.js';
 import { logger } from '@msq-tx-monitor/msq-common';
 
 export class RedisService {

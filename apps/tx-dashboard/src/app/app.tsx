@@ -1,4 +1,4 @@
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes, useLocation, Link } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { Activity, BarChart3, Wallet, Wifi, WifiOff, Menu } from 'lucide-react';
 import { VolumeWithTooltip } from '../components/VolumeWithTooltip';
@@ -504,9 +504,9 @@ function DashboardContent() {
             {/* Center - Desktop Navigation */}
             <nav className='hidden lg:flex items-center space-x-1'>
               {navigationItems.map(item => (
-                <a
+                <Link
                   key={item.name}
-                  href={item.href}
+                  to={item.href}
                   className={cn(
                     'flex items-center space-x-2 px-4 py-2 rounded-lg transition-all text-sm font-medium',
                     item.current
@@ -516,7 +516,7 @@ function DashboardContent() {
                 >
                   <item.icon className='w-4 h-4' />
                   <span>{item.name}</span>
-                </a>
+                </Link>
               ))}
             </nav>
 
@@ -544,9 +544,9 @@ function DashboardContent() {
               </div>
               <nav className='space-y-2'>
                 {navigationItems.map(item => (
-                  <a
+                  <Link
                     key={item.name}
-                    href={item.href}
+                    to={item.href}
                     className={cn(
                       'flex items-center space-x-3 px-3 py-2 rounded-lg transition-all text-sm',
                       item.current
@@ -557,7 +557,7 @@ function DashboardContent() {
                   >
                     <item.icon className='w-4 h-4' />
                     <span>{item.name}</span>
-                  </a>
+                  </Link>
                 ))}
               </nav>
             </div>
