@@ -297,17 +297,16 @@ export class StatisticsService {
       );
 
       const tokenStatsPromises = allTokens.map(async token => {
-        const stats = await this.getTokenStats(token.address);
-        const volume24h = await this.getToken24hVolume(token.address);
+        // Get 24h stats (volume + transactionCount) from Subgraph in one call
+        const stats24h = await this.getToken24hStats(token.address);
+        const totalVolume = await this.getTokenTotalVolume(token.address);
+
         return {
           tokenSymbol: token.symbol,
           tokenAddress: token.address,
-          volume24h: this.formatTokenAmount(volume24h, token.address),
-          totalVolume: this.formatTokenAmount(
-            await this.getTokenTotalVolume(token.address),
-            token.address
-          ),
-          transactionCount: stats.totalTransactions,
+          volume24h: this.formatTokenAmount(stats24h.volume, token.address),
+          totalVolume: this.formatTokenAmount(totalVolume, token.address),
+          transactionCount: stats24h.transactionCount,
         };
       });
 
@@ -389,6 +388,41 @@ export class StatisticsService {
     } catch (error) {
       logger.error(`Error getting 24h volume for ${tokenAddress}:`, error);
       return 0n;
+    }
+  }
+
+  /**
+   * Get 24h stats (volume and transaction count) from Subgraph HourlySnapshots
+   * More efficient than calling volume and count separately
+   */
+  private async getToken24hStats(
+    tokenAddress: string
+  ): Promise<{ volume: bigint; transactionCount: number }> {
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const twentyFourHoursAgo = now - 24 * 60 * 60;
+
+      const snapshots = await this.subgraphClient.getHourlySnapshots(
+        tokenAddress.toLowerCase(),
+        twentyFourHoursAgo,
+        now,
+        24
+      );
+
+      // Sum both volume and transaction count from hourly snapshots
+      const result = snapshots.reduce(
+        (acc, snapshot) => ({
+          volume: acc.volume + BigInt(snapshot.volumeTransferred || '0'),
+          transactionCount:
+            acc.transactionCount + parseInt(snapshot.transferCount || '0'),
+        }),
+        { volume: 0n, transactionCount: 0 }
+      );
+
+      return result;
+    } catch (error) {
+      logger.error(`Error getting 24h stats for ${tokenAddress}:`, error);
+      return { volume: 0n, transactionCount: 0 };
     }
   }
 
