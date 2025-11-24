@@ -19,7 +19,7 @@ msq-tx-monitor/
 │   │   ├── tsconfig.json   # TypeScript config
 │   │   └── webpack.config.js
 │   │
-│   ├── tx-api/             # Express.js API Server
+│   ├── tx-api/             # NestJS (GraphQL) API Server
 │   │   ├── project.json
 │   │   ├── .env.example
 │   │   ├── src/
@@ -42,17 +42,7 @@ msq-tx-monitor/
 │   │   │   └── storage/    # Database storage
 │   │   └── tsconfig.json
 │   │
-│   └── tx-analyzer/        # Python Analytics Service
-│       ├── project.json
-│       ├── .env.example
-│       ├── requirements.txt
-│       ├── src/
-│       │   ├── main.py     # FastAPI app
-│       │   ├── models/     # Pydantic models
-│       │   ├── services/   # Analysis services
-│       │   ├── ml/         # Machine learning modules
-│       │   └── utils/      # Python utilities
-│       └── pyproject.toml
+│   └── tx-analyzer/        # (Temporarily Unused)
 │
 ├── docker/                 # Docker Configuration
 │   ├── docker-compose.yml     # Production compose
@@ -128,17 +118,16 @@ VITE_REFRESH_INTERVAL=5000
 
 ### 2. tx-api (Backend API)
 
-**Purpose**: REST API for transaction data and statistics
-**Technology**: Express.js, TypeScript, MySQL, Redis
+**Purpose**: GraphQL API for transaction data and statistics
+**Technology**: NestJS, GraphQL, TypeScript, MySQL, Redis
 **Port**: 8000
 
 **Key Features**:
 
-- Transaction CRUD operations
-- Address statistics aggregation
-- Real-time data caching
-- Rate limiting and security
-- API documentation with Swagger
+- GraphQL interface for complex queries
+- Transaction and address data fetching
+- Real-time data caching with Redis
+- Secure and strongly-typed API
 
 **Environment Variables**:
 
@@ -152,12 +141,9 @@ CORS_ORIGIN=http://localhost:3000
 RATE_LIMIT_MAX_REQUESTS=100
 ```
 
-**API Endpoints**:
+**API Endpoint**:
 
-- `GET /api/v1/transactions` - List transactions
-- `GET /api/v1/addresses/:address` - Address statistics
-- `GET /api/v1/statistics` - Global statistics
-- `GET /api/v1/anomalies` - Detected anomalies
+- `POST /graphql` - Single endpoint for all GraphQL queries and mutations.
 
 ### 3. chain-scanner (Blockchain Scanner)
 
@@ -198,36 +184,7 @@ BLOCK_CONFIRMATION=12
 
 ### 4. tx-analyzer (Analytics Engine)
 
-**Purpose**: AI-powered transaction analysis and anomaly detection
-**Technology**: Python 3.11, FastAPI, Scikit-learn, Pandas
-**Port**: 8002
-
-**Key Features**:
-
-- Machine learning-based anomaly detection
-- Address behavior profiling
-- Statistical analysis and reporting
-- Real-time risk scoring
-- Whale transaction identification
-
-**Environment Variables**:
-
-```env
-PORT=8002
-ENVIRONMENT=development
-MYSQL_HOST=mysql
-ANOMALY_THRESHOLD=0.85
-WHALE_THRESHOLD=1000000
-DETECTION_WINDOW_SIZE=100
-```
-
-**Analysis Features**:
-
-- **Volume Anomalies**: Detect unusually large transactions
-- **Frequency Anomalies**: Identify high-frequency trading patterns
-- **Behavioral Analysis**: Profile address trading behaviors
-- **Risk Assessment**: Calculate risk scores for addresses
-- **Pattern Recognition**: Detect wash trading and bot activities
+**Status**: Temporarily Unused.
 
 ## 📊 Data Flow Architecture
 
@@ -238,21 +195,10 @@ DETECTION_WINDOW_SIZE=100
                                 │                        │
                                 │ WebSocket              │ Queries
                                 ▼                        ▼
-                       ┌─────────────────┐    ┌─────────────────┐
-                       │  tx-dashboard   │◄───│     tx-api      │
-                       │  (Frontend)     │    │   (REST API)    │
-                       └─────────────────┘    └─────────────────┘
-                                                        ▲
-                                                        │
-                               ┌─────────────────┐     │
-                               │  tx-analyzer    │─────┘
-                               │  (Analytics)    │
-                               └─────────────────┘
-                                        │
-                                        ▼
-                               ┌─────────────────┐
-                               │ Redis Cache     │
-                               └─────────────────┘
+                                              ┌─────────────────┐    ┌─────────────────┐
+                                              │  tx-dashboard   │◄───│     tx-api      │
+                                              │  (Frontend)     │    │ (GraphQL API)   │
+                                              └─────────────────┘    └─────────────────┘
 ```
 
 ## 🔗 Inter-Service Communication
@@ -261,19 +207,12 @@ DETECTION_WINDOW_SIZE=100
 
 - **chain-scanner** → **tx-dashboard**: WebSocket for live transactions
 - **chain-scanner** → **MySQL**: Direct database writes
-- **tx-analyzer** → **MySQL**: Analysis results storage
 
 ### 2. API Data Flow
 
-- **tx-dashboard** → **tx-api**: REST API calls for data
+- **tx-dashboard** → **tx-api**: GraphQL queries for data
 - **tx-api** → **MySQL**: Database queries
 - **tx-api** → **Redis**: Caching layer
-
-### 3. Analytics Flow
-
-- **tx-analyzer** → **MySQL**: Read transactions for analysis
-- **tx-analyzer** → **Redis**: Store real-time statistics
-- **tx-api** → **Redis**: Read cached analytics
 
 ## 🐳 Docker Configuration
 
@@ -287,7 +226,6 @@ FROM node:18-alpine AS base
 FROM base AS tx-dashboard-runtime
 FROM base AS tx-api-runtime
 FROM base AS chain-scanner-runtime
-FROM python:3.11-slim AS tx-analyzer-runtime
 ```
 
 ### Service Dependencies
@@ -299,8 +237,6 @@ tx-dashboard:
 tx-api:
   depends_on: [mysql, redis]
 chain-scanner:
-  depends_on: [mysql, redis]
-tx-analyzer:
   depends_on: [mysql, redis]
 ```
 
