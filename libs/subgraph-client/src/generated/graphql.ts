@@ -1,24 +1,37 @@
 import { GraphQLClient, RequestOptions } from 'graphql-request';
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
-export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
-export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
-export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
-export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = { [_ in K]?: never };
-export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
+export type Exact<T extends { [key: string]: unknown }> = {
+  [K in keyof T]: T[K];
+};
+export type MakeOptional<T, K extends keyof T> = Omit<T, K> & {
+  [SubKey in K]?: Maybe<T[SubKey]>;
+};
+export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & {
+  [SubKey in K]: Maybe<T[SubKey]>;
+};
+export type MakeEmpty<
+  T extends { [key: string]: unknown },
+  K extends keyof T,
+> = { [_ in K]?: never };
+export type Incremental<T> =
+  | T
+  | {
+      [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never;
+    };
 type GraphQLClientRequestHeaders = RequestOptions['requestHeaders'];
 /** All built-in and custom scalars, mapped to their actual values */
 export type Scalars = {
-  ID: { input: string; output: string; }
-  String: { input: string; output: string; }
-  Boolean: { input: boolean; output: boolean; }
-  Int: { input: number; output: number; }
-  Float: { input: number; output: number; }
-  BigDecimal: { input: any; output: any; }
-  BigInt: { input: string; output: string; }
-  Bytes: { input: string; output: string; }
-  Int8: { input: number; output: number; }
-  Timestamp: { input: any; output: any; }
+  ID: { input: string; output: string };
+  String: { input: string; output: string };
+  Boolean: { input: boolean; output: boolean };
+  Int: { input: number; output: number };
+  Float: { input: number; output: number };
+  BigDecimal: { input: any; output: any };
+  BigInt: { input: string; output: string };
+  Bytes: { input: string; output: string };
+  Int8: { input: number; output: number };
+  Timestamp: { input: any; output: any };
 };
 
 /**
@@ -40,7 +53,6 @@ export type AccountStats = {
   readonly totalVolumeTransferred: Scalars['BigInt']['output'];
   readonly uniqueTokenCount: Scalars['BigInt']['output'];
 };
-
 
 /**
  * Cross-token account statistics
@@ -67,16 +79,32 @@ export type AccountStats_Filter = {
   readonly account_lte?: InputMaybe<Scalars['Bytes']['input']>;
   readonly account_not?: InputMaybe<Scalars['Bytes']['input']>;
   readonly account_not_contains?: InputMaybe<Scalars['Bytes']['input']>;
-  readonly account_not_in?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
+  readonly account_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
   readonly and?: InputMaybe<ReadonlyArray<InputMaybe<AccountStats_Filter>>>;
   readonly firstTransactionTimestamp?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly firstTransactionTimestamp_gt?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly firstTransactionTimestamp_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly firstTransactionTimestamp_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
-  readonly firstTransactionTimestamp_lt?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly firstTransactionTimestamp_lte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly firstTransactionTimestamp_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly firstTransactionTimestamp_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly firstTransactionTimestamp_gt?: InputMaybe<
+    Scalars['BigInt']['input']
+  >;
+  readonly firstTransactionTimestamp_gte?: InputMaybe<
+    Scalars['BigInt']['input']
+  >;
+  readonly firstTransactionTimestamp_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
+  readonly firstTransactionTimestamp_lt?: InputMaybe<
+    Scalars['BigInt']['input']
+  >;
+  readonly firstTransactionTimestamp_lte?: InputMaybe<
+    Scalars['BigInt']['input']
+  >;
+  readonly firstTransactionTimestamp_not?: InputMaybe<
+    Scalars['BigInt']['input']
+  >;
+  readonly firstTransactionTimestamp_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly id?: InputMaybe<Scalars['Bytes']['input']>;
   readonly id_contains?: InputMaybe<Scalars['Bytes']['input']>;
   readonly id_gt?: InputMaybe<Scalars['Bytes']['input']>;
@@ -90,57 +118,89 @@ export type AccountStats_Filter = {
   readonly isActive?: InputMaybe<Scalars['Boolean']['input']>;
   readonly isActive_in?: InputMaybe<ReadonlyArray<Scalars['Boolean']['input']>>;
   readonly isActive_not?: InputMaybe<Scalars['Boolean']['input']>;
-  readonly isActive_not_in?: InputMaybe<ReadonlyArray<Scalars['Boolean']['input']>>;
+  readonly isActive_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['Boolean']['input']>
+  >;
   readonly lastTransactionTimestamp?: InputMaybe<Scalars['BigInt']['input']>;
   readonly lastTransactionTimestamp_gt?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly lastTransactionTimestamp_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly lastTransactionTimestamp_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly lastTransactionTimestamp_gte?: InputMaybe<
+    Scalars['BigInt']['input']
+  >;
+  readonly lastTransactionTimestamp_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly lastTransactionTimestamp_lt?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly lastTransactionTimestamp_lte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly lastTransactionTimestamp_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly lastTransactionTimestamp_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly lastTransactionTimestamp_lte?: InputMaybe<
+    Scalars['BigInt']['input']
+  >;
+  readonly lastTransactionTimestamp_not?: InputMaybe<
+    Scalars['BigInt']['input']
+  >;
+  readonly lastTransactionTimestamp_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly or?: InputMaybe<ReadonlyArray<InputMaybe<AccountStats_Filter>>>;
   readonly tokenBalances_?: InputMaybe<TokenAccount_Filter>;
   readonly totalReceivedCount?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalReceivedCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalReceivedCount_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly totalReceivedCount_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly totalReceivedCount_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly totalReceivedCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalReceivedCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalReceivedCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly totalReceivedCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly totalReceivedCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly totalSentCount?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalSentCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalSentCount_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly totalSentCount_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly totalSentCount_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly totalSentCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalSentCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalSentCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly totalSentCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly totalSentCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly totalTransferCount?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalTransferCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalTransferCount_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly totalTransferCount_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly totalTransferCount_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly totalTransferCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalTransferCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalTransferCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly totalTransferCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly totalTransferCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly totalVolumeTransferred?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalVolumeTransferred_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalVolumeTransferred_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly totalVolumeTransferred_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly totalVolumeTransferred_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly totalVolumeTransferred_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalVolumeTransferred_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalVolumeTransferred_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly totalVolumeTransferred_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly totalVolumeTransferred_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly uniqueTokenCount?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueTokenCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueTokenCount_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly uniqueTokenCount_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly uniqueTokenCount_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly uniqueTokenCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueTokenCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueTokenCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly uniqueTokenCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly uniqueTokenCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
 };
 
 export type AccountStats_OrderBy =
@@ -156,9 +216,7 @@ export type AccountStats_OrderBy =
   | 'totalVolumeTransferred'
   | 'uniqueTokenCount';
 
-export type Aggregation_Interval =
-  | 'day'
-  | 'hour';
+export type Aggregation_Interval = 'day' | 'hour';
 
 export type BlockChangedFilter = {
   readonly number_gte: Scalars['Int']['input'];
@@ -205,15 +263,21 @@ export type DailySnapshot_Filter = {
   readonly burnCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly burnCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly burnCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly burnCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly burnCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly burnVolume?: InputMaybe<Scalars['BigInt']['input']>;
   readonly burnVolume_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly burnVolume_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly burnVolume_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly burnVolume_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly burnVolume_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly burnVolume_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly burnVolume_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly burnVolume_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly burnVolume_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly date?: InputMaybe<Scalars['BigInt']['input']>;
   readonly date_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly date_gte?: InputMaybe<Scalars['BigInt']['input']>;
@@ -225,11 +289,15 @@ export type DailySnapshot_Filter = {
   readonly holderCount?: InputMaybe<Scalars['BigInt']['input']>;
   readonly holderCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly holderCount_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly holderCount_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly holderCount_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly holderCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly holderCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly holderCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly holderCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly holderCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly id?: InputMaybe<Scalars['Bytes']['input']>;
   readonly id_contains?: InputMaybe<Scalars['Bytes']['input']>;
   readonly id_gt?: InputMaybe<Scalars['Bytes']['input']>;
@@ -247,36 +315,70 @@ export type DailySnapshot_Filter = {
   readonly mintCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly mintCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly mintCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly mintCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly mintCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly mintVolume?: InputMaybe<Scalars['BigInt']['input']>;
   readonly mintVolume_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly mintVolume_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly mintVolume_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly mintVolume_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly mintVolume_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly mintVolume_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly mintVolume_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly mintVolume_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly mintVolume_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly newHolders?: InputMaybe<Scalars['BigInt']['input']>;
   readonly newHolders_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly newHolders_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly newHolders_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly newHolders_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly newHolders_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly newHolders_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly newHolders_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly newHolders_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly newHolders_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly or?: InputMaybe<ReadonlyArray<InputMaybe<DailySnapshot_Filter>>>;
-  readonly receiverAddresses?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
-  readonly receiverAddresses_contains?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
-  readonly receiverAddresses_contains_nocase?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
-  readonly receiverAddresses_not?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
-  readonly receiverAddresses_not_contains?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
-  readonly receiverAddresses_not_contains_nocase?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
-  readonly senderAddresses?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
-  readonly senderAddresses_contains?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
-  readonly senderAddresses_contains_nocase?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
-  readonly senderAddresses_not?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
-  readonly senderAddresses_not_contains?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
-  readonly senderAddresses_not_contains_nocase?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
+  readonly receiverAddresses?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
+  readonly receiverAddresses_contains?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
+  readonly receiverAddresses_contains_nocase?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
+  readonly receiverAddresses_not?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
+  readonly receiverAddresses_not_contains?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
+  readonly receiverAddresses_not_contains_nocase?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
+  readonly senderAddresses?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
+  readonly senderAddresses_contains?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
+  readonly senderAddresses_contains_nocase?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
+  readonly senderAddresses_not?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
+  readonly senderAddresses_not_contains?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
+  readonly senderAddresses_not_contains_nocase?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
   readonly token?: InputMaybe<Scalars['String']['input']>;
   readonly token_?: InputMaybe<Token_Filter>;
   readonly token_contains?: InputMaybe<Scalars['String']['input']>;
@@ -295,49 +397,71 @@ export type DailySnapshot_Filter = {
   readonly token_not_ends_with_nocase?: InputMaybe<Scalars['String']['input']>;
   readonly token_not_in?: InputMaybe<ReadonlyArray<Scalars['String']['input']>>;
   readonly token_not_starts_with?: InputMaybe<Scalars['String']['input']>;
-  readonly token_not_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly token_not_starts_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly token_starts_with?: InputMaybe<Scalars['String']['input']>;
   readonly token_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
   readonly transferCount?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly transferCount_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly transferCount_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly transferCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly transferCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly transferCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly uniqueAddresses?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueAddresses_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueAddresses_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly uniqueAddresses_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly uniqueAddresses_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly uniqueAddresses_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueAddresses_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueAddresses_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly uniqueAddresses_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly uniqueAddresses_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly uniqueReceivers?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueReceivers_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueReceivers_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly uniqueReceivers_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly uniqueReceivers_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly uniqueReceivers_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueReceivers_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueReceivers_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly uniqueReceivers_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly uniqueReceivers_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly uniqueSenders?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueSenders_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueSenders_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly uniqueSenders_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly uniqueSenders_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly uniqueSenders_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueSenders_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueSenders_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly uniqueSenders_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly uniqueSenders_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly volumeTransferred?: InputMaybe<Scalars['BigInt']['input']>;
   readonly volumeTransferred_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly volumeTransferred_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly volumeTransferred_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly volumeTransferred_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly volumeTransferred_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly volumeTransferred_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly volumeTransferred_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly volumeTransferred_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly volumeTransferred_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
 };
 
 export type DailySnapshot_OrderBy =
@@ -403,7 +527,9 @@ export type HourlySnapshot_Filter = {
   readonly burnCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly burnCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly burnCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly burnCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly burnCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly hour?: InputMaybe<Scalars['BigInt']['input']>;
   readonly hour_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly hour_gte?: InputMaybe<Scalars['BigInt']['input']>;
@@ -429,7 +555,9 @@ export type HourlySnapshot_Filter = {
   readonly mintCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly mintCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly mintCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly mintCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly mintCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly or?: InputMaybe<ReadonlyArray<InputMaybe<HourlySnapshot_Filter>>>;
   readonly token?: InputMaybe<Scalars['String']['input']>;
   readonly token_?: InputMaybe<Token_Filter>;
@@ -449,33 +577,47 @@ export type HourlySnapshot_Filter = {
   readonly token_not_ends_with_nocase?: InputMaybe<Scalars['String']['input']>;
   readonly token_not_in?: InputMaybe<ReadonlyArray<Scalars['String']['input']>>;
   readonly token_not_starts_with?: InputMaybe<Scalars['String']['input']>;
-  readonly token_not_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly token_not_starts_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly token_starts_with?: InputMaybe<Scalars['String']['input']>;
   readonly token_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
   readonly transferCount?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly transferCount_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly transferCount_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly transferCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly transferCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly transferCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly uniqueAddresses?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueAddresses_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueAddresses_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly uniqueAddresses_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly uniqueAddresses_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly uniqueAddresses_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueAddresses_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly uniqueAddresses_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly uniqueAddresses_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly uniqueAddresses_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly volumeTransferred?: InputMaybe<Scalars['BigInt']['input']>;
   readonly volumeTransferred_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly volumeTransferred_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly volumeTransferred_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly volumeTransferred_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly volumeTransferred_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly volumeTransferred_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly volumeTransferred_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly volumeTransferred_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly volumeTransferred_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
 };
 
 export type HourlySnapshot_OrderBy =
@@ -507,9 +649,7 @@ export type HourlySnapshot_OrderBy =
   | 'volumeTransferred';
 
 /** Defines the order direction, either ascending or descending */
-export type OrderDirection =
-  | 'asc'
-  | 'desc';
+export type OrderDirection = 'asc' | 'desc';
 
 export type Query = {
   readonly __typename?: 'Query';
@@ -529,18 +669,15 @@ export type Query = {
   readonly transfers: ReadonlyArray<Transfer>;
 };
 
-
 export type Query_MetaArgs = {
   block?: InputMaybe<Block_Height>;
 };
-
 
 export type QueryAccountStatsArgs = {
   block?: InputMaybe<Block_Height>;
   id: Scalars['ID']['input'];
   subgraphError?: _SubgraphErrorPolicy_;
 };
-
 
 export type QueryAccountStats_CollectionArgs = {
   block?: InputMaybe<Block_Height>;
@@ -552,13 +689,11 @@ export type QueryAccountStats_CollectionArgs = {
   where?: InputMaybe<AccountStats_Filter>;
 };
 
-
 export type QueryDailySnapshotArgs = {
   block?: InputMaybe<Block_Height>;
   id: Scalars['ID']['input'];
   subgraphError?: _SubgraphErrorPolicy_;
 };
-
 
 export type QueryDailySnapshotsArgs = {
   block?: InputMaybe<Block_Height>;
@@ -570,13 +705,11 @@ export type QueryDailySnapshotsArgs = {
   where?: InputMaybe<DailySnapshot_Filter>;
 };
 
-
 export type QueryHourlySnapshotArgs = {
   block?: InputMaybe<Block_Height>;
   id: Scalars['ID']['input'];
   subgraphError?: _SubgraphErrorPolicy_;
 };
-
 
 export type QueryHourlySnapshotsArgs = {
   block?: InputMaybe<Block_Height>;
@@ -588,20 +721,17 @@ export type QueryHourlySnapshotsArgs = {
   where?: InputMaybe<HourlySnapshot_Filter>;
 };
 
-
 export type QueryTokenArgs = {
   block?: InputMaybe<Block_Height>;
   id: Scalars['ID']['input'];
   subgraphError?: _SubgraphErrorPolicy_;
 };
 
-
 export type QueryTokenAccountArgs = {
   block?: InputMaybe<Block_Height>;
   id: Scalars['ID']['input'];
   subgraphError?: _SubgraphErrorPolicy_;
 };
-
 
 export type QueryTokenAccountsArgs = {
   block?: InputMaybe<Block_Height>;
@@ -613,7 +743,6 @@ export type QueryTokenAccountsArgs = {
   where?: InputMaybe<TokenAccount_Filter>;
 };
 
-
 export type QueryTokensArgs = {
   block?: InputMaybe<Block_Height>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -624,13 +753,11 @@ export type QueryTokensArgs = {
   where?: InputMaybe<Token_Filter>;
 };
 
-
 export type QueryTransferArgs = {
   block?: InputMaybe<Block_Height>;
   id: Scalars['ID']['input'];
   subgraphError?: _SubgraphErrorPolicy_;
 };
-
 
 export type QueryTransfersArgs = {
   block?: InputMaybe<Block_Height>;
@@ -671,7 +798,6 @@ export type Token = {
   readonly transfers: ReadonlyArray<Transfer>;
 };
 
-
 /**
  * Global token entity - one per ERC-20 contract
  * Stores aggregate statistics and metadata for each token
@@ -684,7 +810,6 @@ export type TokenAccountsArgs = {
   where?: InputMaybe<TokenAccount_Filter>;
 };
 
-
 /**
  * Global token entity - one per ERC-20 contract
  * Stores aggregate statistics and metadata for each token
@@ -696,7 +821,6 @@ export type TokenDailySnapshotsArgs = {
   skip?: InputMaybe<Scalars['Int']['input']>;
   where?: InputMaybe<DailySnapshot_Filter>;
 };
-
 
 /**
  * Global token entity - one per ERC-20 contract
@@ -733,7 +857,6 @@ export type TokenAccount = {
   readonly transferCount: Scalars['BigInt']['output'];
 };
 
-
 /**
  * Account holdings per token
  * Composite entity: one per (token, account) pair
@@ -746,7 +869,6 @@ export type TokenAccountReceivedTransfersArgs = {
   skip?: InputMaybe<Scalars['Int']['input']>;
   where?: InputMaybe<Transfer_Filter>;
 };
-
 
 /**
  * Account holdings per token
@@ -768,24 +890,42 @@ export type TokenAccount_Filter = {
   readonly accountStats?: InputMaybe<Scalars['String']['input']>;
   readonly accountStats_?: InputMaybe<AccountStats_Filter>;
   readonly accountStats_contains?: InputMaybe<Scalars['String']['input']>;
-  readonly accountStats_contains_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly accountStats_contains_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly accountStats_ends_with?: InputMaybe<Scalars['String']['input']>;
-  readonly accountStats_ends_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly accountStats_ends_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly accountStats_gt?: InputMaybe<Scalars['String']['input']>;
   readonly accountStats_gte?: InputMaybe<Scalars['String']['input']>;
-  readonly accountStats_in?: InputMaybe<ReadonlyArray<Scalars['String']['input']>>;
+  readonly accountStats_in?: InputMaybe<
+    ReadonlyArray<Scalars['String']['input']>
+  >;
   readonly accountStats_lt?: InputMaybe<Scalars['String']['input']>;
   readonly accountStats_lte?: InputMaybe<Scalars['String']['input']>;
   readonly accountStats_not?: InputMaybe<Scalars['String']['input']>;
   readonly accountStats_not_contains?: InputMaybe<Scalars['String']['input']>;
-  readonly accountStats_not_contains_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly accountStats_not_contains_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly accountStats_not_ends_with?: InputMaybe<Scalars['String']['input']>;
-  readonly accountStats_not_ends_with_nocase?: InputMaybe<Scalars['String']['input']>;
-  readonly accountStats_not_in?: InputMaybe<ReadonlyArray<Scalars['String']['input']>>;
-  readonly accountStats_not_starts_with?: InputMaybe<Scalars['String']['input']>;
-  readonly accountStats_not_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly accountStats_not_ends_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
+  readonly accountStats_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['String']['input']>
+  >;
+  readonly accountStats_not_starts_with?: InputMaybe<
+    Scalars['String']['input']
+  >;
+  readonly accountStats_not_starts_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly accountStats_starts_with?: InputMaybe<Scalars['String']['input']>;
-  readonly accountStats_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly accountStats_starts_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly account_contains?: InputMaybe<Scalars['Bytes']['input']>;
   readonly account_gt?: InputMaybe<Scalars['Bytes']['input']>;
   readonly account_gte?: InputMaybe<Scalars['Bytes']['input']>;
@@ -794,7 +934,9 @@ export type TokenAccount_Filter = {
   readonly account_lte?: InputMaybe<Scalars['Bytes']['input']>;
   readonly account_not?: InputMaybe<Scalars['Bytes']['input']>;
   readonly account_not_contains?: InputMaybe<Scalars['Bytes']['input']>;
-  readonly account_not_in?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
+  readonly account_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
   readonly and?: InputMaybe<ReadonlyArray<InputMaybe<TokenAccount_Filter>>>;
   readonly balance?: InputMaybe<Scalars['BigInt']['input']>;
   readonly balance_gt?: InputMaybe<Scalars['BigInt']['input']>;
@@ -803,23 +945,33 @@ export type TokenAccount_Filter = {
   readonly balance_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly balance_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly balance_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly balance_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly balance_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly firstTransferBlock?: InputMaybe<Scalars['BigInt']['input']>;
   readonly firstTransferBlock_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly firstTransferBlock_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly firstTransferBlock_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly firstTransferBlock_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly firstTransferBlock_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly firstTransferBlock_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly firstTransferBlock_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly firstTransferBlock_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly firstTransferBlock_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly firstTransferTimestamp?: InputMaybe<Scalars['BigInt']['input']>;
   readonly firstTransferTimestamp_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly firstTransferTimestamp_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly firstTransferTimestamp_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly firstTransferTimestamp_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly firstTransferTimestamp_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly firstTransferTimestamp_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly firstTransferTimestamp_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly firstTransferTimestamp_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly firstTransferTimestamp_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly id?: InputMaybe<Scalars['Bytes']['input']>;
   readonly id_contains?: InputMaybe<Scalars['Bytes']['input']>;
   readonly id_gt?: InputMaybe<Scalars['Bytes']['input']>;
@@ -833,28 +985,40 @@ export type TokenAccount_Filter = {
   readonly lastTransferBlock?: InputMaybe<Scalars['BigInt']['input']>;
   readonly lastTransferBlock_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly lastTransferBlock_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly lastTransferBlock_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly lastTransferBlock_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly lastTransferBlock_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly lastTransferBlock_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly lastTransferBlock_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly lastTransferBlock_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly lastTransferBlock_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly lastTransferTimestamp?: InputMaybe<Scalars['BigInt']['input']>;
   readonly lastTransferTimestamp_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly lastTransferTimestamp_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly lastTransferTimestamp_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly lastTransferTimestamp_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly lastTransferTimestamp_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly lastTransferTimestamp_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly lastTransferTimestamp_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly lastTransferTimestamp_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly lastTransferTimestamp_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly or?: InputMaybe<ReadonlyArray<InputMaybe<TokenAccount_Filter>>>;
   readonly receivedCount?: InputMaybe<Scalars['BigInt']['input']>;
   readonly receivedCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly receivedCount_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly receivedCount_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly receivedCount_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly receivedCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly receivedCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly receivedCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly receivedCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly receivedCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly receivedTransfers_?: InputMaybe<Transfer_Filter>;
   readonly sentCount?: InputMaybe<Scalars['BigInt']['input']>;
   readonly sentCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
@@ -863,7 +1027,9 @@ export type TokenAccount_Filter = {
   readonly sentCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly sentCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly sentCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly sentCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly sentCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly sentTransfers_?: InputMaybe<Transfer_Filter>;
   readonly token?: InputMaybe<Scalars['String']['input']>;
   readonly token_?: InputMaybe<Token_Filter>;
@@ -883,17 +1049,23 @@ export type TokenAccount_Filter = {
   readonly token_not_ends_with_nocase?: InputMaybe<Scalars['String']['input']>;
   readonly token_not_in?: InputMaybe<ReadonlyArray<Scalars['String']['input']>>;
   readonly token_not_starts_with?: InputMaybe<Scalars['String']['input']>;
-  readonly token_not_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly token_not_starts_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly token_starts_with?: InputMaybe<Scalars['String']['input']>;
   readonly token_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
   readonly transferCount?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly transferCount_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly transferCount_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly transferCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly transferCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly transferCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
 };
 
 export type TokenAccount_OrderBy =
@@ -953,7 +1125,9 @@ export type Token_Filter = {
   readonly address_lte?: InputMaybe<Scalars['Bytes']['input']>;
   readonly address_not?: InputMaybe<Scalars['Bytes']['input']>;
   readonly address_not_contains?: InputMaybe<Scalars['Bytes']['input']>;
-  readonly address_not_in?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
+  readonly address_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
   readonly and?: InputMaybe<ReadonlyArray<InputMaybe<Token_Filter>>>;
   readonly burnCount?: InputMaybe<Scalars['BigInt']['input']>;
   readonly burnCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
@@ -962,7 +1136,9 @@ export type Token_Filter = {
   readonly burnCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly burnCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly burnCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly burnCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly burnCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly dailySnapshots_?: InputMaybe<DailySnapshot_Filter>;
   readonly decimals?: InputMaybe<Scalars['Int']['input']>;
   readonly decimals_gt?: InputMaybe<Scalars['Int']['input']>;
@@ -975,27 +1151,39 @@ export type Token_Filter = {
   readonly deployBlock?: InputMaybe<Scalars['BigInt']['input']>;
   readonly deployBlock_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly deployBlock_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly deployBlock_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly deployBlock_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly deployBlock_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly deployBlock_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly deployBlock_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly deployBlock_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly deployBlock_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly firstTransferTimestamp?: InputMaybe<Scalars['BigInt']['input']>;
   readonly firstTransferTimestamp_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly firstTransferTimestamp_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly firstTransferTimestamp_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly firstTransferTimestamp_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly firstTransferTimestamp_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly firstTransferTimestamp_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly firstTransferTimestamp_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly firstTransferTimestamp_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly firstTransferTimestamp_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly holderCount?: InputMaybe<Scalars['BigInt']['input']>;
   readonly holderCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly holderCount_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly holderCount_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly holderCount_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly holderCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly holderCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly holderCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly holderCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly holderCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly id?: InputMaybe<Scalars['Bytes']['input']>;
   readonly id_contains?: InputMaybe<Scalars['Bytes']['input']>;
   readonly id_gt?: InputMaybe<Scalars['Bytes']['input']>;
@@ -1007,35 +1195,57 @@ export type Token_Filter = {
   readonly id_not_contains?: InputMaybe<Scalars['Bytes']['input']>;
   readonly id_not_in?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
   readonly implementationAddress?: InputMaybe<Scalars['Bytes']['input']>;
-  readonly implementationAddress_contains?: InputMaybe<Scalars['Bytes']['input']>;
+  readonly implementationAddress_contains?: InputMaybe<
+    Scalars['Bytes']['input']
+  >;
   readonly implementationAddress_gt?: InputMaybe<Scalars['Bytes']['input']>;
   readonly implementationAddress_gte?: InputMaybe<Scalars['Bytes']['input']>;
-  readonly implementationAddress_in?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
+  readonly implementationAddress_in?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
   readonly implementationAddress_lt?: InputMaybe<Scalars['Bytes']['input']>;
   readonly implementationAddress_lte?: InputMaybe<Scalars['Bytes']['input']>;
   readonly implementationAddress_not?: InputMaybe<Scalars['Bytes']['input']>;
-  readonly implementationAddress_not_contains?: InputMaybe<Scalars['Bytes']['input']>;
-  readonly implementationAddress_not_in?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
+  readonly implementationAddress_not_contains?: InputMaybe<
+    Scalars['Bytes']['input']
+  >;
+  readonly implementationAddress_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
   readonly isMintable?: InputMaybe<Scalars['Boolean']['input']>;
-  readonly isMintable_in?: InputMaybe<ReadonlyArray<Scalars['Boolean']['input']>>;
+  readonly isMintable_in?: InputMaybe<
+    ReadonlyArray<Scalars['Boolean']['input']>
+  >;
   readonly isMintable_not?: InputMaybe<Scalars['Boolean']['input']>;
-  readonly isMintable_not_in?: InputMaybe<ReadonlyArray<Scalars['Boolean']['input']>>;
+  readonly isMintable_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['Boolean']['input']>
+  >;
   readonly isPausable?: InputMaybe<Scalars['Boolean']['input']>;
-  readonly isPausable_in?: InputMaybe<ReadonlyArray<Scalars['Boolean']['input']>>;
+  readonly isPausable_in?: InputMaybe<
+    ReadonlyArray<Scalars['Boolean']['input']>
+  >;
   readonly isPausable_not?: InputMaybe<Scalars['Boolean']['input']>;
-  readonly isPausable_not_in?: InputMaybe<ReadonlyArray<Scalars['Boolean']['input']>>;
+  readonly isPausable_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['Boolean']['input']>
+  >;
   readonly isProxy?: InputMaybe<Scalars['Boolean']['input']>;
   readonly isProxy_in?: InputMaybe<ReadonlyArray<Scalars['Boolean']['input']>>;
   readonly isProxy_not?: InputMaybe<Scalars['Boolean']['input']>;
-  readonly isProxy_not_in?: InputMaybe<ReadonlyArray<Scalars['Boolean']['input']>>;
+  readonly isProxy_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['Boolean']['input']>
+  >;
   readonly lastTransferTimestamp?: InputMaybe<Scalars['BigInt']['input']>;
   readonly lastTransferTimestamp_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly lastTransferTimestamp_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly lastTransferTimestamp_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly lastTransferTimestamp_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly lastTransferTimestamp_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly lastTransferTimestamp_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly lastTransferTimestamp_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly lastTransferTimestamp_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly lastTransferTimestamp_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly mintCount?: InputMaybe<Scalars['BigInt']['input']>;
   readonly mintCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly mintCount_gte?: InputMaybe<Scalars['BigInt']['input']>;
@@ -1043,7 +1253,9 @@ export type Token_Filter = {
   readonly mintCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly mintCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly mintCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly mintCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly mintCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly name?: InputMaybe<Scalars['String']['input']>;
   readonly name_contains?: InputMaybe<Scalars['String']['input']>;
   readonly name_contains_nocase?: InputMaybe<Scalars['String']['input']>;
@@ -1080,35 +1292,51 @@ export type Token_Filter = {
   readonly symbol_not_contains_nocase?: InputMaybe<Scalars['String']['input']>;
   readonly symbol_not_ends_with?: InputMaybe<Scalars['String']['input']>;
   readonly symbol_not_ends_with_nocase?: InputMaybe<Scalars['String']['input']>;
-  readonly symbol_not_in?: InputMaybe<ReadonlyArray<Scalars['String']['input']>>;
+  readonly symbol_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['String']['input']>
+  >;
   readonly symbol_not_starts_with?: InputMaybe<Scalars['String']['input']>;
-  readonly symbol_not_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly symbol_not_starts_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly symbol_starts_with?: InputMaybe<Scalars['String']['input']>;
   readonly symbol_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
   readonly totalSupply?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalSupply_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalSupply_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly totalSupply_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly totalSupply_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly totalSupply_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalSupply_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalSupply_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly totalSupply_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly totalSupply_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly totalVolumeTransferred?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalVolumeTransferred_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalVolumeTransferred_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly totalVolumeTransferred_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly totalVolumeTransferred_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly totalVolumeTransferred_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalVolumeTransferred_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly totalVolumeTransferred_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly totalVolumeTransferred_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly totalVolumeTransferred_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly transferCount?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly transferCount_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly transferCount_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly transferCount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly transferCount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly transferCount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly transferCount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly transfers_?: InputMaybe<Transfer_Filter>;
 };
 
@@ -1166,46 +1394,70 @@ export type Transfer_Filter = {
   readonly amount_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly amount_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly amount_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly amount_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly amount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly and?: InputMaybe<ReadonlyArray<InputMaybe<Transfer_Filter>>>;
   readonly blockNumber?: InputMaybe<Scalars['BigInt']['input']>;
   readonly blockNumber_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly blockNumber_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly blockNumber_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly blockNumber_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly blockNumber_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly blockNumber_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly blockNumber_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly blockNumber_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly blockNumber_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly blockTimestamp?: InputMaybe<Scalars['BigInt']['input']>;
   readonly blockTimestamp_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly blockTimestamp_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly blockTimestamp_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly blockTimestamp_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly blockTimestamp_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly blockTimestamp_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly blockTimestamp_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly blockTimestamp_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly blockTimestamp_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly from?: InputMaybe<Scalars['Bytes']['input']>;
   readonly fromAccount?: InputMaybe<Scalars['String']['input']>;
   readonly fromAccount_?: InputMaybe<TokenAccount_Filter>;
   readonly fromAccount_contains?: InputMaybe<Scalars['String']['input']>;
   readonly fromAccount_contains_nocase?: InputMaybe<Scalars['String']['input']>;
   readonly fromAccount_ends_with?: InputMaybe<Scalars['String']['input']>;
-  readonly fromAccount_ends_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly fromAccount_ends_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly fromAccount_gt?: InputMaybe<Scalars['String']['input']>;
   readonly fromAccount_gte?: InputMaybe<Scalars['String']['input']>;
-  readonly fromAccount_in?: InputMaybe<ReadonlyArray<Scalars['String']['input']>>;
+  readonly fromAccount_in?: InputMaybe<
+    ReadonlyArray<Scalars['String']['input']>
+  >;
   readonly fromAccount_lt?: InputMaybe<Scalars['String']['input']>;
   readonly fromAccount_lte?: InputMaybe<Scalars['String']['input']>;
   readonly fromAccount_not?: InputMaybe<Scalars['String']['input']>;
   readonly fromAccount_not_contains?: InputMaybe<Scalars['String']['input']>;
-  readonly fromAccount_not_contains_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly fromAccount_not_contains_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly fromAccount_not_ends_with?: InputMaybe<Scalars['String']['input']>;
-  readonly fromAccount_not_ends_with_nocase?: InputMaybe<Scalars['String']['input']>;
-  readonly fromAccount_not_in?: InputMaybe<ReadonlyArray<Scalars['String']['input']>>;
+  readonly fromAccount_not_ends_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
+  readonly fromAccount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['String']['input']>
+  >;
   readonly fromAccount_not_starts_with?: InputMaybe<Scalars['String']['input']>;
-  readonly fromAccount_not_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly fromAccount_not_starts_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly fromAccount_starts_with?: InputMaybe<Scalars['String']['input']>;
-  readonly fromAccount_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly fromAccount_starts_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly from_contains?: InputMaybe<Scalars['Bytes']['input']>;
   readonly from_gt?: InputMaybe<Scalars['Bytes']['input']>;
   readonly from_gte?: InputMaybe<Scalars['Bytes']['input']>;
@@ -1228,11 +1480,15 @@ export type Transfer_Filter = {
   readonly isBurn?: InputMaybe<Scalars['Boolean']['input']>;
   readonly isBurn_in?: InputMaybe<ReadonlyArray<Scalars['Boolean']['input']>>;
   readonly isBurn_not?: InputMaybe<Scalars['Boolean']['input']>;
-  readonly isBurn_not_in?: InputMaybe<ReadonlyArray<Scalars['Boolean']['input']>>;
+  readonly isBurn_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['Boolean']['input']>
+  >;
   readonly isMint?: InputMaybe<Scalars['Boolean']['input']>;
   readonly isMint_in?: InputMaybe<ReadonlyArray<Scalars['Boolean']['input']>>;
   readonly isMint_not?: InputMaybe<Scalars['Boolean']['input']>;
-  readonly isMint_not_in?: InputMaybe<ReadonlyArray<Scalars['Boolean']['input']>>;
+  readonly isMint_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['Boolean']['input']>
+  >;
   readonly logIndex?: InputMaybe<Scalars['BigInt']['input']>;
   readonly logIndex_gt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly logIndex_gte?: InputMaybe<Scalars['BigInt']['input']>;
@@ -1240,7 +1496,9 @@ export type Transfer_Filter = {
   readonly logIndex_lt?: InputMaybe<Scalars['BigInt']['input']>;
   readonly logIndex_lte?: InputMaybe<Scalars['BigInt']['input']>;
   readonly logIndex_not?: InputMaybe<Scalars['BigInt']['input']>;
-  readonly logIndex_not_in?: InputMaybe<ReadonlyArray<Scalars['BigInt']['input']>>;
+  readonly logIndex_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['BigInt']['input']>
+  >;
   readonly or?: InputMaybe<ReadonlyArray<InputMaybe<Transfer_Filter>>>;
   readonly to?: InputMaybe<Scalars['Bytes']['input']>;
   readonly toAccount?: InputMaybe<Scalars['String']['input']>;
@@ -1256,14 +1514,24 @@ export type Transfer_Filter = {
   readonly toAccount_lte?: InputMaybe<Scalars['String']['input']>;
   readonly toAccount_not?: InputMaybe<Scalars['String']['input']>;
   readonly toAccount_not_contains?: InputMaybe<Scalars['String']['input']>;
-  readonly toAccount_not_contains_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly toAccount_not_contains_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly toAccount_not_ends_with?: InputMaybe<Scalars['String']['input']>;
-  readonly toAccount_not_ends_with_nocase?: InputMaybe<Scalars['String']['input']>;
-  readonly toAccount_not_in?: InputMaybe<ReadonlyArray<Scalars['String']['input']>>;
+  readonly toAccount_not_ends_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
+  readonly toAccount_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['String']['input']>
+  >;
   readonly toAccount_not_starts_with?: InputMaybe<Scalars['String']['input']>;
-  readonly toAccount_not_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly toAccount_not_starts_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly toAccount_starts_with?: InputMaybe<Scalars['String']['input']>;
-  readonly toAccount_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly toAccount_starts_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly to_contains?: InputMaybe<Scalars['Bytes']['input']>;
   readonly to_gt?: InputMaybe<Scalars['Bytes']['input']>;
   readonly to_gte?: InputMaybe<Scalars['Bytes']['input']>;
@@ -1291,19 +1559,25 @@ export type Transfer_Filter = {
   readonly token_not_ends_with_nocase?: InputMaybe<Scalars['String']['input']>;
   readonly token_not_in?: InputMaybe<ReadonlyArray<Scalars['String']['input']>>;
   readonly token_not_starts_with?: InputMaybe<Scalars['String']['input']>;
-  readonly token_not_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  readonly token_not_starts_with_nocase?: InputMaybe<
+    Scalars['String']['input']
+  >;
   readonly token_starts_with?: InputMaybe<Scalars['String']['input']>;
   readonly token_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
   readonly transactionHash?: InputMaybe<Scalars['Bytes']['input']>;
   readonly transactionHash_contains?: InputMaybe<Scalars['Bytes']['input']>;
   readonly transactionHash_gt?: InputMaybe<Scalars['Bytes']['input']>;
   readonly transactionHash_gte?: InputMaybe<Scalars['Bytes']['input']>;
-  readonly transactionHash_in?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
+  readonly transactionHash_in?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
   readonly transactionHash_lt?: InputMaybe<Scalars['Bytes']['input']>;
   readonly transactionHash_lte?: InputMaybe<Scalars['Bytes']['input']>;
   readonly transactionHash_not?: InputMaybe<Scalars['Bytes']['input']>;
   readonly transactionHash_not_contains?: InputMaybe<Scalars['Bytes']['input']>;
-  readonly transactionHash_not_in?: InputMaybe<ReadonlyArray<Scalars['Bytes']['input']>>;
+  readonly transactionHash_not_in?: InputMaybe<
+    ReadonlyArray<Scalars['Bytes']['input']>
+  >;
 };
 
 export type Transfer_OrderBy =
@@ -1397,16 +1671,38 @@ export type GetTokenQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
-
-export type GetTokenQuery = { readonly __typename?: 'Query', readonly token: { readonly __typename?: 'Token', readonly id: string, readonly address: string, readonly symbol: string, readonly name: string, readonly decimals: number, readonly totalSupply: string, readonly holderCount: string } | null };
+export type GetTokenQuery = {
+  readonly __typename?: 'Query';
+  readonly token: {
+    readonly __typename?: 'Token';
+    readonly id: string;
+    readonly address: string;
+    readonly symbol: string;
+    readonly name: string;
+    readonly decimals: number;
+    readonly totalSupply: string;
+    readonly holderCount: string;
+  } | null;
+};
 
 export type GetTokensQueryVariables = Exact<{
   first?: InputMaybe<Scalars['Int']['input']>;
   skip?: InputMaybe<Scalars['Int']['input']>;
 }>;
 
-
-export type GetTokensQuery = { readonly __typename?: 'Query', readonly tokens: ReadonlyArray<{ readonly __typename?: 'Token', readonly id: string, readonly address: string, readonly symbol: string, readonly name: string, readonly decimals: number, readonly totalSupply: string, readonly holderCount: string }> };
+export type GetTokensQuery = {
+  readonly __typename?: 'Query';
+  readonly tokens: ReadonlyArray<{
+    readonly __typename?: 'Token';
+    readonly id: string;
+    readonly address: string;
+    readonly symbol: string;
+    readonly name: string;
+    readonly decimals: number;
+    readonly totalSupply: string;
+    readonly holderCount: string;
+  }>;
+};
 
 export type GetTransfersQueryVariables = Exact<{
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -1416,8 +1712,29 @@ export type GetTransfersQueryVariables = Exact<{
   where?: InputMaybe<Transfer_Filter>;
 }>;
 
-
-export type GetTransfersQuery = { readonly __typename?: 'Query', readonly transfers: ReadonlyArray<{ readonly __typename?: 'Transfer', readonly id: string, readonly from: string, readonly to: string, readonly amount: string, readonly isMint: boolean, readonly isBurn: boolean, readonly blockNumber: string, readonly blockTimestamp: string, readonly transactionHash: string, readonly logIndex: string, readonly token: { readonly __typename?: 'Token', readonly id: string, readonly symbol: string, readonly name: string, readonly decimals: number } }> };
+export type GetTransfersQuery = {
+  readonly __typename?: 'Query';
+  readonly transfers: ReadonlyArray<{
+    readonly __typename?: 'Transfer';
+    readonly id: string;
+    readonly from: string;
+    readonly to: string;
+    readonly amount: string;
+    readonly isMint: boolean;
+    readonly isBurn: boolean;
+    readonly blockNumber: string;
+    readonly blockTimestamp: string;
+    readonly transactionHash: string;
+    readonly logIndex: string;
+    readonly token: {
+      readonly __typename?: 'Token';
+      readonly id: string;
+      readonly symbol: string;
+      readonly name: string;
+      readonly decimals: number;
+    };
+  }>;
+};
 
 export type GetTransfersByTokenQueryVariables = Exact<{
   token: Scalars['String']['input'];
@@ -1425,8 +1742,29 @@ export type GetTransfersByTokenQueryVariables = Exact<{
   skip?: InputMaybe<Scalars['Int']['input']>;
 }>;
 
-
-export type GetTransfersByTokenQuery = { readonly __typename?: 'Query', readonly transfers: ReadonlyArray<{ readonly __typename?: 'Transfer', readonly id: string, readonly from: string, readonly to: string, readonly amount: string, readonly isMint: boolean, readonly isBurn: boolean, readonly blockNumber: string, readonly blockTimestamp: string, readonly transactionHash: string, readonly logIndex: string, readonly token: { readonly __typename?: 'Token', readonly id: string, readonly symbol: string, readonly name: string, readonly decimals: number } }> };
+export type GetTransfersByTokenQuery = {
+  readonly __typename?: 'Query';
+  readonly transfers: ReadonlyArray<{
+    readonly __typename?: 'Transfer';
+    readonly id: string;
+    readonly from: string;
+    readonly to: string;
+    readonly amount: string;
+    readonly isMint: boolean;
+    readonly isBurn: boolean;
+    readonly blockNumber: string;
+    readonly blockTimestamp: string;
+    readonly transactionHash: string;
+    readonly logIndex: string;
+    readonly token: {
+      readonly __typename?: 'Token';
+      readonly id: string;
+      readonly symbol: string;
+      readonly name: string;
+      readonly decimals: number;
+    };
+  }>;
+};
 
 export type GetTransfersByAddressQueryVariables = Exact<{
   address: Scalars['Bytes']['input'];
@@ -1434,15 +1772,50 @@ export type GetTransfersByAddressQueryVariables = Exact<{
   skip?: InputMaybe<Scalars['Int']['input']>;
 }>;
 
-
-export type GetTransfersByAddressQuery = { readonly __typename?: 'Query', readonly transfers: ReadonlyArray<{ readonly __typename?: 'Transfer', readonly id: string, readonly from: string, readonly to: string, readonly amount: string, readonly isMint: boolean, readonly isBurn: boolean, readonly blockNumber: string, readonly blockTimestamp: string, readonly transactionHash: string, readonly logIndex: string, readonly token: { readonly __typename?: 'Token', readonly id: string, readonly symbol: string, readonly name: string, readonly decimals: number } }> };
+export type GetTransfersByAddressQuery = {
+  readonly __typename?: 'Query';
+  readonly transfers: ReadonlyArray<{
+    readonly __typename?: 'Transfer';
+    readonly id: string;
+    readonly from: string;
+    readonly to: string;
+    readonly amount: string;
+    readonly isMint: boolean;
+    readonly isBurn: boolean;
+    readonly blockNumber: string;
+    readonly blockTimestamp: string;
+    readonly transactionHash: string;
+    readonly logIndex: string;
+    readonly token: {
+      readonly __typename?: 'Token';
+      readonly id: string;
+      readonly symbol: string;
+      readonly name: string;
+      readonly decimals: number;
+    };
+  }>;
+};
 
 export type GetTokenAccountQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
-
-export type GetTokenAccountQuery = { readonly __typename?: 'Query', readonly tokenAccount: { readonly __typename?: 'TokenAccount', readonly id: string, readonly account: string, readonly balance: string, readonly token: { readonly __typename?: 'Token', readonly id: string, readonly symbol: string, readonly name: string, readonly decimals: number } } | null };
+export type GetTokenAccountQuery = {
+  readonly __typename?: 'Query';
+  readonly tokenAccount: {
+    readonly __typename?: 'TokenAccount';
+    readonly id: string;
+    readonly account: string;
+    readonly balance: string;
+    readonly token: {
+      readonly __typename?: 'Token';
+      readonly id: string;
+      readonly symbol: string;
+      readonly name: string;
+      readonly decimals: number;
+    };
+  } | null;
+};
 
 export type GetTokenAccountsByTokenQueryVariables = Exact<{
   token: Scalars['String']['input'];
@@ -1450,8 +1823,15 @@ export type GetTokenAccountsByTokenQueryVariables = Exact<{
   skip?: InputMaybe<Scalars['Int']['input']>;
 }>;
 
-
-export type GetTokenAccountsByTokenQuery = { readonly __typename?: 'Query', readonly tokenAccounts: ReadonlyArray<{ readonly __typename?: 'TokenAccount', readonly id: string, readonly account: string, readonly balance: string }> };
+export type GetTokenAccountsByTokenQuery = {
+  readonly __typename?: 'Query';
+  readonly tokenAccounts: ReadonlyArray<{
+    readonly __typename?: 'TokenAccount';
+    readonly id: string;
+    readonly account: string;
+    readonly balance: string;
+  }>;
+};
 
 export type GetTokenAccountsByAddressQueryVariables = Exact<{
   address: Scalars['Bytes']['input'];
@@ -1459,8 +1839,21 @@ export type GetTokenAccountsByAddressQueryVariables = Exact<{
   skip?: InputMaybe<Scalars['Int']['input']>;
 }>;
 
-
-export type GetTokenAccountsByAddressQuery = { readonly __typename?: 'Query', readonly tokenAccounts: ReadonlyArray<{ readonly __typename?: 'TokenAccount', readonly id: string, readonly balance: string, readonly token: { readonly __typename?: 'Token', readonly id: string, readonly symbol: string, readonly name: string, readonly decimals: number } }> };
+export type GetTokenAccountsByAddressQuery = {
+  readonly __typename?: 'Query';
+  readonly tokenAccounts: ReadonlyArray<{
+    readonly __typename?: 'TokenAccount';
+    readonly id: string;
+    readonly balance: string;
+    readonly token: {
+      readonly __typename?: 'Token';
+      readonly id: string;
+      readonly symbol: string;
+      readonly name: string;
+      readonly decimals: number;
+    };
+  }>;
+};
 
 export type GetDailySnapshotsQueryVariables = Exact<{
   token: Scalars['String']['input'];
@@ -1469,15 +1862,47 @@ export type GetDailySnapshotsQueryVariables = Exact<{
   first?: InputMaybe<Scalars['Int']['input']>;
 }>;
 
-
-export type GetDailySnapshotsQuery = { readonly __typename?: 'Query', readonly dailySnapshots: ReadonlyArray<{ readonly __typename?: 'DailySnapshot', readonly id: string, readonly date: string, readonly transferCount: string, readonly volumeTransferred: string, readonly uniqueSenders: string, readonly uniqueReceivers: string, readonly uniqueAddresses: string, readonly holderCount: string, readonly mintCount: string, readonly burnCount: string, readonly mintVolume: string, readonly burnVolume: string }> };
+export type GetDailySnapshotsQuery = {
+  readonly __typename?: 'Query';
+  readonly dailySnapshots: ReadonlyArray<{
+    readonly __typename?: 'DailySnapshot';
+    readonly id: string;
+    readonly date: string;
+    readonly transferCount: string;
+    readonly volumeTransferred: string;
+    readonly uniqueSenders: string;
+    readonly uniqueReceivers: string;
+    readonly uniqueAddresses: string;
+    readonly holderCount: string;
+    readonly mintCount: string;
+    readonly burnCount: string;
+    readonly mintVolume: string;
+    readonly burnVolume: string;
+  }>;
+};
 
 export type GetLatestDailySnapshotQueryVariables = Exact<{
   token: Scalars['String']['input'];
 }>;
 
-
-export type GetLatestDailySnapshotQuery = { readonly __typename?: 'Query', readonly dailySnapshots: ReadonlyArray<{ readonly __typename?: 'DailySnapshot', readonly id: string, readonly date: string, readonly transferCount: string, readonly volumeTransferred: string, readonly uniqueSenders: string, readonly uniqueReceivers: string, readonly uniqueAddresses: string, readonly holderCount: string, readonly mintCount: string, readonly burnCount: string, readonly mintVolume: string, readonly burnVolume: string }> };
+export type GetLatestDailySnapshotQuery = {
+  readonly __typename?: 'Query';
+  readonly dailySnapshots: ReadonlyArray<{
+    readonly __typename?: 'DailySnapshot';
+    readonly id: string;
+    readonly date: string;
+    readonly transferCount: string;
+    readonly volumeTransferred: string;
+    readonly uniqueSenders: string;
+    readonly uniqueReceivers: string;
+    readonly uniqueAddresses: string;
+    readonly holderCount: string;
+    readonly mintCount: string;
+    readonly burnCount: string;
+    readonly mintVolume: string;
+    readonly burnVolume: string;
+  }>;
+};
 
 export type GetHourlySnapshotsQueryVariables = Exact<{
   token: Scalars['String']['input'];
@@ -1486,24 +1911,66 @@ export type GetHourlySnapshotsQueryVariables = Exact<{
   first?: InputMaybe<Scalars['Int']['input']>;
 }>;
 
-
-export type GetHourlySnapshotsQuery = { readonly __typename?: 'Query', readonly hourlySnapshots: ReadonlyArray<{ readonly __typename?: 'HourlySnapshot', readonly id: string, readonly hour: string, readonly transferCount: string, readonly volumeTransferred: string, readonly uniqueAddresses: string, readonly mintCount: string, readonly burnCount: string }> };
+export type GetHourlySnapshotsQuery = {
+  readonly __typename?: 'Query';
+  readonly hourlySnapshots: ReadonlyArray<{
+    readonly __typename?: 'HourlySnapshot';
+    readonly id: string;
+    readonly hour: string;
+    readonly transferCount: string;
+    readonly volumeTransferred: string;
+    readonly uniqueAddresses: string;
+    readonly mintCount: string;
+    readonly burnCount: string;
+  }>;
+};
 
 export type GetLatestHourlySnapshotQueryVariables = Exact<{
   token: Scalars['String']['input'];
 }>;
 
-
-export type GetLatestHourlySnapshotQuery = { readonly __typename?: 'Query', readonly hourlySnapshots: ReadonlyArray<{ readonly __typename?: 'HourlySnapshot', readonly id: string, readonly hour: string, readonly transferCount: string, readonly volumeTransferred: string, readonly uniqueAddresses: string, readonly mintCount: string, readonly burnCount: string }> };
+export type GetLatestHourlySnapshotQuery = {
+  readonly __typename?: 'Query';
+  readonly hourlySnapshots: ReadonlyArray<{
+    readonly __typename?: 'HourlySnapshot';
+    readonly id: string;
+    readonly hour: string;
+    readonly transferCount: string;
+    readonly volumeTransferred: string;
+    readonly uniqueAddresses: string;
+    readonly mintCount: string;
+    readonly burnCount: string;
+  }>;
+};
 
 export type GetTokenStatisticsQueryVariables = Exact<{
   tokenId: Scalars['ID']['input'];
   tokenAddress: Scalars['Bytes']['input'];
 }>;
 
-
-export type GetTokenStatisticsQuery = { readonly __typename?: 'Query', readonly token: { readonly __typename?: 'Token', readonly id: string, readonly symbol: string, readonly name: string, readonly totalSupply: string, readonly holderCount: string } | null, readonly dailySnapshots: ReadonlyArray<{ readonly __typename?: 'DailySnapshot', readonly id: string, readonly date: string, readonly transferCount: string, readonly mintCount: string, readonly burnCount: string, readonly uniqueAddresses: string, readonly mintVolume: string, readonly burnVolume: string, readonly holderCount: string }> };
-
+export type GetTokenStatisticsQuery = {
+  readonly __typename?: 'Query';
+  readonly token: {
+    readonly __typename?: 'Token';
+    readonly id: string;
+    readonly symbol: string;
+    readonly name: string;
+    readonly totalSupply: string;
+    readonly holderCount: string;
+  } | null;
+  readonly dailySnapshots: ReadonlyArray<{
+    readonly __typename?: 'DailySnapshot';
+    readonly id: string;
+    readonly date: string;
+    readonly transferCount: string;
+    readonly mintCount: string;
+    readonly burnCount: string;
+    readonly uniqueAddresses: string;
+    readonly mintVolume: string;
+    readonly burnVolume: string;
+    readonly holderCount: string;
+  }>;
+};
 
 export const GetTokenDocument = `
     query GetToken($id: ID!) {
@@ -1775,52 +2242,259 @@ export const GetTokenStatisticsDocument = `
 }
     `;
 
-export type SdkFunctionWrapper = <T>(action: (requestHeaders?:Record<string, string>) => Promise<T>, operationName: string, operationType?: string, variables?: any) => Promise<T>;
+export type SdkFunctionWrapper = <T>(
+  action: (requestHeaders?: Record<string, string>) => Promise<T>,
+  operationName: string,
+  operationType?: string,
+  variables?: any
+) => Promise<T>;
 
+const defaultWrapper: SdkFunctionWrapper = (
+  action,
+  _operationName,
+  _operationType,
+  _variables
+) => action();
 
-const defaultWrapper: SdkFunctionWrapper = (action, _operationName, _operationType, _variables) => action();
-
-export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = defaultWrapper) {
+export function getSdk(
+  client: GraphQLClient,
+  withWrapper: SdkFunctionWrapper = defaultWrapper
+) {
   return {
-    GetToken(variables: GetTokenQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetTokenQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetTokenQuery>({ document: GetTokenDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetToken', 'query', variables);
+    GetToken(
+      variables: GetTokenQueryVariables,
+      requestHeaders?: GraphQLClientRequestHeaders,
+      signal?: RequestInit['signal']
+    ): Promise<GetTokenQuery> {
+      return withWrapper(
+        wrappedRequestHeaders =>
+          client.request<GetTokenQuery>({
+            document: GetTokenDocument,
+            variables,
+            requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders },
+            signal,
+          }),
+        'GetToken',
+        'query',
+        variables
+      );
     },
-    GetTokens(variables?: GetTokensQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetTokensQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetTokensQuery>({ document: GetTokensDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetTokens', 'query', variables);
+    GetTokens(
+      variables?: GetTokensQueryVariables,
+      requestHeaders?: GraphQLClientRequestHeaders,
+      signal?: RequestInit['signal']
+    ): Promise<GetTokensQuery> {
+      return withWrapper(
+        wrappedRequestHeaders =>
+          client.request<GetTokensQuery>({
+            document: GetTokensDocument,
+            variables,
+            requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders },
+            signal,
+          }),
+        'GetTokens',
+        'query',
+        variables
+      );
     },
-    GetTransfers(variables?: GetTransfersQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetTransfersQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetTransfersQuery>({ document: GetTransfersDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetTransfers', 'query', variables);
+    GetTransfers(
+      variables?: GetTransfersQueryVariables,
+      requestHeaders?: GraphQLClientRequestHeaders,
+      signal?: RequestInit['signal']
+    ): Promise<GetTransfersQuery> {
+      return withWrapper(
+        wrappedRequestHeaders =>
+          client.request<GetTransfersQuery>({
+            document: GetTransfersDocument,
+            variables,
+            requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders },
+            signal,
+          }),
+        'GetTransfers',
+        'query',
+        variables
+      );
     },
-    GetTransfersByToken(variables: GetTransfersByTokenQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetTransfersByTokenQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetTransfersByTokenQuery>({ document: GetTransfersByTokenDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetTransfersByToken', 'query', variables);
+    GetTransfersByToken(
+      variables: GetTransfersByTokenQueryVariables,
+      requestHeaders?: GraphQLClientRequestHeaders,
+      signal?: RequestInit['signal']
+    ): Promise<GetTransfersByTokenQuery> {
+      return withWrapper(
+        wrappedRequestHeaders =>
+          client.request<GetTransfersByTokenQuery>({
+            document: GetTransfersByTokenDocument,
+            variables,
+            requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders },
+            signal,
+          }),
+        'GetTransfersByToken',
+        'query',
+        variables
+      );
     },
-    GetTransfersByAddress(variables: GetTransfersByAddressQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetTransfersByAddressQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetTransfersByAddressQuery>({ document: GetTransfersByAddressDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetTransfersByAddress', 'query', variables);
+    GetTransfersByAddress(
+      variables: GetTransfersByAddressQueryVariables,
+      requestHeaders?: GraphQLClientRequestHeaders,
+      signal?: RequestInit['signal']
+    ): Promise<GetTransfersByAddressQuery> {
+      return withWrapper(
+        wrappedRequestHeaders =>
+          client.request<GetTransfersByAddressQuery>({
+            document: GetTransfersByAddressDocument,
+            variables,
+            requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders },
+            signal,
+          }),
+        'GetTransfersByAddress',
+        'query',
+        variables
+      );
     },
-    GetTokenAccount(variables: GetTokenAccountQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetTokenAccountQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetTokenAccountQuery>({ document: GetTokenAccountDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetTokenAccount', 'query', variables);
+    GetTokenAccount(
+      variables: GetTokenAccountQueryVariables,
+      requestHeaders?: GraphQLClientRequestHeaders,
+      signal?: RequestInit['signal']
+    ): Promise<GetTokenAccountQuery> {
+      return withWrapper(
+        wrappedRequestHeaders =>
+          client.request<GetTokenAccountQuery>({
+            document: GetTokenAccountDocument,
+            variables,
+            requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders },
+            signal,
+          }),
+        'GetTokenAccount',
+        'query',
+        variables
+      );
     },
-    GetTokenAccountsByToken(variables: GetTokenAccountsByTokenQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetTokenAccountsByTokenQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetTokenAccountsByTokenQuery>({ document: GetTokenAccountsByTokenDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetTokenAccountsByToken', 'query', variables);
+    GetTokenAccountsByToken(
+      variables: GetTokenAccountsByTokenQueryVariables,
+      requestHeaders?: GraphQLClientRequestHeaders,
+      signal?: RequestInit['signal']
+    ): Promise<GetTokenAccountsByTokenQuery> {
+      return withWrapper(
+        wrappedRequestHeaders =>
+          client.request<GetTokenAccountsByTokenQuery>({
+            document: GetTokenAccountsByTokenDocument,
+            variables,
+            requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders },
+            signal,
+          }),
+        'GetTokenAccountsByToken',
+        'query',
+        variables
+      );
     },
-    GetTokenAccountsByAddress(variables: GetTokenAccountsByAddressQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetTokenAccountsByAddressQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetTokenAccountsByAddressQuery>({ document: GetTokenAccountsByAddressDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetTokenAccountsByAddress', 'query', variables);
+    GetTokenAccountsByAddress(
+      variables: GetTokenAccountsByAddressQueryVariables,
+      requestHeaders?: GraphQLClientRequestHeaders,
+      signal?: RequestInit['signal']
+    ): Promise<GetTokenAccountsByAddressQuery> {
+      return withWrapper(
+        wrappedRequestHeaders =>
+          client.request<GetTokenAccountsByAddressQuery>({
+            document: GetTokenAccountsByAddressDocument,
+            variables,
+            requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders },
+            signal,
+          }),
+        'GetTokenAccountsByAddress',
+        'query',
+        variables
+      );
     },
-    GetDailySnapshots(variables: GetDailySnapshotsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetDailySnapshotsQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetDailySnapshotsQuery>({ document: GetDailySnapshotsDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetDailySnapshots', 'query', variables);
+    GetDailySnapshots(
+      variables: GetDailySnapshotsQueryVariables,
+      requestHeaders?: GraphQLClientRequestHeaders,
+      signal?: RequestInit['signal']
+    ): Promise<GetDailySnapshotsQuery> {
+      return withWrapper(
+        wrappedRequestHeaders =>
+          client.request<GetDailySnapshotsQuery>({
+            document: GetDailySnapshotsDocument,
+            variables,
+            requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders },
+            signal,
+          }),
+        'GetDailySnapshots',
+        'query',
+        variables
+      );
     },
-    GetLatestDailySnapshot(variables: GetLatestDailySnapshotQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetLatestDailySnapshotQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetLatestDailySnapshotQuery>({ document: GetLatestDailySnapshotDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetLatestDailySnapshot', 'query', variables);
+    GetLatestDailySnapshot(
+      variables: GetLatestDailySnapshotQueryVariables,
+      requestHeaders?: GraphQLClientRequestHeaders,
+      signal?: RequestInit['signal']
+    ): Promise<GetLatestDailySnapshotQuery> {
+      return withWrapper(
+        wrappedRequestHeaders =>
+          client.request<GetLatestDailySnapshotQuery>({
+            document: GetLatestDailySnapshotDocument,
+            variables,
+            requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders },
+            signal,
+          }),
+        'GetLatestDailySnapshot',
+        'query',
+        variables
+      );
     },
-    GetHourlySnapshots(variables: GetHourlySnapshotsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetHourlySnapshotsQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetHourlySnapshotsQuery>({ document: GetHourlySnapshotsDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetHourlySnapshots', 'query', variables);
+    GetHourlySnapshots(
+      variables: GetHourlySnapshotsQueryVariables,
+      requestHeaders?: GraphQLClientRequestHeaders,
+      signal?: RequestInit['signal']
+    ): Promise<GetHourlySnapshotsQuery> {
+      return withWrapper(
+        wrappedRequestHeaders =>
+          client.request<GetHourlySnapshotsQuery>({
+            document: GetHourlySnapshotsDocument,
+            variables,
+            requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders },
+            signal,
+          }),
+        'GetHourlySnapshots',
+        'query',
+        variables
+      );
     },
-    GetLatestHourlySnapshot(variables: GetLatestHourlySnapshotQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetLatestHourlySnapshotQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetLatestHourlySnapshotQuery>({ document: GetLatestHourlySnapshotDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetLatestHourlySnapshot', 'query', variables);
+    GetLatestHourlySnapshot(
+      variables: GetLatestHourlySnapshotQueryVariables,
+      requestHeaders?: GraphQLClientRequestHeaders,
+      signal?: RequestInit['signal']
+    ): Promise<GetLatestHourlySnapshotQuery> {
+      return withWrapper(
+        wrappedRequestHeaders =>
+          client.request<GetLatestHourlySnapshotQuery>({
+            document: GetLatestHourlySnapshotDocument,
+            variables,
+            requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders },
+            signal,
+          }),
+        'GetLatestHourlySnapshot',
+        'query',
+        variables
+      );
     },
-    GetTokenStatistics(variables: GetTokenStatisticsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders, signal?: RequestInit['signal']): Promise<GetTokenStatisticsQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<GetTokenStatisticsQuery>({ document: GetTokenStatisticsDocument, variables, requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders }, signal }), 'GetTokenStatistics', 'query', variables);
-    }
+    GetTokenStatistics(
+      variables: GetTokenStatisticsQueryVariables,
+      requestHeaders?: GraphQLClientRequestHeaders,
+      signal?: RequestInit['signal']
+    ): Promise<GetTokenStatisticsQuery> {
+      return withWrapper(
+        wrappedRequestHeaders =>
+          client.request<GetTokenStatisticsQuery>({
+            document: GetTokenStatisticsDocument,
+            variables,
+            requestHeaders: { ...requestHeaders, ...wrappedRequestHeaders },
+            signal,
+          }),
+        'GetTokenStatistics',
+        'query',
+        variables
+      );
+    },
   };
 }
 export type Sdk = ReturnType<typeof getSdk>;

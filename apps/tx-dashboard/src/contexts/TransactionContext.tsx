@@ -568,38 +568,58 @@ export function TransactionProvider({ children }: TransactionProviderProps) {
             break;
 
           case 'connection':
-            console.log('[TransactionContext] Connection message received:', message.data);
+            console.log(
+              '[TransactionContext] Connection message received:',
+              message.data
+            );
             if (
               message.data &&
               typeof message.data === 'object' &&
               'stats' in message.data
             ) {
-              const stats = (message.data as { stats: Partial<TransactionStats> }).stats;
-              console.log('[TransactionContext] Dispatching stats from connection:', stats);
+              const stats = (
+                message.data as { stats: Partial<TransactionStats> }
+              ).stats;
+              console.log(
+                '[TransactionContext] Dispatching stats from connection:',
+                stats
+              );
               dispatch({
                 type: 'UPDATE_STATS',
                 payload: stats,
               });
             } else {
-              console.warn('[TransactionContext] Connection message has no stats');
+              console.warn(
+                '[TransactionContext] Connection message has no stats'
+              );
             }
             break;
 
           case 'stats_update':
-            console.log('[TransactionContext] Stats update message received:', message.data);
+            console.log(
+              '[TransactionContext] Stats update message received:',
+              message.data
+            );
             if (
               message.data &&
               typeof message.data === 'object' &&
               'stats' in message.data
             ) {
-              const stats = (message.data as { stats: Partial<TransactionStats> }).stats;
-              console.log('[TransactionContext] Dispatching stats from update:', stats);
+              const stats = (
+                message.data as { stats: Partial<TransactionStats> }
+              ).stats;
+              console.log(
+                '[TransactionContext] Dispatching stats from update:',
+                stats
+              );
               dispatch({
                 type: 'UPDATE_STATS',
                 payload: stats,
               });
             } else {
-              console.warn('[TransactionContext] Stats update message has no stats');
+              console.warn(
+                '[TransactionContext] Stats update message has no stats'
+              );
             }
             break;
 

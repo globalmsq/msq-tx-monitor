@@ -392,34 +392,28 @@ export class StatisticsService {
   }
 
   /**
-   * Get 24h stats (volume and transaction count) from Subgraph HourlySnapshots
-   * More efficient than calling volume and count separately
+   * Get 24h stats (volume and transaction count) from Subgraph DailySnapshots
+   * Note: Uses latest daily snapshot as proxy for 24h stats since hourly snapshots aren't available
    */
   private async getToken24hStats(
     tokenAddress: string
   ): Promise<{ volume: bigint; transactionCount: number }> {
     try {
-      const now = Math.floor(Date.now() / 1000);
-      const twentyFourHoursAgo = now - 24 * 60 * 60;
-
-      const snapshots = await this.subgraphClient.getHourlySnapshots(
-        tokenAddress.toLowerCase(),
-        twentyFourHoursAgo,
-        now,
-        24
+      // Since hourly snapshots don't exist in the Subgraph, use latest daily snapshot
+      const snapshots = await this.subgraphClient.getLatestDailySnapshot(
+        tokenAddress.toLowerCase()
       );
 
-      // Sum both volume and transaction count from hourly snapshots
-      const result = snapshots.reduce(
-        (acc, snapshot) => ({
-          volume: acc.volume + BigInt(snapshot.volumeTransferred || '0'),
-          transactionCount:
-            acc.transactionCount + parseInt(snapshot.transferCount || '0'),
-        }),
-        { volume: 0n, transactionCount: 0 }
-      );
+      if (snapshots.length === 0) {
+        logger.warn(`No daily snapshot found for ${tokenAddress}`);
+        return { volume: 0n, transactionCount: 0 };
+      }
 
-      return result;
+      const snapshot = snapshots[0];
+      const volume = BigInt(snapshot.volumeTransferred || '0');
+      const transactionCount = parseInt(snapshot.transferCount || '0');
+
+      return { volume, transactionCount };
     } catch (error) {
       logger.error(`Error getting 24h stats for ${tokenAddress}:`, error);
       return { volume: 0n, transactionCount: 0 };
